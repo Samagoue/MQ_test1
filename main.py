@@ -34,6 +34,7 @@ def print_banner():
     ║                                                                    ║
     ║        Processes IBM MQ CMDB data and generates:                   ║
     ║        • Hierarchical organization topology diagrams               ║
+    ║        • Application-focused connection diagrams                   ║
     ║        • Individual MQ manager connection diagrams                 ║
     ║        • JSON data with full organizational enrichment             ║
     ║                                                                    ║
@@ -55,10 +56,11 @@ REQUIRED INPUT FILES:
     input/app_to_qmgr.json            # Application to MQ manager mapping
 
 OUTPUT FILES:
-    output/mq_cmdb_processed.json     # Enriched data with hierarchy
-    output/mq_topology.dot            # GraphViz DOT file
-    output/mq_topology.pdf            # Hierarchical topology diagram
-    output/individual_diagrams/*.pdf  # Individual MQ manager diagrams
+    output/mq_cmdb_processed.json        # Enriched data with hierarchy
+    output/mq_topology.dot               # GraphViz DOT file (hierarchical)
+    output/mq_topology.pdf               # Hierarchical topology diagram
+    output/application_diagrams/*.pdf    # Application-focused diagrams
+    output/individual_diagrams/*.pdf     # Individual MQ manager diagrams
 
 DIRECTORY STRUCTURE:
     project_root/

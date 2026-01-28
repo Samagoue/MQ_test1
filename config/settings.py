@@ -1,7 +1,96 @@
 """Configuration settings for MQ CMDB automation system."""
 
 import os
+import random
 from pathlib import Path
+from typing import Dict, List
+
+
+def generate_department_colors(num_departments: int) -> List[Dict[str, str]]:
+    """
+    Generate random, distinct colors for departments.
+
+    Args:
+        num_departments: Number of department color schemes to generate
+
+    Returns:
+        List of color dictionaries for departments
+    """
+    # Base hues to ensure good distribution and distinction
+    base_hues = []
+    hue_step = 360 / num_departments
+
+    # Start at a random offset for variety
+    start_hue = random.randint(0, 360)
+
+    for i in range(num_departments):
+        hue = (start_hue + i * hue_step) % 360
+        base_hues.append(hue)
+
+    # Shuffle to avoid gradual progression
+    random.shuffle(base_hues)
+
+    color_schemes = []
+    for hue in base_hues:
+        # Generate color scheme with varying saturation and lightness
+        colors = {
+            'dept_bg': hsl_to_hex(hue, 0.45, 0.92),      # Light background
+            'dept_border': hsl_to_hex(hue, 0.65, 0.45),  # Darker border
+            'biz_bg': hsl_to_hex(hue, 0.40, 0.88),       # Slightly darker for nesting
+            'biz_border': hsl_to_hex(hue, 0.70, 0.40),   # Even darker border
+            'app_bg': hsl_to_hex(hue, 0.35, 0.85),       # More nested
+            'app_border': hsl_to_hex(hue, 0.75, 0.35),   # Darker border
+            'qm_bg': hsl_to_hex(hue, 0.40, 0.88),        # Same as biz
+            'qm_border': hsl_to_hex(hue, 0.75, 0.35),    # Darker
+            'qm_text': hsl_to_hex(hue, 0.80, 0.20)       # Dark text
+        }
+        color_schemes.append(colors)
+
+    return color_schemes
+
+
+def hsl_to_hex(h: float, s: float, l: float) -> str:
+    """
+    Convert HSL to hex color.
+
+    Args:
+        h: Hue (0-360)
+        s: Saturation (0-1)
+        l: Lightness (0-1)
+
+    Returns:
+        Hex color string (e.g., '#ff5733')
+    """
+    h = h / 360.0
+
+    def hue_to_rgb(p, q, t):
+        if t < 0:
+            t += 1
+        if t > 1:
+            t -= 1
+        if t < 1/6:
+            return p + (q - p) * 6 * t
+        if t < 1/2:
+            return q
+        if t < 2/3:
+            return p + (q - p) * (2/3 - t) * 6
+        return p
+
+    if s == 0:
+        r = g = b = l
+    else:
+        q = l * (1 + s) if l < 0.5 else l + s - l * s
+        p = 2 * l - q
+        r = hue_to_rgb(p, q, h + 1/3)
+        g = hue_to_rgb(p, q, h)
+        b = hue_to_rgb(p, q, h - 1/3)
+
+    return '#{:02x}{:02x}{:02x}'.format(
+        int(r * 255),
+        int(g * 255),
+        int(b * 255)
+    )
+
 
 class Config:
     """Central configuration for the MQ CMDB system."""

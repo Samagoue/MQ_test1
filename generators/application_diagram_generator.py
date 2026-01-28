@@ -229,7 +229,7 @@ class ApplicationDiagramGenerator:
            
             lines.extend([
                 f'    subgraph cluster_{org_id} {{',
-                f'        label="🏢 Organization: {org_name}"',
+                f'        label=<<b>🏢 Organization: {org_name}</b>>',
                 f'        style="filled,rounded"',
                 f'        fillcolor="{colors["org_bg"]}"',
                 f'        color="{colors["org_border"]}"',
@@ -244,7 +244,7 @@ class ApplicationDiagramGenerator:
                
                 lines.extend([
                     f'        subgraph cluster_Dep_{dept_id} {{',
-                    f'            label="🏬 Department: {dept_name}"',
+                    f'            label=<<b>🏬 Department: {dept_name}</b>>',
                     f'            style="filled,rounded"',
                     f'            fillcolor="{colors["dept_bg"]}"',
                     f'            color="{colors["dept_border"]}"',
@@ -258,7 +258,7 @@ class ApplicationDiagramGenerator:
                    
                     lines.extend([
                         f'            subgraph cluster_BO_{biz_id} {{',
-                        f'                label="👤 Biz_Ownr: {biz_ownr}"',
+                        f'                label=<<b>👤 Biz_Ownr: {biz_ownr}</b>>',
                         f'                style="filled,rounded"',
                         f'                fillcolor="{colors["biz_bg"]}"',
                         f'                color="{colors["biz_border"]}"',
@@ -282,7 +282,7 @@ class ApplicationDiagramGenerator:
                        
                         lines.extend([
                             f'                subgraph cluster_App_{app_id} {{',
-                            f'                    label="🧩 App: {app_name}"',
+                            f'                    label=<<b>🧩 App: {app_name}</b>>',
                             f'                    style="filled,rounded"',
                             f'                    fillcolor="{app_fillcolor}"',
                             f'                    color="{app_border}"',
@@ -354,7 +354,7 @@ class ApplicationDiagramGenerator:
 {indent}    color="{bordercolor}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="#000000"
-{indent}    label="🗄️ {mqmgr_name}\\nQLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}\\n⬅ In: {inbound_count} | Out: {outbound_count} ➡"
+{indent}    label=<<b>🗄️ {mqmgr_name}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/>⬅ In: {inbound_count} | Out: {outbound_count} ➡>
 {indent}]
 """
    

@@ -15,7 +15,7 @@ class HierarchicalGraphVizGenerator:
     def __init__(self, data: Dict, config):
         """
         Initialize with enriched hierarchical data.
-       
+
         Expected structure:
         {
             "Organization Name": {
@@ -36,6 +36,9 @@ class HierarchicalGraphVizGenerator:
         self.config = config
         self.all_connections = []
         self.mqmgr_lookup = {}
+
+        # Generate color mapping for departments
+        self.department_colors = self._generate_department_color_mapping()
    
     def generate(self) -> str:
         """Generate complete DOT content."""
@@ -81,6 +84,31 @@ class HierarchicalGraphVizGenerator:
         if sanitized and sanitized[0].isdigit():
             sanitized = '_' + sanitized
         return sanitized or 'node'
+
+    def _generate_department_color_mapping(self) -> Dict[str, Dict[str, str]]:
+        """Generate unique colors for each department across all organizations."""
+        from config.settings import generate_department_colors
+
+        # Collect all unique departments
+        all_departments = set()
+        for org_name, org_data in self.data.items():
+            departments = org_data.get('_departments', {})
+            for dept_name in departments.keys():
+                all_departments.add(dept_name)
+
+        # Generate color schemes
+        num_departments = len(all_departments)
+        if num_departments == 0:
+            return {}
+
+        color_schemes = generate_department_colors(num_departments)
+
+        # Map department names to colors
+        dept_to_color = {}
+        for dept_name, color_scheme in zip(sorted(all_departments), color_schemes):
+            dept_to_color[dept_name] = color_scheme
+
+        return dept_to_color
    
     def _generate_organizations(self) -> str:
         """Generate all organizations."""
@@ -126,7 +154,7 @@ class HierarchicalGraphVizGenerator:
             f"       {org_type.upper()} ORGANIZATION",
             f"    {'='*26} */",
             f"    subgraph cluster_{org_id} {{",
-            f'        label=<<b>{title}</b>>' if org_type == 'External' else f'        label="{title}"',
+            f'        label=<<b>{title}</b>>',
             f'        style="filled,rounded"',
             f'        fillcolor="{colors["org_bg"]}"',
             f'        color="{colors["org_border"]}"',
@@ -149,7 +177,9 @@ class HierarchicalGraphVizGenerator:
        
         # Generate departments
         for dept_name, biz_owners in sorted(departments.items()):
-            lines.append(self._generate_department(dept_name, biz_owners, colors, org_type))
+            # Use department-specific colors if available, otherwise use org colors
+            dept_colors = self.department_colors.get(dept_name, colors)
+            lines.append(self._generate_department(dept_name, biz_owners, dept_colors, org_type))
        
         lines.extend(["    }", ""])
         return "\n".join(lines)
@@ -161,7 +191,7 @@ class HierarchicalGraphVizGenerator:
         lines = [
             f"        /* {'Department: ' + dept_name} */",
             f'        subgraph cluster_Dep_{dept_id} {{',
-            f'            label="🏬 Department: {dept_name}"',
+            f'            label=<<b>🏬 Department: {dept_name}</b>>',
             f'            style="filled,rounded"',
             f'            fillcolor="{colors["dept_bg"]}"',
             f'            color="{colors["dept_border"]}"',
@@ -185,7 +215,7 @@ class HierarchicalGraphVizGenerator:
         lines = [
             f'            /* BIZ OWNER: {biz_ownr} */',
             f'            subgraph cluster_BO_{biz_id} {{',
-            f'                label="👤 Biz_Ownr: {biz_ownr}"',
+            f'                label=<<b>👤 Biz_Ownr: {biz_ownr}</b>>',
             f'                style="filled,rounded"',
             f'                fillcolor="{colors["biz_bg"]}"',
             f'                color="{colors["biz_border"]}"',
@@ -213,7 +243,7 @@ class HierarchicalGraphVizGenerator:
        
         lines = [
             f'                subgraph cluster_App_{app_id} {{',
-            f'                    label="🧩 App: {app_name}"',
+            f'                    label=<<b>🧩 App: {app_name}</b>>',
             f'                    style="filled,rounded"',
             f'                    fillcolor="{colors["app_bg"]}"',
             f'                    color="{colors["app_border"]}"',
@@ -255,7 +285,7 @@ class HierarchicalGraphVizGenerator:
         for target in outbound:
             self.all_connections.append({'from': mqmanager, 'to': target})
        
-        # Node definition - EXACT format
+        # Node definition with bold MQmanager name
         return f"""{indent}{qm_id} [
 {indent}    shape=cylinder
 {indent}    style="filled"
@@ -263,7 +293,7 @@ class HierarchicalGraphVizGenerator:
 {indent}    color="{colors['qm_border']}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="{colors['qm_text']}"
-{indent}    label="🗄️ {mqmanager}\\nQLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}\\n ⬅ Inbound: {inbound_count} | Outbound: {outbound_count} ➡"
+{indent}    label=<<b>🗄️ {mqmanager}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/> ⬅ Inbound: {inbound_count} | Outbound: {outbound_count} ➡>
 {indent}]
 """
    

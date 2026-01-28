@@ -53,8 +53,8 @@ class IndividualDiagramGenerator:
         fontcolor="{central['text']}"
         label=<
             <table border="0" cellborder="0" cellspacing="0" cellpadding="4">
-                <tr><td align="center"><b><font point-size='14'>🗄️ {mqmanager}</font></b></td></tr>
-                <tr><td align="center"><font point-size="10">Directorate: {directorate}</font></td></tr>
+                <tr><td align="center"><b><font point-size='16'>🗄️ {mqmanager}</font></b></td></tr>
+                <tr><td align="center"><font point-size="10"><b>Directorate: {directorate}</b></font></td></tr>
                 <tr><td><br/></td></tr>
                 <tr><td align="center"><b>Queue Statistics</b></td></tr>
                 <tr><td align="center"><font point-size="10">QLocal: {info.get('qlocal_count', 0)} | QRemote: {info.get('qremote_count', 0)} | QAlias: {info.get('qalias_count', 0)}</font></td></tr>
@@ -82,7 +82,7 @@ class IndividualDiagramGenerator:
             inbound_dir = self._find_directorate(inbound_mgr)
             lines.extend([
                 f"    {inbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{inbound['fill']}\" color=\"{inbound['border']}\" penwidth=1.5",
-                f"        label=<{inbound_mgr}<br/><font point-size='8'>{inbound_dir}</font>>]",
+                f"        label=<<b>{inbound_mgr}</b><br/><font point-size='8'>{inbound_dir}</font>>]",
                 f"    {inbound_id} -> {qm_id} [color=\"{inbound['arrow']}\" penwidth=2.0 label=\"sends to\"]"
             ])
        
@@ -104,7 +104,7 @@ class IndividualDiagramGenerator:
             outbound_dir = self._find_directorate(outbound_mgr)
             lines.extend([
                 f"    {outbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{outbound['fill']}\" color=\"{outbound['border']}\" penwidth=1.5",
-                f"        label=<{outbound_mgr}<br/><font point-size='8'>{outbound_dir}</font>>]",
+                f"        label=<<b>{outbound_mgr}</b><br/><font point-size='8'>{outbound_dir}</font>>]",
                 f"    {qm_id} -> {outbound_id} [color=\"{outbound['arrow']}\" penwidth=2.0 label=\"sends to\"]"
             ])
        

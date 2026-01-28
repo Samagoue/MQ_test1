@@ -8,6 +8,7 @@ from processors.mqmanager_processor import MQManagerProcessor
 from processors.hierarchy_mashup import HierarchyMashup
 from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
 from generators.application_diagram_generator import ApplicationDiagramGenerator
+from generators.graphviz_individual import IndividualDiagramGenerator
 
 class MQCMDBOrchestrator:
     """Orchestrate the complete MQ CMDB processing pipeline."""
@@ -24,29 +25,29 @@ class MQCMDBOrchestrator:
        
         try:
             # Load data
-            safe_print("\n[1/6] Loading MQ CMDB data...")
+            safe_print("\n[1/8] Loading MQ CMDB data...")
             raw_data = load_json(Config.INPUT_JSON)
             safe_print(f"✓ Loaded {len(raw_data)} records")
-           
+
             # Process relationships
-            safe_print("\n[2/6] Processing MQ Manager relationships...")
+            safe_print("\n[2/8] Processing MQ Manager relationships...")
             processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
             directorate_data = processor.process_assets()
             processor.print_stats()
-           
+
             # Convert to JSON
-            safe_print("\n[3/6] Converting to JSON structure...")
+            safe_print("\n[3/8] Converting to JSON structure...")
             json_output = processor.convert_to_json(directorate_data)
-           
+
             # Mashup with hierarchy
-            safe_print("\n[4/6] Enriching with organizational hierarchy...")
+            safe_print("\n[4/8] Enriching with organizational hierarchy...")
             mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON)
             enriched_data = mashup.enrich_data(json_output)
             save_json(enriched_data, Config.PROCESSED_JSON)
             safe_print(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
-           
+
             # Generate hierarchical topology
-            safe_print("\n[5/6] Generating hierarchical topology diagram...")
+            safe_print("\n[5/8] Generating hierarchical topology diagram...")
             gen = HierarchicalGraphVizGenerator(enriched_data, Config)
             gen.save_to_file(Config.TOPOLOGY_DOT)
            
@@ -57,7 +58,7 @@ class MQCMDBOrchestrator:
                 safe_print(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
            
             # Generate application diagrams
-            safe_print("\n[6/6] Generating application diagrams...")
+            safe_print("\n[6/8] Generating application diagrams...")
             app_diagrams_dir = Config.OUTPUT_DIR / "application_diagrams"
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
             count = app_gen.generate_all(app_diagrams_dir)
@@ -68,6 +69,19 @@ class MQCMDBOrchestrator:
                     safe_print(f"  → To generate PDFs: cd {app_diagrams_dir} && for f in *.dot; do dot -Tpdf $f -o ${{f%.dot}}.pdf; done")
             else:
                 safe_print("⚠ No application diagrams generated")
+
+            # Generate individual MQ manager diagrams
+            safe_print("\n[7/8] Generating individual MQ manager diagrams...")
+            individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
+            individual_gen = IndividualDiagramGenerator(directorate_data, Config)
+            individual_count = individual_gen.generate_all(individual_diagrams_dir)
+            if individual_count > 0:
+                safe_print(f"✓ Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
+                if not pdf_generated:
+                    safe_print("⚠ GraphViz required for PDF generation")
+                    safe_print(f"  → To generate PDFs: cd {individual_diagrams_dir} && for f in *.dot; do dot -Tpdf $f -o ${{f%.dot}}.pdf; done")
+            else:
+                safe_print("⚠ No individual diagrams generated")
            
             self._print_summary(enriched_data)
            

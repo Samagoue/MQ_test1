@@ -1,6 +1,25 @@
 """Data deduplication logic."""
 
 from typing import List, Dict
+from config.settings import Config
+
+
+def deduplicate_assets(data: List[Dict]) -> List[Dict]:
+    """
+    Convenience function for asset deduplication using default config.
+
+    Args:
+        data: List of asset records
+
+    Returns:
+        Deduplicated list of asset records
+    """
+    deduplicator = AssetDeduplicator(
+        asset_field=Config.DEDUP_ASSET_FIELD,
+        ignore_type=Config.DEDUP_IGNORE_TYPE
+    )
+    return deduplicator.deduplicate(data)
+
 
 class AssetDeduplicator:
     """Remove duplicate assets based on business rules."""

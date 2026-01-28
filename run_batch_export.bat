@@ -39,8 +39,8 @@ echo ======================================================================== > 
 echo Export started at %date% %time% >> %LOG_FILE%
 echo ======================================================================== >> %LOG_FILE%
 
-REM Run export
-python main.py --profile production --batch --format json 2>&1 >> %LOG_FILE%
+REM Run database export
+python db_export.py --profile production --batch 2>&1 >> %LOG_FILE%
 
 REM Check result
 if %ERRORLEVEL% NEQ 0 (
