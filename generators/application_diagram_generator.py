@@ -269,33 +269,68 @@ class ApplicationDiagramGenerator:
                     for app_name, mqmanagers in sorted(applications.items()):
                         is_focus_app = (is_focus_biz and app_name == focus_app)
                         app_id = self._sanitize_id(app_name)
-                       
-                        # Highlight focus application
-                        if is_focus_app:
-                            app_fillcolor = "#fffacd"  # Light yellow highlight
-                            app_border = "#ffa500"
-                            penwidth = "3"
+
+                        # Check if this is a gateway
+                        is_gateway = app_name.startswith("Gateway (")
+
+                        if is_gateway:
+                            # Extract gateway scope
+                            scope = app_name.replace("Gateway (", "").replace(")", "")
+
+                            # Use gateway-specific colors
+                            if scope == "Internal":
+                                gateway_colors = self.config.INTERNAL_GATEWAY_COLORS
+                            else:
+                                gateway_colors = self.config.EXTERNAL_GATEWAY_COLORS
+
+                            # Highlight focus gateway if applicable
+                            if is_focus_app:
+                                app_fillcolor = "#fffacd"  # Light yellow highlight
+                                app_border = "#ffa500"
+                                penwidth = "3"
+                            else:
+                                app_fillcolor = gateway_colors["gateway_bg"]
+                                app_border = gateway_colors["gateway_border"]
+                                penwidth = "2.5"
+
+                            lines.extend([
+                                f'                subgraph cluster_Gateway_{app_id} {{',
+                                f'                    label=<<b>🔀 Gateway: {scope}</b>>',
+                                f'                    style="filled,rounded"',
+                                f'                    fillcolor="{app_fillcolor}"',
+                                f'                    color="{app_border}"',
+                                f'                    penwidth={penwidth}',
+                                ''
+                            ])
                         else:
-                            app_fillcolor = colors["app_bg"]
-                            app_border = colors["app_border"]
-                            penwidth = "2"
+                            # Highlight focus application
+                            if is_focus_app:
+                                app_fillcolor = "#fffacd"  # Light yellow highlight
+                                app_border = "#ffa500"
+                                penwidth = "3"
+                            else:
+                                app_fillcolor = colors["app_bg"]
+                                app_border = colors["app_border"]
+                                penwidth = "2"
+
+                            lines.extend([
+                                f'                subgraph cluster_App_{app_id} {{',
+                                f'                    label=<<b>🧩 App: {app_name}</b>>',
+                                f'                    style="filled,rounded"',
+                                f'                    fillcolor="{app_fillcolor}"',
+                                f'                    color="{app_border}"',
+                                f'                    penwidth={penwidth}',
+                                ''
+                            ])
                        
-                        lines.extend([
-                            f'                subgraph cluster_App_{app_id} {{',
-                            f'                    label=<<b>🧩 App: {app_name}</b>>',
-                            f'                    style="filled,rounded"',
-                            f'                    fillcolor="{app_fillcolor}"',
-                            f'                    color="{app_border}"',
-                            f'                    penwidth={penwidth}',
-                            ''
-                        ])
-                       
+                        # Use gateway colors for MQ manager nodes if this is a gateway cluster
+                        node_colors = gateway_colors if is_gateway else colors
                         for mqmgr_name, mq_data in sorted(mqmanagers.items()):
                             lines.append(self._generate_mqmanager_node(
-                                mqmgr_name, mq_data, colors, is_focus_app,
+                                mqmgr_name, mq_data, node_colors, is_focus_app,
                                 "                    ", all_connections
                             ))
-                       
+
                         lines.extend(['                }', ''])
                    
                     lines.extend(['            }', ''])

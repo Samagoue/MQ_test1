@@ -238,25 +238,51 @@ class HierarchicalGraphVizGenerator:
         return "\n".join(lines)
    
     def _generate_application(self, app_name: str, mqmanagers: Dict, colors: Dict, org_type: str) -> str:
-        """Generate application cluster."""
+        """Generate application or gateway cluster."""
         app_id = self._sanitize_id(app_name)
-       
-        lines = [
-            f'                subgraph cluster_App_{app_id} {{',
-            f'                    label=<<b>🧩 App: {app_name}</b>>',
-            f'                    style="filled,rounded"',
-            f'                    fillcolor="{colors["app_bg"]}"',
-            f'                    color="{colors["app_border"]}"',
-            f'                    penwidth=2',
-            f'                    fontsize=16',
-            f'                    margin=15',
+
+        # Check if this is a gateway
+        is_gateway = app_name.startswith("Gateway (")
+        if is_gateway:
+            # Extract gateway scope (Internal or External)
+            scope = app_name.replace("Gateway (", "").replace(")", "")
+
+            # Use gateway-specific colors
+            if scope == "Internal":
+                gateway_colors = self.config.INTERNAL_GATEWAY_COLORS
+            else:
+                gateway_colors = self.config.EXTERNAL_GATEWAY_COLORS
+
+            lines = [
+                f'                subgraph cluster_Gateway_{app_id} {{',
+                f'                    label=<<b>🔀 Gateway: {scope}</b>>',
+                f'                    style="filled,rounded"',
+                f'                    fillcolor="{gateway_colors["gateway_bg"]}"',
+                f'                    color="{gateway_colors["gateway_border"]}"',
+                f'                    penwidth=2.5',
+                f'                    fontsize=16',
+                f'                    margin=15',
+            ]
+        else:
+            # Regular application cluster
+            lines = [
+                f'                subgraph cluster_App_{app_id} {{',
+                f'                    label=<<b>🧩 App: {app_name}</b>>',
+                f'                    style="filled,rounded"',
+                f'                    fillcolor="{colors["app_bg"]}"',
+                f'                    color="{colors["app_border"]}"',
+                f'                    penwidth=2',
+                f'                    fontsize=16',
+                f'                    margin=15',
             ""
         ]
-       
+
         # Generate MQ managers
+        # Use gateway colors for MQ manager nodes if this is a gateway cluster
+        node_colors = gateway_colors if is_gateway else colors
         for mqmgr, mq_data in sorted(mqmanagers.items()):
-            lines.append(self._generate_mqmanager_node(mqmgr, mq_data, colors, "                    "))
-       
+            lines.append(self._generate_mqmanager_node(mqmgr, mq_data, node_colors, "                    "))
+
         lines.extend(["                }", ""])
         return "\n".join(lines)
    

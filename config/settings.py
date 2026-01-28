@@ -116,6 +116,7 @@ class Config:
     # Hierarchy input files
     ORG_HIERARCHY_JSON = INPUT_DIR / "org_hierarchy.json"
     APP_TO_QMGR_JSON = INPUT_DIR / "app_to_qmgr.json"
+    GATEWAYS_JSON = INPUT_DIR / "gateways.json"
    
     # ==================== DATABASE ====================
     DEFAULT_PROFILE = "production"
@@ -191,7 +192,25 @@ class Config:
             'qm_text': '#145a32'
         }
     ]
-   
+
+    # Internal Gateway Colors (Orange/Amber - for inter-departmental gateways)
+    INTERNAL_GATEWAY_COLORS = {
+        'gateway_bg': '#fff3e0',      # Light orange background
+        'gateway_border': '#ff9800',  # Orange border
+        'qm_bg': '#ffe0b2',           # Slightly darker orange for MQ managers
+        'qm_border': '#f57c00',       # Dark orange border
+        'qm_text': '#e65100'          # Dark orange text
+    }
+
+    # External Gateway Colors (Teal/Cyan - for external organization gateways)
+    EXTERNAL_GATEWAY_COLORS = {
+        'gateway_bg': '#e0f7fa',      # Light teal background
+        'gateway_border': '#00bcd4',  # Cyan border
+        'qm_bg': '#b2ebf2',           # Slightly darker teal for MQ managers
+        'qm_border': '#0097a7',       # Dark cyan border
+        'qm_text': '#006064'          # Dark cyan text
+    }
+
     INDIVIDUAL_DIAGRAM_COLORS = {
         "central": {"fill": "#ffd700", "border": "#ff8c00", "text": "#000000"},
         "inbound": {"fill": "#d5f5e3", "border": "#82e0aa", "arrow": "#28a745"},
