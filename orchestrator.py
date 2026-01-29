@@ -10,6 +10,7 @@ from processors.mqmanager_processor import MQManagerProcessor
 from processors.hierarchy_mashup import HierarchyMashup
 from processors.change_detector import ChangeDetector, generate_html_report
 from analytics.gateway_analyzer import GatewayAnalyzer, generate_gateway_report_html
+from generators.doc_generator import EADocumentationGenerator
 from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
 from generators.application_diagram_generator import ApplicationDiagramGenerator
 from generators.graphviz_individual import IndividualDiagramGenerator
@@ -121,8 +122,22 @@ class MQCMDBOrchestrator:
             else:
                 safe_print("⚠ No individual diagrams generated")
 
+            # Smart Filtered Views
+            safe_print("\n[9/13] Generating smart filtered views...")
+            try:
+                from utils.smart_filter import generate_filtered_diagrams
+                filtered_dir = Config.OUTPUT_DIR / "filtered_views"
+                filtered_count = generate_filtered_diagrams(enriched_data, filtered_dir, Config)
+                if filtered_count > 0:
+                    safe_print(f"✓ Generated {filtered_count} filtered view diagrams in {filtered_dir}")
+                    safe_print("  Views: per-organization, gateways-only, internal/external gateways")
+                else:
+                    safe_print("⚠ No filtered views generated")
+            except Exception as e:
+                safe_print(f"⚠ Filtered view generation failed: {e}")
+
             # Gateway Analytics (if gateways exist)
-            safe_print("\n[9/10] Running gateway analytics...")
+            safe_print("\n[10/13] Running gateway analytics...")
             try:
                 analyzer = GatewayAnalyzer(enriched_data)
                 gateway_analytics = analyzer.analyze()
@@ -144,7 +159,7 @@ class MQCMDBOrchestrator:
                 safe_print(f"⚠ Gateway analytics failed: {e}")
 
             # Multi-Format Exports
-            safe_print("\n[10/11] Generating multi-format exports...")
+            safe_print("\n[11/13] Generating multi-format exports...")
             try:
                 # Export main topology to SVG and PNG
                 if Config.TOPOLOGY_DOT.exists():
@@ -168,8 +183,19 @@ class MQCMDBOrchestrator:
             except Exception as e:
                 safe_print(f"⚠ Multi-format export failed: {e}")
 
+            # EA Documentation Generation
+            safe_print("\n[12/13] Generating Enterprise Architecture documentation...")
+            try:
+                ea_doc_gen = EADocumentationGenerator(enriched_data)
+                confluence_doc = Config.OUTPUT_DIR / f"EA_Documentation_{timestamp}.txt"
+                ea_doc_gen.generate_confluence_markup(confluence_doc)
+                safe_print(f"✓ EA Documentation: {confluence_doc}")
+                safe_print("  → Import into Confluence using Insert → Markup")
+            except Exception as e:
+                safe_print(f"⚠ EA documentation generation failed: {e}")
+
             # Final Summary
-            safe_print("\n[11/11] Pipeline Summary")
+            safe_print("\n[13/13] Pipeline Summary")
             self._print_summary(enriched_data)
 
             safe_print("\n" + "=" * 70)
