@@ -410,8 +410,8 @@ class ApplicationDiagramGenerator:
 {indent}]
 """)
 
-        # Add note boxes for extra connections if present
-        if inbound_extra:
+        # Add note boxes for extra connections ONLY for focused MQ managers
+        if is_focus and inbound_extra:
             note_id = f"{qm_id}_inbound_extra"
             extra_list = '<br/>'.join([f"• {src}" for src in inbound_extra[:10]])
             if len(inbound_extra) > 10:
@@ -429,7 +429,7 @@ class ApplicationDiagramGenerator:
 {indent}{note_id} -> {qm_id} [style=dashed color="#999999" arrowhead=none]
 """)
 
-        if outbound_extra:
+        if is_focus and outbound_extra:
             note_id = f"{qm_id}_outbound_extra"
             extra_list = '<br/>'.join([f"• {tgt}" for tgt in outbound_extra[:10]])
             if len(outbound_extra) > 10:
