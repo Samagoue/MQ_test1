@@ -362,21 +362,14 @@ class ApplicationDiagramGenerator:
         inbound_extra = mq_data.get('inbound_extra', [])
         outbound_extra = mq_data.get('outbound_extra', [])
 
-        # Store all connections (both regular and extra) - will be filtered later
+        # Store connections
+        # Regular connections are always added
         for target in outbound:
             all_connections.append({
                 'from': mqmgr_name,
                 'to': target,
                 'is_focus_source': is_focus,
                 'type': 'outbound'
-            })
-
-        for target in outbound_extra:
-            all_connections.append({
-                'from': mqmgr_name,
-                'to': target,
-                'is_focus_source': is_focus,
-                'type': 'outbound_extra'
             })
 
         for source in inbound:
@@ -387,13 +380,25 @@ class ApplicationDiagramGenerator:
                 'type': 'inbound'
             })
 
-        for source in inbound_extra:
-            all_connections.append({
-                'from': source,
-                'to': mqmgr_name,
-                'is_focus_source': False,
-                'type': 'inbound_extra'
-            })
+        # For FOCUSED MQ managers: Don't add individual external connections
+        # (they're shown in note boxes instead)
+        # For non-focused: Add external connections normally
+        if not is_focus:
+            for target in outbound_extra:
+                all_connections.append({
+                    'from': mqmgr_name,
+                    'to': target,
+                    'is_focus_source': is_focus,
+                    'type': 'outbound_extra'
+                })
+
+            for source in inbound_extra:
+                all_connections.append({
+                    'from': source,
+                    'to': mqmgr_name,
+                    'is_focus_source': False,
+                    'type': 'inbound_extra'
+                })
 
         # Highlight focus MQ managers
         if is_focus:
