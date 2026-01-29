@@ -1,11 +1,15 @@
 """Main orchestrator for the complete MQ CMDB pipeline."""
 
 from pathlib import Path
+from datetime import datetime
 from config.settings import Config
 from utils.common import setup_utf8_output, safe_print
 from utils.file_io import load_json, save_json
+from utils.export_formats import export_directory_to_formats, generate_excel_inventory
 from processors.mqmanager_processor import MQManagerProcessor
 from processors.hierarchy_mashup import HierarchyMashup
+from processors.change_detector import ChangeDetector, generate_html_report
+from analytics.gateway_analyzer import GatewayAnalyzer, generate_gateway_report_html
 from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
 from generators.application_diagram_generator import ApplicationDiagramGenerator
 from generators.graphviz_individual import IndividualDiagramGenerator
@@ -46,8 +50,42 @@ class MQCMDBOrchestrator:
             save_json(enriched_data, Config.PROCESSED_JSON)
             safe_print(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
 
+            # Change Detection
+            safe_print("\n[5/9] Running change detection...")
+            baseline_file = Config.OUTPUT_DIR / "mq_cmdb_baseline.json"
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+            if baseline_file.exists():
+                try:
+                    baseline_data = load_json(baseline_file)
+                    detector = ChangeDetector()
+                    changes = detector.compare(enriched_data, baseline_data)
+
+                    # Get baseline timestamp from filename or use "previous"
+                    baseline_timestamp = baseline_file.stat().st_mtime
+                    baseline_time_str = datetime.fromtimestamp(baseline_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+                    # Generate HTML report
+                    report_file = Config.OUTPUT_DIR / f"change_report_{timestamp}.html"
+                    generate_html_report(changes, report_file, timestamp, baseline_time_str)
+
+                    safe_print(f"✓ Detected {changes['summary']['total_changes']} changes")
+                    safe_print(f"✓ Change report: {report_file}")
+
+                    # Save change data as JSON for programmatic access
+                    change_json = Config.OUTPUT_DIR / f"changes_{timestamp}.json"
+                    save_json(changes, change_json)
+                except Exception as e:
+                    safe_print(f"⚠ Change detection failed: {e}")
+            else:
+                safe_print("⚠ No baseline found - this will be the first baseline")
+
+            # Update baseline
+            save_json(enriched_data, baseline_file)
+            safe_print(f"✓ Baseline updated: {baseline_file}")
+
             # Generate hierarchical topology
-            safe_print("\n[5/8] Generating hierarchical topology diagram...")
+            safe_print("\n[6/9] Generating hierarchical topology diagram...")
             gen = HierarchicalGraphVizGenerator(enriched_data, Config)
             gen.save_to_file(Config.TOPOLOGY_DOT)
            
@@ -58,7 +96,7 @@ class MQCMDBOrchestrator:
                 safe_print(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
            
             # Generate application diagrams
-            safe_print("\n[6/8] Generating application diagrams...")
+            safe_print("\n[7/9] Generating application diagrams...")
             app_diagrams_dir = Config.OUTPUT_DIR / "application_diagrams"
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
             count = app_gen.generate_all(app_diagrams_dir)
@@ -71,7 +109,7 @@ class MQCMDBOrchestrator:
                 safe_print("⚠ No application diagrams generated")
 
             # Generate individual MQ manager diagrams
-            safe_print("\n[7/8] Generating individual MQ manager diagrams...")
+            safe_print("\n[8/9] Generating individual MQ manager diagrams...")
             individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
             individual_gen = IndividualDiagramGenerator(directorate_data, Config)
             individual_count = individual_gen.generate_all(individual_diagrams_dir)
@@ -82,9 +120,58 @@ class MQCMDBOrchestrator:
                     safe_print(f"  → To generate PDFs: cd {individual_diagrams_dir} && for f in *.dot; do dot -Tpdf $f -o ${{f%.dot}}.pdf; done")
             else:
                 safe_print("⚠ No individual diagrams generated")
-           
+
+            # Gateway Analytics (if gateways exist)
+            safe_print("\n[9/10] Running gateway analytics...")
+            try:
+                analyzer = GatewayAnalyzer(enriched_data)
+                gateway_analytics = analyzer.analyze()
+
+                if gateway_analytics['summary']['total_gateways'] > 0:
+                    # Generate gateway analytics report
+                    analytics_report = Config.OUTPUT_DIR / f"gateway_analytics_{timestamp}.html"
+                    generate_gateway_report_html(gateway_analytics, analytics_report)
+
+                    # Save analytics data as JSON
+                    analytics_json = Config.OUTPUT_DIR / f"gateway_analytics_{timestamp}.json"
+                    save_json(gateway_analytics, analytics_json)
+
+                    safe_print(f"✓ Gateway analytics: {gateway_analytics['summary']['total_gateways']} gateways analyzed")
+                    safe_print(f"✓ Report: {analytics_report}")
+                else:
+                    safe_print("⚠ No gateways found in data")
+            except Exception as e:
+                safe_print(f"⚠ Gateway analytics failed: {e}")
+
+            # Multi-Format Exports
+            safe_print("\n[10/11] Generating multi-format exports...")
+            try:
+                # Export main topology to SVG and PNG
+                if Config.TOPOLOGY_DOT.exists():
+                    from utils.export_formats import export_dot_to_svg, export_dot_to_png
+                    export_dot_to_svg(Config.TOPOLOGY_DOT)
+                    export_dot_to_png(Config.TOPOLOGY_DOT, dpi=200)
+
+                # Export all application diagrams
+                app_diagrams_dir = Config.OUTPUT_DIR / "application_diagrams"
+                if app_diagrams_dir.exists():
+                    export_directory_to_formats(app_diagrams_dir, formats=['svg'], dpi=150)
+
+                # Export all individual diagrams
+                if Config.INDIVIDUAL_DIAGRAMS_DIR.exists():
+                    export_directory_to_formats(Config.INDIVIDUAL_DIAGRAMS_DIR, formats=['svg'], dpi=150)
+
+                # Generate Excel inventory
+                excel_file = Config.OUTPUT_DIR / f"mqcmdb_inventory_{timestamp}.xlsx"
+                if generate_excel_inventory(enriched_data, excel_file):
+                    safe_print(f"✓ Excel inventory: {excel_file}")
+            except Exception as e:
+                safe_print(f"⚠ Multi-format export failed: {e}")
+
+            # Final Summary
+            safe_print("\n[11/11] Pipeline Summary")
             self._print_summary(enriched_data)
-           
+
             safe_print("\n" + "=" * 70)
             safe_print("✓ PIPELINE COMPLETED SUCCESSFULLY")
             safe_print("=" * 70)

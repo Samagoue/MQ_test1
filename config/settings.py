@@ -125,7 +125,20 @@ class Config:
     # ==================== EXPORT SETTINGS ====================
     DEFAULT_FORMAT = "json"
     LOG_RETENTION_DAYS = 7
-   
+
+    # Multi-Format Export Settings
+    EXPORT_SVG = True  # Export diagrams to SVG format
+    EXPORT_PNG = True  # Export diagrams to PNG format
+    PNG_DPI = 200      # Resolution for PNG exports
+    EXPORT_EXCEL = True  # Generate Excel inventory report
+
+    # Change Detection Settings
+    ENABLE_CHANGE_DETECTION = True  # Enable change detection and diff reports
+    CHANGE_THRESHOLD_PERCENT = 20   # Report queue count changes > this percentage
+
+    # Gateway Analytics Settings
+    ENABLE_GATEWAY_ANALYTICS = True  # Enable gateway analytics reports
+
     # Deduplication
     DEDUP_ASSET_FIELD = "asset"
     DEDUP_IGNORE_TYPE = "QCluster"

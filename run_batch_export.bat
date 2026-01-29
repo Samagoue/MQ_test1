@@ -65,13 +65,26 @@ python db_export.py --profile production --batch 2>&1 >> %LOG_FILE%
 
 REM Check result
 if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Script failed with code %ERRORLEVEL% >> %LOG_FILE%
+    echo ERROR: Database export failed with code %ERRORLEVEL% >> %LOG_FILE%
+    echo ERROR: Database export failed with code %ERRORLEVEL%
+    REM Uncomment to send email notification on failure
+    REM call :SendEmail "MQ CMDB Export Failed" "Database export failed. Check %LOG_FILE%"
+    goto :END
 )
 
 REM Run processing pipeline
 echo. >> %LOG_FILE%
 echo Running MQ processing pipeline... >> %LOG_FILE%
-python orchestrator.py --mode full 2>&1 >> %LOG_FILE%
+python orchestrator.py 2>&1 >> %LOG_FILE%
+
+REM Check pipeline result
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: Pipeline failed with code %ERRORLEVEL% >> %LOG_FILE%
+    echo ERROR: Pipeline failed with code %ERRORLEVEL%
+    REM Uncomment to send email notification on failure
+    REM call :SendEmail "MQ CMDB Pipeline Failed" "Pipeline processing failed. Check %LOG_FILE%"
+    goto :END
+)
 
 REM Log completion
 echo. >> %LOG_FILE%
@@ -82,3 +95,27 @@ echo ======================================================================== >>
 echo.
 echo ✓ Complete! Check %LOG_FILE%
 echo.
+echo Latest reports generated:
+dir /b /o-d output\*.html 2>nul | findstr /i "change_report gateway_analytics" | more +0
+echo.
+
+REM Uncomment to send success notification
+REM call :SendEmail "MQ CMDB Export Complete" "Processing completed successfully. Check %LOG_FILE%"
+
+:END
+exit /b %ERRORLEVEL%
+
+REM ========================================================================
+REM Email Notification Function (requires blat or similar email tool)
+REM Install blat from: https://www.blat.net/
+REM ========================================================================
+:SendEmail
+REM Usage: call :SendEmail "Subject" "Body"
+REM
+REM Example configuration:
+REM set SMTP_SERVER=smtp.yourcompany.com
+REM set SMTP_FROM=mqcmdb@yourcompany.com
+REM set SMTP_TO=ops-team@yourcompany.com
+REM
+REM blat - -to %SMTP_TO% -f %SMTP_FROM% -server %SMTP_SERVER% -subject "%~1" -body "%~2"
+exit /b 0
