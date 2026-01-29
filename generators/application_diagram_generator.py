@@ -351,8 +351,10 @@ class ApplicationDiagramGenerator:
         qalias = mq_data.get('qalias_count', 0)
         inbound = mq_data.get('inbound', [])
         outbound = mq_data.get('outbound', [])
-       
-        # Store connections (will be filtered later in _generate_connections_section)
+        inbound_extra = mq_data.get('inbound_extra', [])
+        outbound_extra = mq_data.get('outbound_extra', [])
+
+        # Store all connections (both regular and extra) - will be filtered later
         for target in outbound:
             all_connections.append({
                 'from': mqmgr_name,
@@ -360,7 +362,15 @@ class ApplicationDiagramGenerator:
                 'is_focus_source': is_focus,
                 'type': 'outbound'
             })
-       
+
+        for target in outbound_extra:
+            all_connections.append({
+                'from': mqmgr_name,
+                'to': target,
+                'is_focus_source': is_focus,
+                'type': 'outbound_extra'
+            })
+
         for source in inbound:
             all_connections.append({
                 'from': source,
@@ -368,12 +378,15 @@ class ApplicationDiagramGenerator:
                 'is_focus_source': False,
                 'type': 'inbound'
             })
-       
-        # For display counts: show actual connection counts (not filtered)
-        # This gives the full picture of this MQ manager's connectivity
-        inbound_count = len(inbound)
-        outbound_count = len(outbound)
-       
+
+        for source in inbound_extra:
+            all_connections.append({
+                'from': source,
+                'to': mqmgr_name,
+                'is_focus_source': False,
+                'type': 'inbound_extra'
+            })
+
         # Highlight focus MQ managers
         if is_focus:
             fillcolor = "#ffeb3b"
@@ -381,17 +394,60 @@ class ApplicationDiagramGenerator:
         else:
             fillcolor = colors['qm_bg']
             bordercolor = colors['qm_border']
-       
-        return f"""{indent}{qm_id} [
+
+        # Build node output
+        node_lines = []
+
+        # Main MQ manager node with breakdown
+        node_lines.append(f"""{indent}{qm_id} [
 {indent}    shape=cylinder
 {indent}    style="filled"
 {indent}    fillcolor="{fillcolor}"
 {indent}    color="{bordercolor}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="#000000"
-{indent}    label=<<b>🗄️ {mqmgr_name}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/>⬅ In: {inbound_count} | Out: {outbound_count} ➡>
+{indent}    label=<<b>🗄️ {mqmgr_name}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/>⬅ In: {len(inbound)}+{len(inbound_extra)} | Out: {len(outbound)}+{len(outbound_extra)} ➡>
 {indent}]
-"""
+""")
+
+        # Add note boxes for extra connections if present
+        if inbound_extra:
+            note_id = f"{qm_id}_inbound_extra"
+            extra_list = '<br/>'.join([f"• {src}" for src in inbound_extra[:10]])
+            if len(inbound_extra) > 10:
+                extra_list += f"<br/>... and {len(inbound_extra) - 10} more"
+
+            node_lines.append(f"""{indent}{note_id} [
+{indent}    shape=note
+{indent}    style="filled"
+{indent}    fillcolor="#fff3cd"
+{indent}    color="#ffc107"
+{indent}    penwidth=1.5
+{indent}    fontsize=9
+{indent}    label=<⬅ <b>External Inbound</b><br/>{extra_list}>
+{indent}]
+{indent}{note_id} -> {qm_id} [style=dashed color="#999999" arrowhead=none]
+""")
+
+        if outbound_extra:
+            note_id = f"{qm_id}_outbound_extra"
+            extra_list = '<br/>'.join([f"• {tgt}" for tgt in outbound_extra[:10]])
+            if len(outbound_extra) > 10:
+                extra_list += f"<br/>... and {len(outbound_extra) - 10} more"
+
+            node_lines.append(f"""{indent}{note_id} [
+{indent}    shape=note
+{indent}    style="filled"
+{indent}    fillcolor="#d1ecf1"
+{indent}    color="#17a2b8"
+{indent}    penwidth=1.5
+{indent}    fontsize=9
+{indent}    label=<➡ <b>External Outbound</b><br/>{extra_list}>
+{indent}]
+{indent}{qm_id} -> {note_id} [style=dashed color="#999999" arrowhead=none]
+""")
+
+        return ''.join(node_lines)
    
     def _generate_connections_section(self, connections: List, focus_org: str, focus_dept: str) -> str:
         """

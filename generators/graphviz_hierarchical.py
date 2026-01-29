@@ -295,8 +295,11 @@ class HierarchicalGraphVizGenerator:
         qalias = mq_data.get('qalias_count', 0)
         inbound = mq_data.get('inbound', [])
         outbound = mq_data.get('outbound', [])
-        inbound_count = len(inbound)
-        outbound_count = len(outbound)
+        inbound_extra = mq_data.get('inbound_extra', [])
+        outbound_extra = mq_data.get('outbound_extra', [])
+        # Include both regular and extra connections in counts
+        inbound_count = len(inbound) + len(inbound_extra)
+        outbound_count = len(outbound) + len(outbound_extra)
        
         # Store lookup info
         self.mqmgr_lookup[mqmanager] = {
@@ -307,21 +310,66 @@ class HierarchicalGraphVizGenerator:
             'Org_Type': mq_data.get('Org_Type', 'Internal')
         }
        
-        # Store connections
+        # Store all connections (both regular and extra)
         for target in outbound:
             self.all_connections.append({'from': mqmanager, 'to': target})
-       
-        # Node definition with bold MQmanager name
-        return f"""{indent}{qm_id} [
+        for target in outbound_extra:
+            self.all_connections.append({'from': mqmanager, 'to': target})
+
+        # Build node output
+        node_lines = []
+
+        # Main MQ manager node
+        node_lines.append(f"""{indent}{qm_id} [
 {indent}    shape=cylinder
 {indent}    style="filled"
 {indent}    fillcolor="{colors['qm_bg']}"
 {indent}    color="{colors['qm_border']}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="{colors['qm_text']}"
-{indent}    label=<<b>🗄️ {mqmanager}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/> ⬅ Inbound: {inbound_count} | Outbound: {outbound_count} ➡>
+{indent}    label=<<b>🗄️ {mqmanager}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/> ⬅ In: {len(inbound)}+{len(inbound_extra)} | Out: {len(outbound)}+{len(outbound_extra)} ➡>
 {indent}]
-"""
+""")
+
+        # Add note box for inbound_extra if present
+        if inbound_extra:
+            note_id = f"{qm_id}_inbound_extra"
+            extra_list = '<br/>'.join([f"• {src}" for src in inbound_extra[:10]])  # Limit to 10
+            if len(inbound_extra) > 10:
+                extra_list += f"<br/>... and {len(inbound_extra) - 10} more"
+
+            node_lines.append(f"""{indent}{note_id} [
+{indent}    shape=note
+{indent}    style="filled"
+{indent}    fillcolor="#fff3cd"
+{indent}    color="#ffc107"
+{indent}    penwidth=1.5
+{indent}    fontsize=9
+{indent}    label=<⬅ <b>External Inbound</b><br/>{extra_list}>
+{indent}]
+{indent}{note_id} -> {qm_id} [style=dashed color="#999999" arrowhead=none]
+""")
+
+        # Add note box for outbound_extra if present
+        if outbound_extra:
+            note_id = f"{qm_id}_outbound_extra"
+            extra_list = '<br/>'.join([f"• {tgt}" for tgt in outbound_extra[:10]])  # Limit to 10
+            if len(outbound_extra) > 10:
+                extra_list += f"<br/>... and {len(outbound_extra) - 10} more"
+
+            node_lines.append(f"""{indent}{note_id} [
+{indent}    shape=note
+{indent}    style="filled"
+{indent}    fillcolor="#d1ecf1"
+{indent}    color="#17a2b8"
+{indent}    penwidth=1.5
+{indent}    fontsize=9
+{indent}    label=<➡ <b>External Outbound</b><br/>{extra_list}>
+{indent}]
+{indent}{qm_id} -> {note_id} [style=dashed color="#999999" arrowhead=none]
+""")
+
+        return ''.join(node_lines)
    
     def _generate_connections(self) -> str:
         """Generate connections section."""
