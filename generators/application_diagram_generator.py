@@ -148,8 +148,16 @@ class ApplicationDiagramGenerator:
        
         # Generate hierarchy
         all_connections = []
+        self.external_notes = []  # Track external connection note boxes
         lines.append(self._generate_hierarchy(hierarchy_map, focus_org, focus_dept, focus_biz_ownr, app_name, all_connections))
-       
+
+        # Generate external connection note boxes (outside all clusters)
+        if self.external_notes:
+            lines.append("\n    /* External Connection Notes */")
+            for note in self.external_notes:
+                lines.append(note['box_def'])
+                lines.append(note['connection'])
+
         # Generate connections
         lines.append(self._generate_connections_section(all_connections, focus_org, focus_dept))
        
@@ -410,24 +418,28 @@ class ApplicationDiagramGenerator:
 {indent}]
 """)
 
-        # Add note boxes for extra connections ONLY for focused MQ managers
+        # Store external connection note boxes for focused MQ managers (render outside clusters)
         if is_focus and inbound_extra:
             note_id = f"{qm_id}_inbound_extra"
             extra_list = '<br/>'.join([f"• {src}" for src in inbound_extra[:10]])
             if len(inbound_extra) > 10:
                 extra_list += f"<br/>... and {len(inbound_extra) - 10} more"
 
-            node_lines.append(f"""{indent}{note_id} [
-{indent}    shape=note
-{indent}    style="filled"
-{indent}    fillcolor="#fff3cd"
-{indent}    color="#ffc107"
-{indent}    penwidth=1.5
-{indent}    fontsize=9
-{indent}    label=<⬅ <b>External Inbound</b><br/>{extra_list}>
-{indent}]
-{indent}{note_id} -> {qm_id} [style=dashed color="#999999" arrowhead=none]
-""")
+            # Store note box to render outside all clusters
+            box_def = f"""    {note_id} [
+        shape=note
+        style="filled"
+        fillcolor="#fff3cd"
+        color="#ffc107"
+        penwidth=1.5
+        fontsize=9
+        label=<⬅ <b>External Inbound</b><br/>{extra_list}>
+    ]"""
+
+            # Connection FROM note box TO the MQ manager
+            connection = f"    {note_id} -> {qm_id} [style=dashed color=\"#ffc107\" penwidth=2]"
+
+            self.external_notes.append({'box_def': box_def, 'connection': connection})
 
         if is_focus and outbound_extra:
             note_id = f"{qm_id}_outbound_extra"
@@ -435,17 +447,21 @@ class ApplicationDiagramGenerator:
             if len(outbound_extra) > 10:
                 extra_list += f"<br/>... and {len(outbound_extra) - 10} more"
 
-            node_lines.append(f"""{indent}{note_id} [
-{indent}    shape=note
-{indent}    style="filled"
-{indent}    fillcolor="#d1ecf1"
-{indent}    color="#17a2b8"
-{indent}    penwidth=1.5
-{indent}    fontsize=9
-{indent}    label=<➡ <b>External Outbound</b><br/>{extra_list}>
-{indent}]
-{indent}{qm_id} -> {note_id} [style=dashed color="#999999" arrowhead=none]
-""")
+            # Store note box to render outside all clusters
+            box_def = f"""    {note_id} [
+        shape=note
+        style="filled"
+        fillcolor="#d1ecf1"
+        color="#17a2b8"
+        penwidth=1.5
+        fontsize=9
+        label=<➡ <b>External Outbound</b><br/>{extra_list}>
+    ]"""
+
+            # Connection FROM the MQ manager TO note box
+            connection = f"    {qm_id} -> {note_id} [style=dashed color=\"#17a2b8\" penwidth=2]"
+
+            self.external_notes.append({'box_def': box_def, 'connection': connection})
 
         return ''.join(node_lines)
    
