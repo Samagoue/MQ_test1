@@ -126,6 +126,19 @@ class Config:
     DEFAULT_FORMAT = "json"
     LOG_RETENTION_DAYS = 7
 
+    # Output Cleanup Settings
+    ENABLE_OUTPUT_CLEANUP = True       # Enable automatic cleanup of old output files
+    OUTPUT_RETENTION_DAYS = 30         # Delete output files older than this many days
+    # File patterns to clean up (timestamped files only)
+    OUTPUT_CLEANUP_PATTERNS = [
+        "change_report_*.html",
+        "changes_*.json",
+        "gateway_analytics_*.html",
+        "gateway_analytics_*.json",
+        "mqcmdb_inventory_*.xlsx",
+        "EA_Documentation_*.txt"
+    ]
+
     # Multi-Format Export Settings
     EXPORT_SVG = True  # Export diagrams to SVG format
     EXPORT_PNG = True  # Export diagrams to PNG format

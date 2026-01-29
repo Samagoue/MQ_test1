@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime
 from config.settings import Config
 from utils.common import setup_utf8_output, safe_print
-from utils.file_io import load_json, save_json
+from utils.file_io import load_json, save_json, cleanup_output_directory
 from utils.export_formats import export_directory_to_formats, generate_excel_inventory
 from processors.mqmanager_processor import MQManagerProcessor
 from processors.hierarchy_mashup import HierarchyMashup
@@ -29,30 +29,50 @@ class MQCMDBOrchestrator:
         safe_print("=" * 70)
        
         try:
+            # Output cleanup (if enabled)
+            if Config.ENABLE_OUTPUT_CLEANUP:
+                safe_print("\n[0/13] Cleaning up old output files...")
+                cleanup_results = cleanup_output_directory(
+                    Config.OUTPUT_DIR,
+                    Config.OUTPUT_RETENTION_DAYS,
+                    Config.OUTPUT_CLEANUP_PATTERNS
+                )
+                if cleanup_results['total_deleted'] > 0:
+                    safe_print(f"✓ Cleaned up {cleanup_results['total_deleted']} old file(s) (>{Config.OUTPUT_RETENTION_DAYS} days)")
+                    for fname in cleanup_results['deleted_files'][:5]:  # Show first 5
+                        safe_print(f"  - {fname}")
+                    if len(cleanup_results['deleted_files']) > 5:
+                        safe_print(f"  ... and {len(cleanup_results['deleted_files']) - 5} more")
+                else:
+                    safe_print("✓ No old files to clean up")
+                if cleanup_results['errors']:
+                    for error in cleanup_results['errors']:
+                        safe_print(f"⚠ {error}")
+
             # Load data
-            safe_print("\n[1/8] Loading MQ CMDB data...")
+            safe_print("\n[1/13] Loading MQ CMDB data...")
             raw_data = load_json(Config.INPUT_JSON)
             safe_print(f"✓ Loaded {len(raw_data)} records")
 
             # Process relationships
-            safe_print("\n[2/8] Processing MQ Manager relationships...")
+            safe_print("\n[2/13] Processing MQ Manager relationships...")
             processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
             directorate_data = processor.process_assets()
             processor.print_stats()
 
             # Convert to JSON
-            safe_print("\n[3/8] Converting to JSON structure...")
+            safe_print("\n[3/13] Converting to JSON structure...")
             json_output = processor.convert_to_json(directorate_data)
 
             # Mashup with hierarchy
-            safe_print("\n[4/8] Enriching with organizational hierarchy...")
+            safe_print("\n[4/13] Enriching with organizational hierarchy...")
             mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON)
             enriched_data = mashup.enrich_data(json_output)
             save_json(enriched_data, Config.PROCESSED_JSON)
             safe_print(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
 
             # Change Detection
-            safe_print("\n[5/9] Running change detection...")
+            safe_print("\n[5/13] Running change detection...")
             baseline_file = Config.OUTPUT_DIR / "mq_cmdb_baseline.json"
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
@@ -86,7 +106,7 @@ class MQCMDBOrchestrator:
             safe_print(f"✓ Baseline updated: {baseline_file}")
 
             # Generate hierarchical topology
-            safe_print("\n[6/9] Generating hierarchical topology diagram...")
+            safe_print("\n[6/13] Generating hierarchical topology diagram...")
             gen = HierarchicalGraphVizGenerator(enriched_data, Config)
             gen.save_to_file(Config.TOPOLOGY_DOT)
            
@@ -97,7 +117,7 @@ class MQCMDBOrchestrator:
                 safe_print(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
            
             # Generate application diagrams
-            safe_print("\n[7/9] Generating application diagrams...")
+            safe_print("\n[7/13] Generating application diagrams...")
             app_diagrams_dir = Config.OUTPUT_DIR / "application_diagrams"
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
             count = app_gen.generate_all(app_diagrams_dir)
@@ -110,7 +130,7 @@ class MQCMDBOrchestrator:
                 safe_print("⚠ No application diagrams generated")
 
             # Generate individual MQ manager diagrams
-            safe_print("\n[8/9] Generating individual MQ manager diagrams...")
+            safe_print("\n[8/13] Generating individual MQ manager diagrams...")
             individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
             individual_gen = IndividualDiagramGenerator(directorate_data, Config)
             individual_count = individual_gen.generate_all(individual_diagrams_dir)
