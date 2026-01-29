@@ -331,8 +331,11 @@ class HierarchicalGraphVizGenerator:
 {indent}]
 """)
 
-        # Add note box for inbound_extra if present
-        if inbound_extra:
+        # Add note boxes for external connections ONLY for gateways
+        is_gateway = mq_data.get('IsGateway', False)
+
+        # Add note box for inbound_extra if present (gateways only)
+        if is_gateway and inbound_extra:
             note_id = f"{qm_id}_inbound_extra"
             extra_list = '<br/>'.join([f"• {src}" for src in inbound_extra[:10]])  # Limit to 10
             if len(inbound_extra) > 10:
@@ -350,8 +353,8 @@ class HierarchicalGraphVizGenerator:
 {indent}{note_id} -> {qm_id} [style=dashed color="#999999" arrowhead=none]
 """)
 
-        # Add note box for outbound_extra if present
-        if outbound_extra:
+        # Add note box for outbound_extra if present (gateways only)
+        if is_gateway and outbound_extra:
             note_id = f"{qm_id}_outbound_extra"
             extra_list = '<br/>'.join([f"• {tgt}" for tgt in outbound_extra[:10]])  # Limit to 10
             if len(outbound_extra) > 10:
