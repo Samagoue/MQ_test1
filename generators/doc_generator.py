@@ -39,6 +39,7 @@ class EADocumentationGenerator:
             'connections': {'internal': 0, 'cross_dept': 0, 'cross_org': 0},
             'queues': {'qlocal': 0, 'qremote': 0, 'qalias': 0, 'total': 0}
         }
+        seen_gateways = set()  # Track unique gateways to avoid duplicates
 
         for org_name, org_data in self.data.items():
             if not isinstance(org_data, dict) or '_departments' not in org_data:
@@ -68,8 +69,9 @@ class EADocumentationGenerator:
                                 'is_gateway': mqmgr_data.get('IsGateway', False)
                             }
 
-                            # Track gateways
-                            if mqmgr_data.get('IsGateway', False):
+                            # Track gateways (avoid duplicates)
+                            if mqmgr_data.get('IsGateway', False) and mqmgr_name not in seen_gateways:
+                                seen_gateways.add(mqmgr_name)
                                 stats['gateways'].append({
                                     'name': mqmgr_name,
                                     'scope': mqmgr_data.get('GatewayScope', ''),
