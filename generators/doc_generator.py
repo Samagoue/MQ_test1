@@ -314,14 +314,14 @@ class EADocumentationGenerator:
                 spof_count += 1
 
         if spof_count > 0:
-            doc.append("{color:red}h2. High Priority{color}\n")
+            doc.append("h2. {color:red}High Priority{color}\n")
             doc.append(f"# *Single Points of Failure:* {spof_count} gateway(s) identified without redundancy")
             doc.append(f"# *Recommendation:* Implement redundant gateway infrastructure for high-availability\n")
 
         # Connection complexity
         high_complexity = [mqmgr for mqmgr, score in self.integration_patterns['complexity_score'].items() if score > 15]
         if high_complexity:
-            doc.append("{color:orange}h2. Medium Priority{color}\n")
+            doc.append("h2. {color:orange}Medium Priority{color}\n")
             doc.append(f"# *Integration Complexity:* {len(high_complexity)} MQ manager(s) with >15 connections")
             doc.append(f"# *Recommendation:* Review integration patterns and consider simplification\n")
 
