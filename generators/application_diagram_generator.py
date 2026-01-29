@@ -351,8 +351,10 @@ class ApplicationDiagramGenerator:
         qalias = mq_data.get('qalias_count', 0)
         inbound = mq_data.get('inbound', [])
         outbound = mq_data.get('outbound', [])
-       
-        # Store connections (will be filtered later in _generate_connections_section)
+        inbound_extra = mq_data.get('inbound_extra', [])
+        outbound_extra = mq_data.get('outbound_extra', [])
+
+        # Store all connections (both regular and extra) - will be filtered later
         for target in outbound:
             all_connections.append({
                 'from': mqmgr_name,
@@ -360,7 +362,15 @@ class ApplicationDiagramGenerator:
                 'is_focus_source': is_focus,
                 'type': 'outbound'
             })
-       
+
+        for target in outbound_extra:
+            all_connections.append({
+                'from': mqmgr_name,
+                'to': target,
+                'is_focus_source': is_focus,
+                'type': 'outbound_extra'
+            })
+
         for source in inbound:
             all_connections.append({
                 'from': source,
@@ -368,11 +378,19 @@ class ApplicationDiagramGenerator:
                 'is_focus_source': False,
                 'type': 'inbound'
             })
-       
-        # For display counts: show actual connection counts (not filtered)
+
+        for source in inbound_extra:
+            all_connections.append({
+                'from': source,
+                'to': mqmgr_name,
+                'is_focus_source': False,
+                'type': 'inbound_extra'
+            })
+
+        # For display counts: show actual connection counts including extra
         # This gives the full picture of this MQ manager's connectivity
-        inbound_count = len(inbound)
-        outbound_count = len(outbound)
+        inbound_count = len(inbound) + len(inbound_extra)
+        outbound_count = len(outbound) + len(outbound_extra)
        
         # Highlight focus MQ managers
         if is_focus:

@@ -295,8 +295,11 @@ class HierarchicalGraphVizGenerator:
         qalias = mq_data.get('qalias_count', 0)
         inbound = mq_data.get('inbound', [])
         outbound = mq_data.get('outbound', [])
-        inbound_count = len(inbound)
-        outbound_count = len(outbound)
+        inbound_extra = mq_data.get('inbound_extra', [])
+        outbound_extra = mq_data.get('outbound_extra', [])
+        # Include both regular and extra connections in counts
+        inbound_count = len(inbound) + len(inbound_extra)
+        outbound_count = len(outbound) + len(outbound_extra)
        
         # Store lookup info
         self.mqmgr_lookup[mqmanager] = {
@@ -307,8 +310,10 @@ class HierarchicalGraphVizGenerator:
             'Org_Type': mq_data.get('Org_Type', 'Internal')
         }
        
-        # Store connections
+        # Store all connections (both regular and extra)
         for target in outbound:
+            self.all_connections.append({'from': mqmanager, 'to': target})
+        for target in outbound_extra:
             self.all_connections.append({'from': mqmanager, 'to': target})
        
         # Node definition with bold MQmanager name
