@@ -1,0 +1,13 @@
+# MQ CMDB Pipeline Dependencies
+
+# Database connectivity
+mysql-connector-python>=8.0.0
+
+# Excel export
+openpyxl>=3.0.0
+
+# Confluence publishing
+requests>=2.28.0
+
+# Cryptography for credential encryption
+cryptography>=3.4.0

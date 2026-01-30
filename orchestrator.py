@@ -11,6 +11,7 @@ from processors.hierarchy_mashup import HierarchyMashup
 from processors.change_detector import ChangeDetector, generate_html_report
 from analytics.gateway_analyzer import GatewayAnalyzer, generate_gateway_report_html
 from generators.doc_generator import EADocumentationGenerator
+from utils.confluence_publisher import publish_ea_documentation
 from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
 from generators.application_diagram_generator import ApplicationDiagramGenerator
 from generators.graphviz_individual import IndividualDiagramGenerator
@@ -31,7 +32,7 @@ class MQCMDBOrchestrator:
         try:
             # Output cleanup (if enabled)
             if Config.ENABLE_OUTPUT_CLEANUP:
-                safe_print("\n[0/13] Cleaning up old output files...")
+                safe_print("\n[0/14] Cleaning up old output files...")
                 cleanup_results = cleanup_output_directory(
                     Config.OUTPUT_DIR,
                     Config.OUTPUT_RETENTION_DAYS,
@@ -50,29 +51,29 @@ class MQCMDBOrchestrator:
                         safe_print(f"⚠ {error}")
 
             # Load data
-            safe_print("\n[1/13] Loading MQ CMDB data...")
+            safe_print("\n[1/14] Loading MQ CMDB data...")
             raw_data = load_json(Config.INPUT_JSON)
             safe_print(f"✓ Loaded {len(raw_data)} records")
 
             # Process relationships
-            safe_print("\n[2/13] Processing MQ Manager relationships...")
+            safe_print("\n[2/14] Processing MQ Manager relationships...")
             processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
             directorate_data = processor.process_assets()
             processor.print_stats()
 
             # Convert to JSON
-            safe_print("\n[3/13] Converting to JSON structure...")
+            safe_print("\n[3/14] Converting to JSON structure...")
             json_output = processor.convert_to_json(directorate_data)
 
             # Mashup with hierarchy
-            safe_print("\n[4/13] Enriching with organizational hierarchy...")
+            safe_print("\n[4/14] Enriching with organizational hierarchy...")
             mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON)
             enriched_data = mashup.enrich_data(json_output)
             save_json(enriched_data, Config.PROCESSED_JSON)
             safe_print(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
 
             # Change Detection
-            safe_print("\n[5/13] Running change detection...")
+            safe_print("\n[5/14] Running change detection...")
             baseline_file = Config.OUTPUT_DIR / "mq_cmdb_baseline.json"
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
@@ -106,7 +107,7 @@ class MQCMDBOrchestrator:
             safe_print(f"✓ Baseline updated: {baseline_file}")
 
             # Generate hierarchical topology
-            safe_print("\n[6/13] Generating hierarchical topology diagram...")
+            safe_print("\n[6/14] Generating hierarchical topology diagram...")
             gen = HierarchicalGraphVizGenerator(enriched_data, Config)
             gen.save_to_file(Config.TOPOLOGY_DOT)
            
@@ -117,7 +118,7 @@ class MQCMDBOrchestrator:
                 safe_print(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
            
             # Generate application diagrams
-            safe_print("\n[7/13] Generating application diagrams...")
+            safe_print("\n[7/14] Generating application diagrams...")
             app_diagrams_dir = Config.OUTPUT_DIR / "application_diagrams"
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
             count = app_gen.generate_all(app_diagrams_dir)
@@ -130,7 +131,7 @@ class MQCMDBOrchestrator:
                 safe_print("⚠ No application diagrams generated")
 
             # Generate individual MQ manager diagrams
-            safe_print("\n[8/13] Generating individual MQ manager diagrams...")
+            safe_print("\n[8/14] Generating individual MQ manager diagrams...")
             individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
             individual_gen = IndividualDiagramGenerator(directorate_data, Config)
             individual_count = individual_gen.generate_all(individual_diagrams_dir)
@@ -143,7 +144,7 @@ class MQCMDBOrchestrator:
                 safe_print("⚠ No individual diagrams generated")
 
             # Smart Filtered Views
-            safe_print("\n[9/13] Generating smart filtered views...")
+            safe_print("\n[9/14] Generating smart filtered views...")
             try:
                 from utils.smart_filter import generate_filtered_diagrams
                 filtered_dir = Config.OUTPUT_DIR / "filtered_views"
@@ -157,7 +158,7 @@ class MQCMDBOrchestrator:
                 safe_print(f"⚠ Filtered view generation failed: {e}")
 
             # Gateway Analytics (if gateways exist)
-            safe_print("\n[10/13] Running gateway analytics...")
+            safe_print("\n[10/14] Running gateway analytics...")
             try:
                 analyzer = GatewayAnalyzer(enriched_data)
                 gateway_analytics = analyzer.analyze()
@@ -179,7 +180,7 @@ class MQCMDBOrchestrator:
                 safe_print(f"⚠ Gateway analytics failed: {e}")
 
             # Multi-Format Exports
-            safe_print("\n[11/13] Generating multi-format exports...")
+            safe_print("\n[11/14] Generating multi-format exports...")
             try:
                 # Export main topology to SVG and PNG
                 if Config.TOPOLOGY_DOT.exists():
@@ -204,18 +205,43 @@ class MQCMDBOrchestrator:
                 safe_print(f"⚠ Multi-format export failed: {e}")
 
             # EA Documentation Generation
-            safe_print("\n[12/13] Generating Enterprise Architecture documentation...")
+            safe_print("\n[12/14] Generating Enterprise Architecture documentation...")
+            confluence_doc = None
             try:
                 ea_doc_gen = EADocumentationGenerator(enriched_data)
                 confluence_doc = Config.OUTPUT_DIR / f"EA_Documentation_{timestamp}.txt"
                 ea_doc_gen.generate_confluence_markup(confluence_doc)
                 safe_print(f"✓ EA Documentation: {confluence_doc}")
-                safe_print("  → Import into Confluence using Insert → Markup")
             except Exception as e:
                 safe_print(f"⚠ EA documentation generation failed: {e}")
 
+            # Confluence Publishing (if enabled)
+            safe_print("\n[13/14] Publishing to Confluence...")
+            if Config.CONFLUENCE_ENABLED and confluence_doc and confluence_doc.exists():
+                try:
+                    # Collect attachments
+                    attachments = []
+                    if Config.CONFLUENCE_ATTACH_PDF and Config.TOPOLOGY_PDF.exists():
+                        attachments.append(Config.TOPOLOGY_PDF)
+                    if Config.CONFLUENCE_ATTACH_EXCEL and excel_file.exists():
+                        attachments.append(excel_file)
+
+                    success, message = publish_ea_documentation(Config, confluence_doc, attachments)
+                    if success:
+                        safe_print(f"✓ Published to Confluence")
+                        safe_print(f"  {message}")
+                    else:
+                        safe_print(f"⚠ Confluence publishing failed: {message}")
+                except Exception as e:
+                    safe_print(f"⚠ Confluence publishing error: {e}")
+            else:
+                if not Config.CONFLUENCE_ENABLED:
+                    safe_print("⚠ Confluence publishing disabled (set CONFLUENCE_ENABLED=True to enable)")
+                else:
+                    safe_print("⚠ EA documentation not available for publishing")
+
             # Final Summary
-            safe_print("\n[13/13] Pipeline Summary")
+            safe_print("\n[14/14] Pipeline Summary")
             self._print_summary(enriched_data)
 
             safe_print("\n" + "=" * 70)

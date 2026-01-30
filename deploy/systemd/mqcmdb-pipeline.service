@@ -1,0 +1,28 @@
+[Unit]
+Description=MQ CMDB Automation Pipeline
+After=network.target
+
+[Service]
+Type=oneshot
+User=mqcmdb
+Group=mqcmdb
+WorkingDirectory=/opt/mqcmdb
+ExecStart=/opt/mqcmdb/deploy/run_pipeline.sh --quiet
+
+# Environment file for credentials (create this file with your credentials)
+EnvironmentFile=-/opt/mqcmdb/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mqcmdb-pipeline
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/mqcmdb/output /opt/mqcmdb/logs
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

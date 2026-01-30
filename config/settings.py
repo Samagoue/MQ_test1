@@ -152,6 +152,25 @@ class Config:
     # Gateway Analytics Settings
     ENABLE_GATEWAY_ANALYTICS = True  # Enable gateway analytics reports
 
+    # ==================== CONFLUENCE SETTINGS ====================
+    # Set CONFLUENCE_ENABLED = True to auto-publish to Confluence after pipeline runs
+    CONFLUENCE_ENABLED = False
+    CONFLUENCE_URL = ""              # e.g., "https://company.atlassian.net/wiki" or "https://confluence.company.com"
+    CONFLUENCE_SPACE_KEY = ""        # e.g., "MQCMDB"
+    CONFLUENCE_PAGE_TITLE = "MQ CMDB - Enterprise Architecture Documentation"
+    CONFLUENCE_PARENT_PAGE_ID = None  # Optional: ID of parent page to nest under
+
+    # Authentication (choose one method):
+    # Method 1: Basic Auth (Cloud uses email + API token, Server uses username + password)
+    CONFLUENCE_USERNAME = ""         # Email for Cloud, username for Server
+    CONFLUENCE_API_TOKEN = ""        # API token (Cloud) or password (Server)
+    # Method 2: Personal Access Token (Server/Data Center only)
+    CONFLUENCE_PAT = ""              # Personal Access Token
+
+    # Attachment settings
+    CONFLUENCE_ATTACH_PDF = True     # Attach main topology PDF
+    CONFLUENCE_ATTACH_EXCEL = True   # Attach Excel inventory
+
     # Deduplication
     DEDUP_ASSET_FIELD = "asset"
     DEDUP_IGNORE_TYPE = "QCluster"
