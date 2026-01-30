@@ -441,11 +441,8 @@ class EADocumentationGenerator:
 
     def _generate_document_header(self) -> List[str]:
         """Generate document control header."""
-        internal_gw = len([g for g in self.stats['gateways'] if g['scope'] == 'Internal'])
-        external_gw = len([g for g in self.stats['gateways'] if g['scope'] == 'External'])
-
         return [
-            "{panel:title=TOGAF Architecture Document|borderStyle=solid|borderColor=#003366|bgColor=#f0f5ff}",
+            "{panel:title=TOGAF Architecture Document|borderStyle=solid}",
             "h1. MQ Integration Architecture",
             "",
             "||Document Property||Value||",
@@ -455,94 +452,89 @@ class EADocumentationGenerator:
             "|*Scope*|IBM MQ Middleware Integration Topology|",
             "|*Classification*|Internal Use Only|",
             "|*Status*|Current State Architecture|",
-            "{panel}\n",
-            "{toc:minLevel=1|maxLevel=2|printable=true}\n",
-            "----\n"
+            "{panel}",
+            "",
+            "{toc}",
+            "",
+            "----",
+            ""
         ]
 
     def _generate_toc(self) -> List[str]:
         """Generate navigation panel."""
         return [
-            "{panel:title=Quick Navigation|bgColor=#e8f4ff}",
-            "* [#1. Architecture Vision]",
-            "* [#2. Stakeholder Analysis]",
-            "* [#3. Architecture Principles]",
-            "* [#4. Business Architecture]",
-            "* [#5. Data Architecture]",
-            "* [#6. Application Architecture]",
-            "* [#7. Technology Architecture]",
-            "* [#8. Integration Patterns]",
-            "* [#9. Gap Analysis]",
-            "* [#10. Risk Assessment]",
-            "* [#11. Architecture Roadmap]",
-            "* [#12. Appendices]",
-            "{panel}\n"
+            "{panel:title=Quick Navigation}",
+            "* [1. Architecture Vision|#architecture-vision]",
+            "* [2. Stakeholder Analysis|#stakeholder-analysis]",
+            "* [3. Architecture Principles|#architecture-principles]",
+            "* [4. Business Architecture|#business-architecture]",
+            "* [5. Data Architecture|#data-architecture]",
+            "* [6. Application Architecture|#application-architecture]",
+            "* [7. Technology Architecture|#technology-architecture]",
+            "* [8. Integration Patterns|#integration-patterns]",
+            "* [9. Gap Analysis|#gap-analysis]",
+            "* [10. Risk Assessment|#risk-assessment]",
+            "* [11. Architecture Roadmap|#architecture-roadmap]",
+            "* [12. Appendices|#appendices]",
+            "{panel}",
+            ""
         ]
 
     def _generate_architecture_vision(self) -> List[str]:
         """Generate Architecture Vision section."""
         internal_gw = len([g for g in self.stats['gateways'] if g['scope'] == 'Internal'])
         external_gw = len([g for g in self.stats['gateways'] if g['scope'] == 'External'])
-        total_connections = sum(self.stats['connections'].values())
+        internal_orgs = len([o for o, d in self.stats['organizations'].items() if d['type'] == 'Internal'])
+        external_orgs = len([o for o, d in self.stats['organizations'].items() if d['type'] == 'External'])
 
         return [
-            "{anchor:1. Architecture Vision}",
-            "h1. 1. Architecture Vision\n",
-            "h2. 1.1 Executive Summary\n",
+            "{anchor:architecture-vision}",
+            "h1. 1. Architecture Vision",
+            "",
+            "h2. 1.1 Executive Summary",
+            "",
             "{info:title=Architecture Overview}",
-            "This document describes the current-state Enterprise Architecture for the MQ-based ",
-            "integration infrastructure. It follows the TOGAF Architecture Content Framework to provide ",
-            "a comprehensive view across business, data, application, and technology domains.",
-            "{info}\n",
-            "h2. 1.2 Key Metrics Dashboard\n",
-            "{section}",
-            "{column:width=25%}",
-            "{panel:title=Organizations|bgColor=#e3f2fd}",
-            f"h2. {len(self.stats['organizations'])}",
-            f"_{len([o for o, d in self.stats['organizations'].items() if d['type'] == 'Internal'])} Internal, {len([o for o, d in self.stats['organizations'].items() if d['type'] == 'External'])} External_",
-            "{panel}",
-            "{column}",
-            "{column:width=25%}",
-            "{panel:title=Applications|bgColor=#e8f5e9}",
-            f"h2. {len(self.stats['applications'])}",
-            "_Integrated via MQ_",
-            "{panel}",
-            "{column}",
-            "{column:width=25%}",
-            "{panel:title=MQ Managers|bgColor=#fff3e0}",
-            f"h2. {len(self.stats['mqmanagers'])}",
-            f"_{internal_gw + external_gw} Gateways_",
-            "{panel}",
-            "{column}",
-            "{column:width=25%}",
-            "{panel:title=Message Queues|bgColor=#fce4ec}",
-            f"h2. {self.stats['queues']['total']:,}",
-            f"_Local: {self.stats['queues']['qlocal']:,}_",
-            "{panel}",
-            "{column}",
-            "{section}\n",
-            "h2. 1.3 Scope & Boundaries\n",
+            "This document describes the current-state Enterprise Architecture for the MQ-based integration infrastructure. It follows the TOGAF Architecture Content Framework to provide a comprehensive view across business, data, application, and technology domains.",
+            "{info}",
+            "",
+            "h2. 1.2 Key Metrics Dashboard",
+            "",
+            "||Metric||Value||Details||",
+            f"|*Organizations*|{len(self.stats['organizations'])}|{internal_orgs} Internal, {external_orgs} External|",
+            f"|*Applications*|{len(self.stats['applications'])}|Integrated via MQ|",
+            f"|*MQ Managers*|{len(self.stats['mqmanagers'])}|{internal_gw + external_gw} Gateways|",
+            f"|*Message Queues*|{self.stats['queues']['total']:,}|Local: {self.stats['queues']['qlocal']:,}, Remote: {self.stats['queues']['qremote']:,}, Alias: {self.stats['queues']['qalias']:,}|",
+            f"|*Departments*|{len(self.stats['departments'])}|Across all organizations|",
+            f"|*Business Owners*|{len(self.stats['biz_owners'])}|Application stakeholders|",
+            "",
+            "h2. 1.3 Scope and Boundaries",
+            "",
             "||Aspect||In Scope||Out of Scope||",
             "|*Technology*|IBM MQ Queue Managers, Queues, Channels|MQ Client applications, JMS implementations|",
             "|*Integration*|Message-based integrations, Gateway patterns|API integrations, File transfers|",
             "|*Organizations*|All entities with MQ infrastructure|Non-MQ integration patterns|",
             "|*Lifecycle*|Current state architecture|Future state design (see Roadmap)|",
-            "\n",
-            "h2. 1.4 Architecture Goals\n",
+            "",
+            "h2. 1.4 Architecture Goals",
+            "",
             "# *Reliability* - Ensure message delivery guarantees across all integration paths",
             "# *Scalability* - Support growing message volumes and new integrations",
             "# *Security* - Protect message content and control access to queues",
             "# *Maintainability* - Enable efficient operations and change management",
-            "# *Visibility* - Provide clear documentation and monitoring capabilities\n",
-            "----\n"
+            "# *Visibility* - Provide clear documentation and monitoring capabilities",
+            "",
+            "----",
+            ""
         ]
 
     def _generate_stakeholder_analysis(self) -> List[str]:
         """Generate Stakeholder Analysis section."""
         lines = [
-            "{anchor:2. Stakeholder Analysis}",
-            "h1. 2. Stakeholder Analysis\n",
-            "h2. 2.1 Stakeholder Map\n",
+            "{anchor:stakeholder-analysis}",
+            "h1. 2. Stakeholder Analysis",
+            "",
+            "h2. 2.1 Stakeholder Map",
+            "",
             "||Stakeholder Group||Concerns||Architecture Views||",
             "|*Executive Leadership*|Business continuity, Cost efficiency|Architecture Vision, Risk Assessment|",
             "|*Enterprise Architects*|Standards compliance, Integration patterns|All sections|",
@@ -551,8 +543,9 @@ class EADocumentationGenerator:
             "|*Development Teams*|Queue configurations, Message formats|Application Architecture, Integration Patterns|",
             "|*Security Team*|Access control, Data protection|Technology Architecture, Risk Assessment|",
             "|*Business Owners*|Application availability, SLAs|Business Architecture|",
-            "\n",
-            "h2. 2.2 Business Owner Distribution\n",
+            "",
+            "h2. 2.2 Business Owner Distribution",
+            "",
             "||Business Owner||Department||Applications||MQ Managers||",
         ]
 
@@ -569,19 +562,22 @@ class EADocumentationGenerator:
             if biz_ownr != 'Unknown':
                 lines.append(f"|{biz_ownr}|{stats['dept']}|{len(stats['apps'])}|{stats['mqmgrs']}|")
 
-        lines.extend(["\n", "----\n"])
+        lines.extend(["", "----", ""])
         return lines
 
     def _generate_architecture_principles(self) -> List[str]:
         """Generate Architecture Principles section."""
         return [
-            "{anchor:3. Architecture Principles}",
-            "h1. 3. Architecture Principles\n",
+            "{anchor:architecture-principles}",
+            "h1. 3. Architecture Principles",
+            "",
             "{note:title=TOGAF Reference}",
             "Architecture Principles define the underlying general rules and guidelines for the use and deployment of IT resources.",
-            "{note}\n",
-            "h2. 3.1 Integration Principles\n",
-            "{panel:title=PRIN-01: Gateway-Mediated Integration|borderStyle=dashed}",
+            "{note}",
+            "",
+            "h2. 3.1 Integration Principles",
+            "",
+            "{panel:title=PRIN-01: Gateway-Mediated Integration}",
             "*Statement:* All cross-organizational and cross-departmental integrations SHOULD be mediated through designated gateway MQ managers.",
             "",
             "*Rationale:* Centralized integration points provide better control, monitoring, and security enforcement.",
@@ -590,8 +586,9 @@ class EADocumentationGenerator:
             "* Gateway infrastructure must be highly available",
             "* All external connections must route through external gateways",
             "* Direct point-to-point connections should be reviewed for migration",
-            "{panel}\n",
-            "{panel:title=PRIN-02: Asynchronous Messaging|borderStyle=dashed}",
+            "{panel}",
+            "",
+            "{panel:title=PRIN-02: Asynchronous Messaging}",
             "*Statement:* Message-based integrations SHALL use asynchronous, guaranteed delivery patterns.",
             "",
             "*Rationale:* Asynchronous messaging provides loose coupling, resilience, and temporal decoupling between systems.",
@@ -600,9 +597,10 @@ class EADocumentationGenerator:
             "* Applications must handle message persistence",
             "* Dead letter queue handling must be implemented",
             "* Message ordering may require additional design consideration",
-            "{panel}\n",
-            "{panel:title=PRIN-03: Hierarchical Organization|borderStyle=dashed}",
-            "*Statement:* MQ infrastructure SHALL be organized following the organizational hierarchy: Organization → Department → Business Owner → Application.",
+            "{panel}",
+            "",
+            "{panel:title=PRIN-03: Hierarchical Organization}",
+            "*Statement:* MQ infrastructure SHALL be organized following the organizational hierarchy: Organization -> Department -> Business Owner -> Application.",
             "",
             "*Rationale:* Alignment with organizational structure enables clear ownership, governance, and change management.",
             "",
@@ -610,8 +608,9 @@ class EADocumentationGenerator:
             "* Naming conventions must reflect hierarchy",
             "* Access controls align with organizational boundaries",
             "* Capacity planning follows departmental structures",
-            "{panel}\n",
-            "{panel:title=PRIN-04: Separation of Concerns|borderStyle=dashed}",
+            "{panel}",
+            "",
+            "{panel:title=PRIN-04: Separation of Concerns}",
             "*Statement:* Internal and external integration gateways SHALL be separated.",
             "",
             "*Rationale:* Different security, compliance, and operational requirements apply to internal vs. external integrations.",
@@ -620,33 +619,40 @@ class EADocumentationGenerator:
             "* Separate gateway infrastructure for internal/external",
             "* Different security policies per gateway type",
             "* External gateways require additional hardening",
-            "{panel}\n",
-            "----\n"
+            "{panel}",
+            "",
+            "----",
+            ""
         ]
 
     def _generate_business_architecture(self) -> List[str]:
         """Generate Business Architecture section."""
         lines = [
-            "{anchor:4. Business Architecture}",
-            "h1. 4. Business Architecture\n",
-            "h2. 4.1 Business Capability Model\n",
+            "{anchor:business-architecture}",
+            "h1. 4. Business Architecture",
+            "",
+            "h2. 4.1 Business Capability Model",
+            "",
             "{info}",
             "The MQ infrastructure enables the following integration capabilities across the enterprise.",
-            "{info}\n",
+            "{info}",
+            "",
             "||Capability||Description||Current State||",
             f"|*Internal Messaging*|Intra-organizational message exchange|{self.capabilities['integration_capability']['internal_messaging']} MQ Managers|",
             f"|*Gateway Services*|Controlled integration points|{self.capabilities['integration_capability']['gateway_services']} Gateways|",
             f"|*External Connectivity*|Partner and external system integration|{self.capabilities['integration_capability']['external_connectivity']} External Gateways|",
             f"|*Message Routing*|Queue-based message distribution|{self.stats['queues']['qremote']:,} Remote Queues|",
             f"|*Message Transformation*|Alias and routing|{self.stats['queues']['qalias']:,} Alias Queues|",
-            "\n",
-            "h2. 4.2 Organizational Landscape\n",
+            "",
+            "h2. 4.2 Organizational Landscape",
+            "",
         ]
 
         for org_name, org_info in sorted(self.stats['organizations'].items()):
-            org_type_color = "green" if org_info['type'] == 'Internal' else "purple"
+            org_type_label = "(Internal)" if org_info['type'] == 'Internal' else "(External)"
             lines.extend([
-                f"h3. {org_name} {{color:{org_type_color}}}({org_info['type']}){{color}}\n",
+                f"h3. {org_name} {org_type_label}",
+                "",
                 "||Metric||Value||",
                 f"|Departments|{len(org_info['departments'])}|",
                 f"|Applications|{len(org_info['applications'])}|",
@@ -655,39 +661,45 @@ class EADocumentationGenerator:
             ])
 
         lines.extend([
-            "h2. 4.3 Department Capability Matrix\n",
+            "h2. 4.3 Department Capability Matrix",
+            "",
             "||Department||Applications||MQ Managers||Total Queues||",
         ])
 
         for dept, info in sorted(self.capabilities['by_department'].items()):
             lines.append(f"|{dept}|{len(info['apps'])}|{info['mqmanagers']}|{info['queues']:,}|")
 
-        lines.extend(["\n", "----\n"])
+        lines.extend(["", "----", ""])
         return lines
 
     def _generate_data_architecture(self) -> List[str]:
         """Generate Data Architecture section."""
         lines = [
-            "{anchor:5. Data Architecture}",
-            "h1. 5. Data Architecture (Information Systems)\n",
-            "h2. 5.1 Message Flow Patterns\n",
+            "{anchor:data-architecture}",
+            "h1. 5. Data Architecture (Information Systems)",
+            "",
+            "h2. 5.1 Message Flow Patterns",
+            "",
             "{info}",
             "This section describes how data flows through the MQ infrastructure.",
-            "{info}\n",
+            "{info}",
+            "",
             "||Flow Type||Count||Description||",
             f"|*Internal Flows*|{self.stats['connections']['internal']}|Messages within same department|",
             f"|*Cross-Department*|{self.stats['connections']['cross_dept']}|Messages between departments|",
             f"|*Cross-Organization*|{self.stats['connections']['cross_org']}|Messages between organizations|",
             f"|*External Flows*|{self.stats['connections']['external']}|Messages to/from external systems|",
-            "\n",
-            "h2. 5.2 Queue Distribution\n",
+            "",
+            "h2. 5.2 Queue Distribution",
+            "",
             "||Queue Type||Count||Purpose||",
             f"|*Local Queues (QLOCAL)*|{self.stats['queues']['qlocal']:,}|Message storage and processing|",
             f"|*Remote Queues (QREMOTE)*|{self.stats['queues']['qremote']:,}|Remote destination definitions|",
             f"|*Alias Queues (QALIAS)*|{self.stats['queues']['qalias']:,}|Queue abstraction and routing|",
             f"|*Total*|{self.stats['queues']['total']:,}| |",
-            "\n",
-            "h2. 5.3 Data Ownership\n",
+            "",
+            "h2. 5.3 Data Ownership",
+            "",
             "||Data Domain||Owner||Primary Application(s)||",
         ]
 
@@ -701,19 +713,23 @@ class EADocumentationGenerator:
         for app_name, app_info in sorted_apps:
             lines.append(f"|{app_info['dept']}|{app_info['biz_ownr']}|{app_name}|")
 
-        lines.extend(["\n", "----\n"])
+        lines.extend(["", "----", ""])
         return lines
 
     def _generate_application_architecture(self) -> List[str]:
         """Generate Application Architecture section."""
         lines = [
-            "{anchor:6. Application Architecture}",
-            "h1. 6. Application Architecture (Information Systems)\n",
-            "h2. 6.1 Application Portfolio\n",
+            "{anchor:application-architecture}",
+            "h1. 6. Application Architecture (Information Systems)",
+            "",
+            "h2. 6.1 Application Portfolio",
+            "",
             "{info}",
             f"The MQ infrastructure supports {len(self.stats['applications'])} applications across {len(self.stats['departments'])} departments.",
-            "{info}\n",
-            "h3. Top Applications by Integration Complexity\n",
+            "{info}",
+            "",
+            "h3. Top Applications by Integration Complexity",
+            "",
             "||Application||Organization||Department||MQ Managers||Connections||Queues||",
         ]
 
@@ -727,8 +743,9 @@ class EADocumentationGenerator:
             lines.append(f"|{app_name}|{app_info['org']}|{app_info['dept']}|{len(app_info['mqmanagers'])}|{app_info['connections']}|{app_info['total_queues']}|")
 
         lines.extend([
-            "\n",
-            "h2. 6.2 Application Dependencies\n",
+            "",
+            "h2. 6.2 Application Dependencies",
+            "",
         ])
 
         if self.dependencies['app_to_app']:
@@ -742,8 +759,9 @@ class EADocumentationGenerator:
             lines.append("{tip}No direct application dependencies detected{tip}")
 
         lines.extend([
-            "\n",
-            "h2. 6.3 Cross-Organizational Dependencies\n",
+            "",
+            "h2. 6.3 Cross-Organizational Dependencies",
+            "",
         ])
 
         if self.dependencies['org_to_org']:
@@ -754,7 +772,7 @@ class EADocumentationGenerator:
         else:
             lines.append("{tip}No cross-organizational dependencies detected{tip}")
 
-        lines.extend(["\n", "----\n"])
+        lines.extend(["", "----", ""])
         return lines
 
     def _generate_technology_architecture(self) -> List[str]:
@@ -763,20 +781,25 @@ class EADocumentationGenerator:
         external_gateways = [g for g in self.stats['gateways'] if g['scope'] == 'External']
 
         lines = [
-            "{anchor:7. Technology Architecture}",
-            "h1. 7. Technology Architecture\n",
-            "h2. 7.1 Technology Stack\n",
+            "{anchor:technology-architecture}",
+            "h1. 7. Technology Architecture",
+            "",
+            "h2. 7.1 Technology Stack",
+            "",
             "||Layer||Technology||Component Count||",
             f"|*Message Broker*|IBM MQ|{len(self.stats['mqmanagers'])} Queue Managers|",
             f"|*Internal Gateways*|IBM MQ Gateway Pattern|{len(internal_gateways)} Gateways|",
             f"|*External Gateways*|IBM MQ Gateway Pattern|{len(external_gateways)} Gateways|",
             f"|*Message Storage*|IBM MQ Queues|{self.stats['queues']['total']:,} Queues|",
-            "\n",
-            "h2. 7.2 Gateway Infrastructure\n",
+            "",
+            "h2. 7.2 Gateway Infrastructure",
+            "",
             "{warning:title=Critical Infrastructure}",
             "Gateways are critical integration points. Ensure redundancy and monitoring.",
-            "{warning}\n",
-            "h3. Internal Gateways\n",
+            "{warning}",
+            "",
+            "h3. Internal Gateways",
+            "",
             "||Gateway||Organization||Department||Scope||",
         ]
 
@@ -786,8 +809,9 @@ class EADocumentationGenerator:
             lines.append("|_No internal gateways configured_| | | |")
 
         lines.extend([
-            "\n",
-            "h3. External Gateways\n",
+            "",
+            "h3. External Gateways",
+            "",
             "||Gateway||Organization||Department||Scope||",
         ])
 
@@ -797,8 +821,9 @@ class EADocumentationGenerator:
             lines.append("|_No external gateways configured_| | | |")
 
         lines.extend([
-            "\n",
-            "h2. 7.3 Infrastructure Distribution\n",
+            "",
+            "h2. 7.3 Infrastructure Distribution",
+            "",
             "||Organization||Type||MQ Managers||Gateways||",
         ])
 
@@ -807,7 +832,7 @@ class EADocumentationGenerator:
             type_badge = "{color:green}Internal{color}" if org_info['type'] == 'Internal' else "{color:purple}External{color}"
             lines.append(f"|{org_name}|{type_badge}|{org_info['mqmanagers']}|{org_gateways}|")
 
-        lines.extend(["\n", "----\n"])
+        lines.extend(["", "----", ""])
         return lines
 
     def _generate_integration_patterns(self) -> List[str]:
@@ -816,21 +841,25 @@ class EADocumentationGenerator:
         gw_percent = round(100 * self.integration_patterns['gateway_mediated'] / max(1, total_patterns))
 
         lines = [
-            "{anchor:8. Integration Patterns}",
-            "h1. 8. Integration Patterns & Standards\n",
-            "h2. 8.1 Pattern Analysis\n",
+            "{anchor:integration-patterns}",
+            "h1. 8. Integration Patterns & Standards",
+            "",
+            "h2. 8.1 Pattern Analysis",
+            "",
             "||Pattern||Count||Percentage||Assessment||",
             f"|*Gateway-Mediated*|{self.integration_patterns['gateway_mediated']}|{gw_percent}%|{{color:green}}✓ Best Practice{{color}}|",
             f"|*Direct Point-to-Point*|{self.integration_patterns['direct_integration']}|{100-gw_percent}%|{{color:orange}}⚠ Monitor{{color}}|",
-            "\n",
+            "",
         ]
 
         if self.integration_patterns['hub_and_spoke']:
             lines.extend([
-                "h2. 8.2 Hub-and-Spoke Patterns\n",
+                "h2. 8.2 Hub-and-Spoke Patterns",
+                "",
                 "{info}",
                 "Hub-and-spoke patterns indicate centralized integration points with high connection counts.",
-                "{info}\n",
+                "{info}",
+                "",
                 "||Gateway||Scope||Connections||Risk Level||",
             ])
             for hub in sorted(self.integration_patterns['hub_and_spoke'], key=lambda x: x['connections'], reverse=True):
@@ -840,7 +869,8 @@ class EADocumentationGenerator:
 
         if self.integration_patterns['high_fanout']:
             lines.extend([
-                "h2. 8.3 High Fan-Out Components\n",
+                "h2. 8.3 High Fan-Out Components",
+                "",
                 "||MQ Manager||Outbound Connections||Recommendation||",
             ])
             for item in sorted(self.integration_patterns['high_fanout'], key=lambda x: x['count'], reverse=True):
@@ -848,24 +878,29 @@ class EADocumentationGenerator:
             lines.append("")
 
         lines.extend([
-            "h2. 8.4 Integration Standards\n",
+            "h2. 8.4 Integration Standards",
+            "",
             "||Standard||Description||Compliance||",
-            "|*Naming Convention*|{org}_{dept}_{app}_MQ##|Review Required|",
-            "|*Queue Naming*|{app}.{function}.{type}|Review Required|",
+            "|*Naming Convention*|\\{org\\}_\\{dept\\}_\\{app\\}_MQ##|Review Required|",
+            "|*Queue Naming*|\\{app\\}.\\{function\\}.\\{type\\}|Review Required|",
             "|*Security*|TLS 1.2+ for channels|Audit Required|",
             "|*Monitoring*|All queue managers monitored|Review Required|",
-            "\n",
-            "----\n"
+            "",
+            "----",
+            ""
         ])
         return lines
 
     def _generate_gap_analysis(self) -> List[str]:
         """Generate Gap Analysis section."""
         lines = [
-            "{anchor:9. Gap Analysis}",
-            "h1. 9. Gap Analysis & Opportunities\n",
-            "h2. 9.1 Architecture Maturity Assessment\n",
-            f"*Overall Maturity Level:* {self.maturity['overall_level']}/5\n",
+            "{anchor:gap-analysis}",
+            "h1. 9. Gap Analysis & Opportunities",
+            "",
+            "h2. 9.1 Architecture Maturity Assessment",
+            "",
+            f"*Overall Maturity Level:* {self.maturity['overall_level']}/5",
+            "",
             "||Dimension||Score||Target||Gap||",
         ]
 
@@ -876,8 +911,9 @@ class EADocumentationGenerator:
             lines.append(f"|{dimension_name}|{score}/5|5/5|{{color:{gap_color}}}{gap}{{color}}|")
 
         lines.extend([
-            "\n",
-            "h2. 9.2 Identified Gaps\n",
+            "",
+            "h2. 9.2 Identified Gaps",
+            "",
         ])
 
         if self.maturity['recommendations']:
@@ -887,28 +923,33 @@ class EADocumentationGenerator:
             lines.append("{tip}No significant gaps identified{tip}")
 
         lines.extend([
-            "\n",
-            "h2. 9.3 Improvement Opportunities\n",
+            "",
+            "h2. 9.3 Improvement Opportunities",
+            "",
             "||Opportunity||Impact||Effort||Priority||",
             "|Implement gateway redundancy|High|Medium|{color:red}P1{color}|",
             "|Standardize naming conventions|Medium|Low|{color:orange}P2{color}|",
             "|Consolidate high-complexity integrations|Medium|High|{color:orange}P2{color}|",
             "|Implement centralized monitoring|High|Medium|{color:red}P1{color}|",
             "|Document message formats/schemas|Medium|Medium|{color:blue}P3{color}|",
-            "\n",
-            "----\n"
+            "",
+            "----",
+            ""
         ])
         return lines
 
     def _generate_risk_assessment(self) -> List[str]:
         """Generate Risk Assessment section following RAID."""
         lines = [
-            "{anchor:10. Risk Assessment}",
-            "h1. 10. Risk Assessment (RAID Log)\n",
+            "{anchor:risk-assessment}",
+            "h1. 10. Risk Assessment (RAID Log)",
+            "",
             "{note:title=RAID Framework}",
             "Risks, Assumptions, Issues, and Dependencies affecting the architecture.",
-            "{note}\n",
-            "h2. 10.1 Critical Risks\n",
+            "{note}",
+            "",
+            "h2. 10.1 Critical Risks",
+            "",
         ]
 
         if self.risks['critical']:
@@ -918,7 +959,7 @@ class EADocumentationGenerator:
         else:
             lines.append("{tip}No critical risks identified{tip}")
 
-        lines.extend(["\n", "h2. 10.2 High Risks\n"])
+        lines.extend(["", "h2. 10.2 High Risks", ""])
 
         if self.risks['high']:
             lines.append("||ID||Category||Description||Impact||Mitigation||")
@@ -927,7 +968,7 @@ class EADocumentationGenerator:
         else:
             lines.append("{tip}No high risks identified{tip}")
 
-        lines.extend(["\n", "h2. 10.3 Medium Risks\n"])
+        lines.extend(["", "h2. 10.3 Medium Risks", ""])
 
         if self.risks['medium']:
             lines.append("||ID||Category||Description||Mitigation||")
@@ -937,8 +978,9 @@ class EADocumentationGenerator:
             lines.append("{tip}No medium risks identified{tip}")
 
         lines.extend([
-            "\n",
-            "h2. 10.4 Assumptions\n",
+            "",
+            "h2. 10.4 Assumptions",
+            "",
             "||ID||Assumption||Owner||Validation Date||",
         ])
 
@@ -946,8 +988,9 @@ class EADocumentationGenerator:
             lines.append(f"|{assumption['id']}|{assumption['description']}|{assumption['owner']}|{assumption['validation_date']}|")
 
         lines.extend([
-            "\n",
-            "h2. 10.5 Dependencies\n",
+            "",
+            "h2. 10.5 Dependencies",
+            "",
         ])
 
         if self.risks['dependencies']:
@@ -957,55 +1000,65 @@ class EADocumentationGenerator:
         else:
             lines.append("{tip}No external dependencies documented{tip}")
 
-        lines.extend(["\n", "----\n"])
+        lines.extend(["", "----", ""])
         return lines
 
     def _generate_roadmap(self) -> List[str]:
         """Generate Architecture Roadmap section."""
         return [
-            "{anchor:11. Architecture Roadmap}",
-            "h1. 11. Architecture Roadmap\n",
-            "h2. 11.1 Recommended Initiatives\n",
+            "{anchor:architecture-roadmap}",
+            "h1. 11. Architecture Roadmap",
+            "",
+            "h2. 11.1 Recommended Initiatives",
+            "",
             "{panel:title=Short-Term (0-6 months)|bgColor=#e8f5e9}",
             "# *Gateway Redundancy* - Implement redundant gateways for organizations with SPOF",
             "# *Documentation* - Complete queue naming standards documentation",
             "# *Monitoring* - Deploy centralized MQ monitoring solution",
-            "{panel}\n",
+            "{panel}",
+            "",
             "{panel:title=Medium-Term (6-12 months)|bgColor=#fff3e0}",
             "# *Pattern Consolidation* - Migrate point-to-point integrations to gateway pattern",
             "# *Security Hardening* - Implement TLS 1.3 for all channels",
             "# *Capacity Planning* - Establish baseline metrics and growth projections",
-            "{panel}\n",
+            "{panel}",
+            "",
             "{panel:title=Long-Term (12-24 months)|bgColor=#e3f2fd}",
             "# *Modernization* - Evaluate cloud-native messaging alternatives",
             "# *Automation* - Implement infrastructure-as-code for MQ provisioning",
             "# *Self-Service* - Enable application teams to manage their own queues",
-            "{panel}\n",
-            "h2. 11.2 Success Metrics\n",
+            "{panel}",
+            "",
+            "h2. 11.2 Success Metrics",
+            "",
             "||Metric||Current||Target||Timeline||",
             f"|Gateway Redundancy|{len([g for g in self.stats['gateways']])} total|100% redundant|6 months|",
             f"|Gateway-Mediated %|{round(100 * self.integration_patterns['gateway_mediated'] / max(1, self.integration_patterns['gateway_mediated'] + self.integration_patterns['direct_integration']))}%|>80%|12 months|",
             "|MTTR for incidents|Unknown|<1 hour|6 months|",
             "|Documentation coverage|Partial|100%|3 months|",
-            "\n",
-            "----\n"
+            "",
+            "----",
+            ""
         ]
 
     def _generate_appendices(self) -> List[str]:
         """Generate Appendices section."""
         return [
-            "{anchor:12. Appendices}",
-            "h1. 12. Appendices\n",
-            "h2. 12.1 Generated Artifacts\n",
+            "{anchor:appendices}",
+            "h1. 12. Appendices",
+            "",
+            "h2. 12.1 Generated Artifacts",
+            "",
             "||Artifact||Description||Location||",
-            "|Hierarchical Topology Diagram|Full topology visualization|{{mq_topology.pdf}}|",
-            "|Application Diagrams|Per-application integration views|{{application_diagrams/}}|",
-            "|Individual MQ Manager Diagrams|Detailed MQ manager views|{{individual_diagrams/}}|",
-            "|Gateway Analytics Report|Gateway performance analysis|{{gateway_analytics_*.html}}|",
-            "|Change Detection Report|Topology change tracking|{{change_report_*.html}}|",
-            "|Excel Inventory|Complete MQ inventory export|{{mqcmdb_inventory_*.xlsx}}|",
-            "\n",
-            "h2. 12.2 Glossary\n",
+            "|Hierarchical Topology Diagram|Full topology visualization|mq_topology.pdf|",
+            "|Application Diagrams|Per-application integration views|application_diagrams/|",
+            "|Individual MQ Manager Diagrams|Detailed MQ manager views|individual_diagrams/|",
+            "|Gateway Analytics Report|Gateway performance analysis|gateway_analytics_*.html|",
+            "|Change Detection Report|Topology change tracking|change_report_*.html|",
+            "|Excel Inventory|Complete MQ inventory export|mqcmdb_inventory_*.xlsx|",
+            "",
+            "h2. 12.2 Glossary",
+            "",
             "||Term||Definition||",
             "|*MQ Manager*|IBM MQ Queue Manager - the runtime component that hosts queues|",
             "|*QLOCAL*|Local Queue - stores messages on the queue manager|",
@@ -1015,12 +1068,13 @@ class EADocumentationGenerator:
             "|*SPOF*|Single Point of Failure - component without redundancy|",
             "|*Fan-Out*|Pattern where one source sends to many destinations|",
             "|*Fan-In*|Pattern where many sources send to one destination|",
-            "\n",
-            "h2. 12.3 References\n",
+            "",
+            "h2. 12.3 References",
+            "",
             "* [TOGAF 9.2 Standard|https://pubs.opengroup.org/architecture/togaf9-doc/arch/]",
             "* [IBM MQ Documentation|https://www.ibm.com/docs/en/ibm-mq]",
             "* [Integration Patterns|https://www.enterpriseintegrationpatterns.com/]",
-            "\n"
+            ""
         ]
 
     def _generate_footer(self) -> List[str]:
