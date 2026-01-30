@@ -2,6 +2,8 @@
 
 from typing import Dict
 from pathlib import Path
+from datetime import datetime
+
 
 class IndividualDiagramGenerator:
     """Generate focused diagrams for individual MQ Managers."""
@@ -24,6 +26,7 @@ class IndividualDiagramGenerator:
             self._outbound_nodes(info, qm_id, colors),
             self._external_nodes(info, qm_id, colors),
             self._legend(colors),
+            self._footer(mqmanager),
             "}"
         ]
         return "\n".join(filter(None, sections))
@@ -47,6 +50,11 @@ class IndividualDiagramGenerator:
     def _central_node(self, mqmanager: str, directorate: str, info: Dict, qm_id: str, colors: Dict) -> str:
         """Generate central node."""
         central = colors["central"]
+        inbound_count = len(info.get('inbound', []))
+        outbound_count = len(info.get('outbound', []))
+        inbound_extra_count = len(info.get('inbound_extra', []))
+        outbound_extra_count = len(info.get('outbound_extra', []))
+
         return f"""    {qm_id} [
         shape=cylinder style="filled"
         fillcolor="{central['fill']}" color="{central['border']}" penwidth=3.0
@@ -60,7 +68,7 @@ class IndividualDiagramGenerator:
                 <tr><td align="center"><font point-size="10">QLocal: {info.get('qlocal_count', 0)} | QRemote: {info.get('qremote_count', 0)} | QAlias: {info.get('qalias_count', 0)}</font></td></tr>
                 <tr><td><br/></td></tr>
                 <tr><td align="center"><b>Connections</b></td></tr>
-                <tr><td align="center"><font point-size="10">⬅ Inbound: {len(info.get('inbound', []))} | Outbound: {len(info.get('outbound', []))} ➡</font></td></tr>
+                <tr><td align="center"><font point-size="10">⬅ Inbound: {inbound_count}+{inbound_extra_count} | Outbound: {outbound_count}+{outbound_extra_count} ➡</font></td></tr>
             </table>
         >
     ]
@@ -69,45 +77,49 @@ class IndividualDiagramGenerator:
     def _inbound_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
         """Generate inbound nodes."""
         from utils.common import sanitize_id
-       
+
         inbound_list = info.get('inbound', [])
         if not inbound_list:
             return ""
-       
+
         lines = ["    /* Inbound MQ Managers */"]
         inbound = colors["inbound"]
-       
+
         for inbound_mgr in inbound_list:
             inbound_id = sanitize_id(inbound_mgr)
             inbound_dir = self._find_directorate(inbound_mgr)
+            url_path = f"{inbound_id}.svg"
             lines.extend([
                 f"    {inbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{inbound['fill']}\" color=\"{inbound['border']}\" penwidth=1.5",
+                f"        URL=\"{url_path}\" target=\"_blank\" tooltip=\"Click to view {inbound_mgr} details\"",
                 f"        label=<<b>{inbound_mgr}</b><br/><font point-size='8'>{inbound_dir}</font>>]",
                 f"    {inbound_id} -> {qm_id} [color=\"{inbound['arrow']}\" penwidth=2.0 label=\"sends to\"]"
             ])
-       
+
         return "\n".join(lines) + "\n"
    
     def _outbound_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
         """Generate outbound nodes."""
         from utils.common import sanitize_id
-       
+
         outbound_list = info.get('outbound', [])
         if not outbound_list:
             return ""
-       
+
         lines = ["    /* Outbound MQ Managers */"]
         outbound = colors["outbound"]
-       
+
         for outbound_mgr in outbound_list:
             outbound_id = sanitize_id(outbound_mgr)
             outbound_dir = self._find_directorate(outbound_mgr)
+            url_path = f"{outbound_id}.svg"
             lines.extend([
                 f"    {outbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{outbound['fill']}\" color=\"{outbound['border']}\" penwidth=1.5",
+                f"        URL=\"{url_path}\" target=\"_blank\" tooltip=\"Click to view {outbound_mgr} details\"",
                 f"        label=<<b>{outbound_mgr}</b><br/><font point-size='8'>{outbound_dir}</font>>]",
                 f"    {qm_id} -> {outbound_id} [color=\"{outbound['arrow']}\" penwidth=2.0 label=\"sends to\"]"
             ])
-       
+
         return "\n".join(lines) + "\n"
    
     def _external_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
@@ -152,13 +164,36 @@ class IndividualDiagramGenerator:
             label=<
                 <table border="0" cellborder="0" cellspacing="3" cellpadding="2">
                     <tr><td align="left"><font color="{colors['central']['border']}">🗄️</font> <b>This MQ Manager</b></td></tr>
-                    <tr><td align="left"><font color="{colors['inbound']['arrow']}">🗄️</font> Inbound Sources</td></tr>
-                    <tr><td align="left"><font color="{colors['outbound']['arrow']}">🗄️</font> Outbound Targets</td></tr>
+                    <tr><td align="left"><font color="{colors['inbound']['arrow']}">🗄️</font> Inbound Sources (clickable)</td></tr>
+                    <tr><td align="left"><font color="{colors['outbound']['arrow']}">🗄️</font> Outbound Targets (clickable)</td></tr>
                     <tr><td align="left"><font color="{colors['external']['arrow']}">⬜</font> External Systems</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>Connection Metrics</b></td></tr>
+                    <tr><td align="left">  In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">  Out: X+Y — Internal+External outbound</td></tr>
                 </table>
             >
         ]
     }}"""
+
+    def _footer(self, mqmanager: str) -> str:
+        """Generate footer with generation timestamp."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return f"""
+    /* Footer */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>MQ Manager: {mqmanager}</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: {timestamp}</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
+        </table>>
+    ]"""
    
     def _find_directorate(self, mqmanager: str) -> str:
         """Find directorate for MQmanager."""

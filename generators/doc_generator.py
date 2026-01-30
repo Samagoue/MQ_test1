@@ -752,7 +752,7 @@ class EADocumentationGenerator:
             lines.append("||Source Application||Depends On||")
             for source_app, target_apps in sorted(self.dependencies['app_to_app'].items())[:20]:
                 if not source_app.startswith('Gateway ('):
-                    target_list = ', '.join([t for t in sorted(target_apps) if not t.startswith('Gateway (')])[:80]
+                    target_list = ', '.join([t for t in sorted(target_apps) if not t.startswith('Gateway (')])
                     if target_list:
                         lines.append(f"|{source_app}|{target_list}|")
         else:
@@ -881,8 +881,8 @@ class EADocumentationGenerator:
             "h2. 8.4 Integration Standards",
             "",
             "||Standard||Description||Compliance||",
-            "|*Naming Convention*|\\{org\\}_\\{dept\\}_\\{app\\}_MQ##|Review Required|",
-            "|*Queue Naming*|\\{app\\}.\\{function\\}.\\{type\\}|Review Required|",
+            "|*Naming Convention*|{{ORG}}_{{DEPT}}_{{APP}}_MQ##|Review Required|",
+            "|*Queue Naming*|{{APP}}.{{FUNCTION}}.{{TYPE}}|Review Required|",
             "|*Security*|TLS 1.2+ for channels|Audit Required|",
             "|*Monitoring*|All queue managers monitored|Review Required|",
             "",

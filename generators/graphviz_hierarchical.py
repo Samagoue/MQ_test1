@@ -7,6 +7,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import Dict, List
+from datetime import datetime
 
 
 class HierarchicalGraphVizGenerator:
@@ -47,6 +48,7 @@ class HierarchicalGraphVizGenerator:
             self._generate_organizations(),
             self._generate_connections(),
             self._generate_legend(),
+            self._generate_footer(),
             "}"
         ]
         return "\n".join(sections)
@@ -319,6 +321,9 @@ class HierarchicalGraphVizGenerator:
         # Build node output
         node_lines = []
 
+        # URL for clickable SVG - links to individual diagram
+        url_path = f"individual_diagrams/{qm_id}.svg"
+
         # Main MQ manager node
         node_lines.append(f"""{indent}{qm_id} [
 {indent}    shape=cylinder
@@ -327,6 +332,9 @@ class HierarchicalGraphVizGenerator:
 {indent}    color="{colors['qm_border']}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="{colors['qm_text']}"
+{indent}    URL="{url_path}"
+{indent}    target="_blank"
+{indent}    tooltip="Click to view {mqmanager} details"
 {indent}    label=<<b>🗄️ {mqmanager}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/> ⬅ In: {len(inbound)}+{len(inbound_extra)} | Out: {len(outbound)}+{len(outbound_extra)} ➡>
 {indent}]
 """)
@@ -461,11 +469,12 @@ class HierarchicalGraphVizGenerator:
           label=<
                 <table border="0" cellborder="0" cellspacing="4" cellpadding="2">
                     <tr><td align="left"><b>Hierarchy</b></td></tr>
-                    <tr><td align="left">🏢 Organization</td></tr>
+                    <tr><td align="left">🏢 Organization (Internal/External)</td></tr>
                     <tr><td align="left">🏬 Department</td></tr>
                     <tr><td align="left">👤 Biz_Ownr</td></tr>
                     <tr><td align="left">🧩 Application</td></tr>
-                    <tr><td align="left">🗄️ MQ Manager</td></tr>
+                    <tr><td align="left">🔀 Gateway (Internal/External)</td></tr>
+                    <tr><td align="left">🗄️ MQ Manager (clickable)</td></tr>
 
                     <tr><td><br/></td></tr>
 
@@ -473,21 +482,47 @@ class HierarchicalGraphVizGenerator:
                     <tr><td align="left">QLocal — Local queues</td></tr>
                     <tr><td align="left">QRemote — Remote queues</td></tr>
                     <tr><td align="left">QAlias — Alias queues</td></tr>
-                    <tr><td align="left">Inbound / Outbound — Channel counts</td></tr>
+                    <tr><td align="left">In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">Out: X+Y — Internal+External outbound</td></tr>
 
                     <tr><td><br/></td></tr>
 
-                    <tr><td align="left"><b>Channel Types</b></td></tr>
-                    <tr><td align="left"><font color="#925de2"><b>──── </b></font> Internal (same department/directorate)</td></tr>
+                    <tr><td align="left"><b>Connection Types</b></td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>──── </b></font> Internal (same department)</td></tr>
                     <tr><td align="left"><font color="#ff6b5a"><b>- - - - </b></font> Cross-department</td></tr>
-                    <tr><td align="left"><font color="#b455ff"><b>- - - - </b></font> Org-level / External</td></tr>
+                    <tr><td align="left"><font color="#b455ff"><b>- - - - </b></font> Cross-org / External</td></tr>
 
                     <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>External Connection Notes</b></td></tr>
+                    <tr><td align="left"><font color="#ffc107">📋</font> External Inbound (yellow)</td></tr>
+                    <tr><td align="left"><font color="#17a2b8">📋</font> External Outbound (blue)</td></tr>
 
                 </table>
             >
         ]
     }"""
+
+    def _generate_footer(self) -> str:
+        """Generate footer with generation timestamp."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return f"""
+    /* ==========================
+       FOOTER
+    ========================== */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>MQ CMDB Topology Diagram</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: {timestamp}</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
+        </table>>
+    ]"""
    
     def save_to_file(self, filepath: Path):
         """Save DOT content to file."""

@@ -7,6 +7,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import Dict, List
+from datetime import datetime
 
 
 class ApplicationDiagramGenerator:
@@ -160,12 +161,15 @@ class ApplicationDiagramGenerator:
 
         # Generate connections
         lines.append(self._generate_connections_section(all_connections, focus_org, focus_dept))
-       
+
         # Generate legend
         lines.append(self._generate_legend(len(mqmanagers), len(connected_contexts)))
-       
+
+        # Generate footer with timestamp
+        lines.append(self._generate_footer(app_name))
+
         lines.append('}')
-       
+
         return '\n'.join(lines)
    
     def _collect_connected_contexts(self, mqmanagers: Dict) -> Dict:
@@ -411,6 +415,9 @@ class ApplicationDiagramGenerator:
         # Build node output
         node_lines = []
 
+        # URL for clickable SVG - links to individual diagram
+        url_path = f"../individual_diagrams/{qm_id}.svg"
+
         # Main MQ manager node with breakdown
         node_lines.append(f"""{indent}{qm_id} [
 {indent}    shape=cylinder
@@ -419,6 +426,9 @@ class ApplicationDiagramGenerator:
 {indent}    color="{bordercolor}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="#000000"
+{indent}    URL="{url_path}"
+{indent}    target="_blank"
+{indent}    tooltip="Click to view {mqmgr_name} details"
 {indent}    label=<<b>🗄️ {mqmgr_name}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/>⬅ In: {len(inbound)}+{len(inbound_extra)} | Out: {len(outbound)}+{len(outbound_extra)} ➡>
 {indent}]
 """)
@@ -581,10 +591,14 @@ class ApplicationDiagramGenerator:
                 <table border="0" cellborder="0" cellspacing="2" cellpadding="4">
                     <tr><td align="left"><b>Focus Application</b></td></tr>
                     <tr><td bgcolor="#fffacd" align="left">  Highlighted in yellow</td></tr>
-                    <tr><td align="left">  MQ Managers: {focus_count}</td></tr>
+                    <tr><td align="left">  MQ Managers: {focus_count} (clickable)</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Connected MQ Managers</b></td></tr>
                     <tr><td align="left">  Total shown: {total_count}</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>MQ Manager Metrics</b></td></tr>
+                    <tr><td align="left">  In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">  Out: X+Y — Internal+External outbound</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Direct Connections (from focus)</b></td></tr>
                     <tr><td align="left"><font color="#1f78d1">──── </font> Same department</td></tr>
@@ -593,10 +607,33 @@ class ApplicationDiagramGenerator:
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Reverse Connections (to focus)</b></td></tr>
                     <tr><td align="left"><font color="#28a745">- - - </font> From external sources</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>External Connection Notes</b></td></tr>
+                    <tr><td align="left"><font color="#ffc107">📋</font> External Inbound (yellow)</td></tr>
+                    <tr><td align="left"><font color="#17a2b8">📋</font> External Outbound (blue)</td></tr>
                 </table>
             >
         ]
     }}"""
+
+    def _generate_footer(self, app_name: str) -> str:
+        """Generate footer with generation timestamp."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return f"""
+    /* Footer */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>Application Diagram: {app_name}</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: {timestamp}</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
+        </table>>
+    ]"""
    
     def _sanitize_id(self, name: str) -> str:
         """Sanitize name for GraphViz ID."""
