@@ -49,12 +49,12 @@ digraph MQ_QM_CORE_01 {
     /* External Outbound */
     ext_out_0_CORE_AUDIT [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.AUDIT" fontsize=9]
     QM_CORE_01 -> ext_out_0_CORE_AUDIT [color="#f39c12" style=dashed label="external"]
-    ext_out_1_CORE_INTEREST [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.INTEREST" fontsize=9]
-    QM_CORE_01 -> ext_out_1_CORE_INTEREST [color="#f39c12" style=dashed label="external"]
-    ext_out_2_CORE_BALANCE [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.BALANCE" fontsize=9]
-    QM_CORE_01 -> ext_out_2_CORE_BALANCE [color="#f39c12" style=dashed label="external"]
-    ext_out_3_CORE_LEDGER [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.LEDGER" fontsize=9]
-    QM_CORE_01 -> ext_out_3_CORE_LEDGER [color="#f39c12" style=dashed label="external"]
+    ext_out_1_CORE_LEDGER [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.LEDGER" fontsize=9]
+    QM_CORE_01 -> ext_out_1_CORE_LEDGER [color="#f39c12" style=dashed label="external"]
+    ext_out_2_CORE_INTEREST [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.INTEREST" fontsize=9]
+    QM_CORE_01 -> ext_out_2_CORE_INTEREST [color="#f39c12" style=dashed label="external"]
+    ext_out_3_CORE_BALANCE [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.BALANCE" fontsize=9]
+    QM_CORE_01 -> ext_out_3_CORE_BALANCE [color="#f39c12" style=dashed label="external"]
 
     subgraph cluster_legend {
         label="Legend" style="rounded,filled" fillcolor="#ffffff" color="#d0d8e0" fontsize=11 margin=15
@@ -85,7 +85,7 @@ digraph MQ_QM_CORE_01 {
         fontsize=10
         label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
             <tr><td align="center"><b>MQ Manager: QM_CORE_01</b></td></tr>
-            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-31 00:58:56</font></td></tr>
             <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
         </table>>
     ]

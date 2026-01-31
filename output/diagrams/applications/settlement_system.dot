@@ -348,7 +348,7 @@ digraph "Settlement System" {
         fontsize=10
         label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
             <tr><td align="center"><b>Application Diagram: Settlement System</b></td></tr>
-            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-31 00:58:56</font></td></tr>
             <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
         </table>>
     ]

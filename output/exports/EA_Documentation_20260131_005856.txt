@@ -1,0 +1,479 @@
+{panel:title=TOGAF Architecture Document|borderStyle=solid}
+h1. MQ Integration Architecture
+
+||Document Property||Value||
+|*Document Type*|Enterprise Architecture - Integration Domain|
+|*Generated*|2026-01-31 00:58:57|
+|*Framework*|TOGAF 9.2 Architecture Content Framework|
+|*Scope*|IBM MQ Middleware Integration Topology|
+|*Classification*|Internal Use Only|
+|*Status*|Current State Architecture|
+{panel}
+
+{toc}
+
+----
+
+{panel:title=Quick Navigation}
+* [1. Architecture Vision|#architecture-vision]
+* [2. Stakeholder Analysis|#stakeholder-analysis]
+* [3. Architecture Principles|#architecture-principles]
+* [4. Business Architecture|#business-architecture]
+* [5. Data Architecture|#data-architecture]
+* [6. Application Architecture|#application-architecture]
+* [7. Technology Architecture|#technology-architecture]
+* [8. Integration Patterns|#integration-patterns]
+* [9. Gap Analysis|#gap-analysis]
+* [10. Risk Assessment|#risk-assessment]
+* [11. Architecture Roadmap|#architecture-roadmap]
+* [12. Appendices|#appendices]
+{panel}
+
+{anchor:architecture-vision}
+h1. 1. Architecture Vision
+
+h2. 1.1 Executive Summary
+
+{info:title=Architecture Overview}
+This document describes the current-state Enterprise Architecture for the MQ-based integration infrastructure. It follows the TOGAF Architecture Content Framework to provide a comprehensive view across business, data, application, and technology domains.
+{info}
+
+h2. 1.2 Key Metrics Dashboard
+
+||Metric||Value||Details||
+|*Organizations*|4|3 Internal, 1 External|
+|*Applications*|9|Integrated via MQ|
+|*MQ Managers*|19|4 Gateways|
+|*Message Queues*|102|Local: 74, Remote: 23, Alias: 5|
+|*Departments*|8|Across all organizations|
+|*Business Owners*|8|Application stakeholders|
+
+h2. 1.3 Scope and Boundaries
+
+||Aspect||In Scope||Out of Scope||
+|*Technology*|IBM MQ Queue Managers, Queues, Channels|MQ Client applications, JMS implementations|
+|*Integration*|Message-based integrations, Gateway patterns|API integrations, File transfers|
+|*Organizations*|All entities with MQ infrastructure|Non-MQ integration patterns|
+|*Lifecycle*|Current state architecture|Future state design (see Roadmap)|
+
+h2. 1.4 Architecture Goals
+
+# *Reliability* - Ensure message delivery guarantees across all integration paths
+# *Scalability* - Support growing message volumes and new integrations
+# *Security* - Protect message content and control access to queues
+# *Maintainability* - Enable efficient operations and change management
+# *Visibility* - Provide clear documentation and monitoring capabilities
+
+----
+
+{anchor:stakeholder-analysis}
+h1. 2. Stakeholder Analysis
+
+h2. 2.1 Stakeholder Map
+
+||Stakeholder Group||Concerns||Architecture Views||
+|*Executive Leadership*|Business continuity, Cost efficiency|Architecture Vision, Risk Assessment|
+|*Enterprise Architects*|Standards compliance, Integration patterns|All sections|
+|*Solution Architects*|Application integration, Data flows|Application & Data Architecture|
+|*Operations Team*|Availability, Performance, Monitoring|Technology Architecture, Risk Assessment|
+|*Development Teams*|Queue configurations, Message formats|Application Architecture, Integration Patterns|
+|*Security Team*|Access control, Data protection|Technology Architecture, Risk Assessment|
+|*Business Owners*|Application availability, SLAs|Business Architecture|
+
+h2. 2.2 Business Owner Distribution
+
+||Business Owner||Department||Applications||MQ Managers||
+|Core Banking|Core Systems|1|2|
+|Integration Services|Middleware|1|4|
+|Partner Gateway Team|Partner Integration|1|2|
+|Payment Processing|Payments|1|2|
+|Risk Analytics|Risk Management|1|2|
+|Settlement Operations|Trade Settlement|1|2|
+|Trading Desk|Capital Markets|2|3|
+|Vendor Management|Vendor Systems|1|2|
+
+----
+
+{anchor:architecture-principles}
+h1. 3. Architecture Principles
+
+{note:title=TOGAF Reference}
+Architecture Principles define the underlying general rules and guidelines for the use and deployment of IT resources.
+{note}
+
+h2. 3.1 Integration Principles
+
+{panel:title=PRIN-01: Gateway-Mediated Integration}
+*Statement:* All cross-organizational and cross-departmental integrations SHOULD be mediated through designated gateway MQ managers.
+
+*Rationale:* Centralized integration points provide better control, monitoring, and security enforcement.
+
+*Implications:*
+* Gateway infrastructure must be highly available
+* All external connections must route through external gateways
+* Direct point-to-point connections should be reviewed for migration
+{panel}
+
+{panel:title=PRIN-02: Asynchronous Messaging}
+*Statement:* Message-based integrations SHALL use asynchronous, guaranteed delivery patterns.
+
+*Rationale:* Asynchronous messaging provides loose coupling, resilience, and temporal decoupling between systems.
+
+*Implications:*
+* Applications must handle message persistence
+* Dead letter queue handling must be implemented
+* Message ordering may require additional design consideration
+{panel}
+
+{panel:title=PRIN-03: Hierarchical Organization}
+*Statement:* MQ infrastructure SHALL be organized following the organizational hierarchy: Organization -> Department -> Business Owner -> Application.
+
+*Rationale:* Alignment with organizational structure enables clear ownership, governance, and change management.
+
+*Implications:*
+* Naming conventions must reflect hierarchy
+* Access controls align with organizational boundaries
+* Capacity planning follows departmental structures
+{panel}
+
+{panel:title=PRIN-04: Separation of Concerns}
+*Statement:* Internal and external integration gateways SHALL be separated.
+
+*Rationale:* Different security, compliance, and operational requirements apply to internal vs. external integrations.
+
+*Implications:*
+* Separate gateway infrastructure for internal/external
+* Different security policies per gateway type
+* External gateways require additional hardening
+{panel}
+
+----
+
+{anchor:business-architecture}
+h1. 4. Business Architecture
+
+h2. 4.1 Business Capability Model
+
+{info}
+The MQ infrastructure enables the following integration capabilities across the enterprise.
+{info}
+
+||Capability||Description||Current State||
+|*Internal Messaging*|Intra-organizational message exchange|15 MQ Managers|
+|*Gateway Services*|Controlled integration points|4 Gateways|
+|*External Connectivity*|Partner and external system integration|2 External Gateways|
+|*Message Routing*|Queue-based message distribution|23 Remote Queues|
+|*Message Transformation*|Alias and routing|5 Alias Queues|
+
+h2. 4.2 Organizational Landscape
+
+h3. External Partners (External)
+
+||Metric||Value||
+|Departments|2|
+|Applications|2|
+|MQ Managers|4|
+
+h3. Global Markets (Internal)
+
+||Metric||Value||
+|Departments|2|
+|Applications|3|
+|MQ Managers|5|
+
+h3. Operations (Internal)
+
+||Metric||Value||
+|Departments|2|
+|Applications|2|
+|MQ Managers|4|
+
+h3. Technology (Internal)
+
+||Metric||Value||
+|Departments|2|
+|Applications|2|
+|MQ Managers|6|
+
+h2. 4.3 Department Capability Matrix
+
+||Department||Applications||MQ Managers||Total Queues||
+|Capital Markets|2|3|15|
+|Core Systems|1|2|15|
+|Middleware|1|4|21|
+|Partner Integration|1|2|11|
+|Payments|1|2|12|
+|Risk Management|1|2|11|
+|Trade Settlement|1|2|10|
+|Vendor Systems|1|2|7|
+
+----
+
+{anchor:data-architecture}
+h1. 5. Data Architecture (Information Systems)
+
+h2. 5.1 Message Flow Patterns
+
+{info}
+This section describes how data flows through the MQ infrastructure.
+{info}
+
+||Flow Type||Count||Description||
+|*Internal Flows*|3|Messages within same department|
+|*Cross-Department*|2|Messages between departments|
+|*Cross-Organization*|18|Messages between organizations|
+|*External Flows*|30|Messages to/from external systems|
+
+h2. 5.2 Queue Distribution
+
+||Queue Type||Count||Purpose||
+|*Local Queues (QLOCAL)*|74|Message storage and processing|
+|*Remote Queues (QREMOTE)*|23|Remote destination definitions|
+|*Alias Queues (QALIAS)*|5|Queue abstraction and routing|
+|*Total*|102| |
+
+h2. 5.3 Data Ownership
+
+||Data Domain||Owner||Primary Application(s)||
+|Core Systems|Core Banking|Core Banking|
+|Payments|Payment Processing|Payment Gateway|
+|Risk Management|Risk Analytics|Risk Engine|
+|Capital Markets|Trading Desk|Equity Trading Platform|
+|Trade Settlement|Settlement Operations|Settlement System|
+|Middleware|Integration Services|Enterprise Service Bus|
+|Capital Markets|Trading Desk|FX Trading System|
+|Partner Integration|Partner Gateway Team|Partner Connect|
+|Vendor Systems|Vendor Management|Vendor Integration|
+
+----
+
+{anchor:application-architecture}
+h1. 6. Application Architecture (Information Systems)
+
+h2. 6.1 Application Portfolio
+
+{info}
+The MQ infrastructure supports 9 applications across 8 departments.
+{info}
+
+h3. Top Applications by Integration Complexity
+
+||Application||Organization||Department||MQ Managers||Connections||Queues||
+|Equity Trading Platform|Global Markets|Capital Markets|2|5|10|
+|Risk Engine|Global Markets|Risk Management|2|5|11|
+|Settlement System|Operations|Trade Settlement|2|5|10|
+|Payment Gateway|Operations|Payments|2|5|12|
+|Enterprise Service Bus|Technology|Middleware|2|5|10|
+|Core Banking|Technology|Core Systems|2|5|15|
+|FX Trading System|Global Markets|Capital Markets|1|2|5|
+|Partner Connect|External Partners|Partner Integration|1|1|3|
+|Vendor Integration|External Partners|Vendor Systems|1|1|3|
+
+h2. 6.2 Application Dependencies
+
+||Source Application||Depends On||
+|Core Banking|Enterprise Service Bus|
+|Equity Trading Platform|Risk Engine, Settlement System|
+|FX Trading System|Risk Engine|
+|Payment Gateway|Core Banking|
+|Risk Engine|Core Banking|
+|Settlement System|Payment Gateway|
+
+h2. 6.3 Cross-Organizational Dependencies
+
+||Source Organization||Target Organizations||Dependency Count||
+|Global Markets|External Partners, Operations, Technology|3|
+|Operations|External Partners, Technology|2|
+|Technology|External Partners|1|
+
+----
+
+{anchor:technology-architecture}
+h1. 7. Technology Architecture
+
+h2. 7.1 Technology Stack
+
+||Layer||Technology||Component Count||
+|*Message Broker*|IBM MQ|19 Queue Managers|
+|*Internal Gateways*|IBM MQ Gateway Pattern|2 Gateways|
+|*External Gateways*|IBM MQ Gateway Pattern|2 Gateways|
+|*Message Storage*|IBM MQ Queues|102 Queues|
+
+h2. 7.2 Gateway Infrastructure
+
+{warning:title=Critical Infrastructure}
+Gateways are critical integration points. Ensure redundancy and monitoring.
+{warning}
+
+h3. Internal Gateways
+
+||Gateway||Organization||Department||Scope||
+|QM_GW_INTERNAL_01|Technology|Middleware|Inter-departmental|
+|QM_GW_INTERNAL_02|Technology|Middleware|Inter-departmental|
+
+h3. External Gateways
+
+||Gateway||Organization||Department||Scope||
+|QM_GW_EXTERNAL_01|External Partners|Partner Integration|External Partners|
+|QM_GW_EXTERNAL_02|External Partners|Vendor Systems|External Partners|
+
+h2. 7.3 Infrastructure Distribution
+
+||Organization||Type||MQ Managers||Gateways||
+|External Partners|{color:purple}External{color}|4|2|
+|Global Markets|{color:green}Internal{color}|5|0|
+|Operations|{color:green}Internal{color}|4|0|
+|Technology|{color:green}Internal{color}|6|2|
+
+----
+
+{anchor:integration-patterns}
+h1. 8. Integration Patterns & Standards
+
+h2. 8.1 Pattern Analysis
+
+||Pattern||Count||Percentage||Assessment||
+|*Gateway-Mediated*|21|22%|{color:green}✓ Best Practice{color}|
+|*Direct Point-to-Point*|74|78%|{color:orange}⚠ Monitor{color}|
+
+h2. 8.4 Integration Standards
+
+||Standard||Description||Compliance||
+|*Naming Convention*|{{ORG}}_{{DEPT}}_{{APP}}_MQ##|Review Required|
+|*Queue Naming*|{{APP}}.{{FUNCTION}}.{{TYPE}}|Review Required|
+|*Security*|TLS 1.2+ for channels|Audit Required|
+|*Monitoring*|All queue managers monitored|Review Required|
+
+----
+
+{anchor:gap-analysis}
+h1. 9. Gap Analysis & Opportunities
+
+h2. 9.1 Architecture Maturity Assessment
+
+*Overall Maturity Level:* 3.0/5
+
+||Dimension||Score||Target||Gap||
+|Gateway Adoption|3/5|5/5|{color:orange}2{color}|
+|High Availability|3/5|5/5|{color:orange}2{color}|
+|Integration Patterns|2/5|5/5|{color:red}3{color}|
+|Documentation|4/5|5/5|{color:green}1{color}|
+
+h2. 9.2 Identified Gaps
+
+# Increase use of gateway-mediated integrations
+
+h2. 9.3 Improvement Opportunities
+
+||Opportunity||Impact||Effort||Priority||
+|Implement gateway redundancy|High|Medium|{color:red}P1{color}|
+|Standardize naming conventions|Medium|Low|{color:orange}P2{color}|
+|Consolidate high-complexity integrations|Medium|High|{color:orange}P2{color}|
+|Implement centralized monitoring|High|Medium|{color:red}P1{color}|
+|Document message formats/schemas|Medium|Medium|{color:blue}P3{color}|
+
+----
+
+{anchor:risk-assessment}
+h1. 10. Risk Assessment (RAID Log)
+
+{note:title=RAID Framework}
+Risks, Assumptions, Issues, and Dependencies affecting the architecture.
+{note}
+
+h2. 10.1 Critical Risks
+
+{tip}No critical risks identified{tip}
+
+h2. 10.2 High Risks
+
+{tip}No high risks identified{tip}
+
+h2. 10.3 Medium Risks
+
+{tip}No medium risks identified{tip}
+
+h2. 10.4 Assumptions
+
+||ID||Assumption||Owner||Validation Date||
+|ASM-001|All MQ managers are configured with standard security policies|Security Team|TBD|
+|ASM-002|Network connectivity between all components is reliable|Network Team|TBD|
+
+h2. 10.5 Dependencies
+
+||ID||Description||Owner||Status||
+|DEP-EXT|External partner dependencies: External Partners|Integration Team|Active|
+
+----
+
+{anchor:architecture-roadmap}
+h1. 11. Architecture Roadmap
+
+h2. 11.1 Recommended Initiatives
+
+{panel:title=Short-Term (0-6 months)|bgColor=#e8f5e9}
+# *Gateway Redundancy* - Implement redundant gateways for organizations with SPOF
+# *Documentation* - Complete queue naming standards documentation
+# *Monitoring* - Deploy centralized MQ monitoring solution
+{panel}
+
+{panel:title=Medium-Term (6-12 months)|bgColor=#fff3e0}
+# *Pattern Consolidation* - Migrate point-to-point integrations to gateway pattern
+# *Security Hardening* - Implement TLS 1.3 for all channels
+# *Capacity Planning* - Establish baseline metrics and growth projections
+{panel}
+
+{panel:title=Long-Term (12-24 months)|bgColor=#e3f2fd}
+# *Modernization* - Evaluate cloud-native messaging alternatives
+# *Automation* - Implement infrastructure-as-code for MQ provisioning
+# *Self-Service* - Enable application teams to manage their own queues
+{panel}
+
+h2. 11.2 Success Metrics
+
+||Metric||Current||Target||Timeline||
+|Gateway Redundancy|4 total|100% redundant|6 months|
+|Gateway-Mediated %|22%|>80%|12 months|
+|MTTR for incidents|Unknown|<1 hour|6 months|
+|Documentation coverage|Partial|100%|3 months|
+
+----
+
+{anchor:appendices}
+h1. 12. Appendices
+
+h2. 12.1 Generated Artifacts
+
+||Artifact||Description||Location||
+|Hierarchical Topology Diagram|Full topology visualization|mq_topology.pdf|
+|Application Diagrams|Per-application integration views|application_diagrams/|
+|Individual MQ Manager Diagrams|Detailed MQ manager views|individual_diagrams/|
+|Gateway Analytics Report|Gateway performance analysis|gateway_analytics_*.html|
+|Change Detection Report|Topology change tracking|change_report_*.html|
+|Excel Inventory|Complete MQ inventory export|mqcmdb_inventory_*.xlsx|
+
+h2. 12.2 Glossary
+
+||Term||Definition||
+|*MQ Manager*|IBM MQ Queue Manager - the runtime component that hosts queues|
+|*QLOCAL*|Local Queue - stores messages on the queue manager|
+|*QREMOTE*|Remote Queue - definition pointing to a queue on another manager|
+|*QALIAS*|Alias Queue - provides an alternative name for another queue|
+|*Gateway*|MQ Manager designated for cross-boundary integration|
+|*SPOF*|Single Point of Failure - component without redundancy|
+|*Fan-Out*|Pattern where one source sends to many destinations|
+|*Fan-In*|Pattern where many sources send to one destination|
+
+h2. 12.3 References
+
+* [TOGAF 9.2 Standard|https://pubs.opengroup.org/architecture/togaf9-doc/arch/]
+* [IBM MQ Documentation|https://www.ibm.com/docs/en/ibm-mq]
+* [Integration Patterns|https://www.enterpriseintegrationpatterns.com/]
+
+----
+{panel:bgColor=#f0f0f0}
+_This TOGAF-aligned Enterprise Architecture documentation was automatically generated on 2026-01-31 00:58:57_
+_by MQ CMDB Hierarchical Automation System_
+
+*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* Internal
+{panel}

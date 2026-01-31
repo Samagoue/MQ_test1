@@ -1,0 +1,223 @@
+{
+  "summary": {
+    "total_gateways": 4,
+    "internal_gateways": 2,
+    "external_gateways": 2,
+    "total_gateway_connections": 21
+  },
+  "gateway_traffic": {
+    "QM_GW_INTERNAL_01": {
+      "scope": "Internal",
+      "organization": "Technology",
+      "department": "Middleware",
+      "inbound_connections": 4,
+      "outbound_connections": 2,
+      "total_connections": 6,
+      "connected_organizations": 4,
+      "connected_departments": 4,
+      "queue_local": 6,
+      "queue_remote": 1,
+      "queue_alias": 0
+    },
+    "QM_GW_INTERNAL_02": {
+      "scope": "Internal",
+      "organization": "Technology",
+      "department": "Middleware",
+      "inbound_connections": 3,
+      "outbound_connections": 1,
+      "total_connections": 4,
+      "connected_organizations": 1,
+      "connected_departments": 1,
+      "queue_local": 4,
+      "queue_remote": 0,
+      "queue_alias": 0
+    },
+    "QM_GW_EXTERNAL_01": {
+      "scope": "External",
+      "organization": "External Partners",
+      "department": "Partner Integration",
+      "inbound_connections": 4,
+      "outbound_connections": 3,
+      "total_connections": 7,
+      "connected_organizations": 4,
+      "connected_departments": 4,
+      "queue_local": 7,
+      "queue_remote": 1,
+      "queue_alias": 0
+    },
+    "QM_GW_EXTERNAL_02": {
+      "scope": "External",
+      "organization": "External Partners",
+      "department": "Vendor Systems",
+      "inbound_connections": 2,
+      "outbound_connections": 2,
+      "total_connections": 4,
+      "connected_organizations": 2,
+      "connected_departments": 2,
+      "queue_local": 3,
+      "queue_remote": 1,
+      "queue_alias": 0
+    }
+  },
+  "org_connectivity": {
+    "Operations <-> Technology": {
+      "gateways": [
+        "QM_GW_INTERNAL_01"
+      ],
+      "connection_count": 1
+    },
+    "Global Markets <-> Technology": {
+      "gateways": [
+        "QM_GW_INTERNAL_01"
+      ],
+      "connection_count": 1
+    },
+    "External Partners <-> Technology": {
+      "gateways": [
+        "QM_GW_EXTERNAL_01",
+        "QM_GW_INTERNAL_01"
+      ],
+      "connection_count": 2
+    },
+    "External Partners <-> Global Markets": {
+      "gateways": [
+        "QM_GW_EXTERNAL_01"
+      ],
+      "connection_count": 1
+    },
+    "External Partners <-> Operations": {
+      "gateways": [
+        "QM_GW_EXTERNAL_01",
+        "QM_GW_EXTERNAL_02"
+      ],
+      "connection_count": 2
+    }
+  },
+  "department_connectivity": {
+    "Middleware <-> Trade Settlement": {
+      "gateways": [
+        "QM_GW_INTERNAL_01"
+      ],
+      "connection_count": 1
+    },
+    "Capital Markets <-> Middleware": {
+      "gateways": [
+        "QM_GW_INTERNAL_01"
+      ],
+      "connection_count": 1
+    },
+    "Middleware <-> Partner Integration": {
+      "gateways": [
+        "QM_GW_INTERNAL_01"
+      ],
+      "connection_count": 1
+    }
+  },
+  "gateway_dependencies": {
+    "QM_GW_INTERNAL_01": {
+      "dependent_mqmanagers": 6,
+      "dependent_applications": [
+        "Settlement System",
+        "Equity Trading Platform",
+        "Enterprise Service Bus"
+      ],
+      "application_count": 3
+    },
+    "QM_GW_INTERNAL_02": {
+      "dependent_mqmanagers": 4,
+      "dependent_applications": [
+        "Enterprise Service Bus"
+      ],
+      "application_count": 1
+    },
+    "QM_GW_EXTERNAL_01": {
+      "dependent_mqmanagers": 7,
+      "dependent_applications": [
+        "FX Trading System",
+        "Payment Gateway",
+        "Partner Connect"
+      ],
+      "application_count": 3
+    },
+    "QM_GW_EXTERNAL_02": {
+      "dependent_mqmanagers": 4,
+      "dependent_applications": [
+        "Payment Gateway",
+        "Vendor Integration"
+      ],
+      "application_count": 2
+    }
+  },
+  "load_distribution": {
+    "internal_gateways": [
+      {
+        "gateway": "QM_GW_INTERNAL_01",
+        "connections": 6,
+        "queues": 7,
+        "load_score": 19
+      },
+      {
+        "gateway": "QM_GW_INTERNAL_02",
+        "connections": 4,
+        "queues": 4,
+        "load_score": 12
+      }
+    ],
+    "external_gateways": [
+      {
+        "gateway": "QM_GW_EXTERNAL_01",
+        "connections": 7,
+        "queues": 8,
+        "load_score": 22
+      },
+      {
+        "gateway": "QM_GW_EXTERNAL_02",
+        "connections": 4,
+        "queues": 4,
+        "load_score": 12
+      }
+    ]
+  },
+  "redundancy_analysis": {
+    "single_points_of_failure": [
+      {
+        "route": "Operations <-> Technology",
+        "gateway": "QM_GW_INTERNAL_01",
+        "connection_count": 1,
+        "type": "Organization"
+      },
+      {
+        "route": "Global Markets <-> Technology",
+        "gateway": "QM_GW_INTERNAL_01",
+        "connection_count": 1,
+        "type": "Organization"
+      },
+      {
+        "route": "External Partners <-> Global Markets",
+        "gateway": "QM_GW_EXTERNAL_01",
+        "connection_count": 1,
+        "type": "Organization"
+      },
+      {
+        "route": "Middleware <-> Trade Settlement",
+        "gateway": "QM_GW_INTERNAL_01",
+        "connection_count": 1,
+        "type": "Department"
+      },
+      {
+        "route": "Capital Markets <-> Middleware",
+        "gateway": "QM_GW_INTERNAL_01",
+        "connection_count": 1,
+        "type": "Department"
+      },
+      {
+        "route": "Middleware <-> Partner Integration",
+        "gateway": "QM_GW_INTERNAL_01",
+        "connection_count": 1,
+        "type": "Department"
+      }
+    ],
+    "spof_count": 6,
+    "routes_with_redundancy": 2
+  }
+}

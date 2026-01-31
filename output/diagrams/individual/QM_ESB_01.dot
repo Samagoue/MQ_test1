@@ -34,23 +34,23 @@ digraph MQ_QM_ESB_01 {
     QM_CORE_01 -> QM_ESB_01 [color="#28a745" penwidth=2.0 label="sends to"]
 
     /* Outbound MQ Managers */
-    QM_GW_INTERNAL_02 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
-        URL="QM_GW_INTERNAL_02.svg" target="_blank" tooltip="Click to view QM_GW_INTERNAL_02 details"
-        label=<<b>QM_GW_INTERNAL_02</b><br/><font point-size='8'>Integration Services</font>>]
-    QM_ESB_01 -> QM_GW_INTERNAL_02 [color="#2874a6" penwidth=2.0 label="sends to"]
     QM_GW_INTERNAL_01 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
         URL="QM_GW_INTERNAL_01.svg" target="_blank" tooltip="Click to view QM_GW_INTERNAL_01 details"
         label=<<b>QM_GW_INTERNAL_01</b><br/><font point-size='8'>Integration Services</font>>]
     QM_ESB_01 -> QM_GW_INTERNAL_01 [color="#2874a6" penwidth=2.0 label="sends to"]
+    QM_GW_INTERNAL_02 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
+        URL="QM_GW_INTERNAL_02.svg" target="_blank" tooltip="Click to view QM_GW_INTERNAL_02 details"
+        label=<<b>QM_GW_INTERNAL_02</b><br/><font point-size='8'>Integration Services</font>>]
+    QM_ESB_01 -> QM_GW_INTERNAL_02 [color="#2874a6" penwidth=2.0 label="sends to"]
 
     /* External Inbound */
     ext_in_0_ESB_ROUTE [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="ESB.ROUTE" fontsize=9]
     ext_in_0_ESB_ROUTE -> QM_ESB_01 [color="#f39c12" style=dashed label="external"]
     /* External Outbound */
-    ext_out_0_ESB_LOG [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="ESB.LOG" fontsize=9]
-    QM_ESB_01 -> ext_out_0_ESB_LOG [color="#f39c12" style=dashed label="external"]
-    ext_out_1_ESB_TRANSFORM [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="ESB.TRANSFORM" fontsize=9]
-    QM_ESB_01 -> ext_out_1_ESB_TRANSFORM [color="#f39c12" style=dashed label="external"]
+    ext_out_0_ESB_TRANSFORM [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="ESB.TRANSFORM" fontsize=9]
+    QM_ESB_01 -> ext_out_0_ESB_TRANSFORM [color="#f39c12" style=dashed label="external"]
+    ext_out_1_ESB_LOG [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="ESB.LOG" fontsize=9]
+    QM_ESB_01 -> ext_out_1_ESB_LOG [color="#f39c12" style=dashed label="external"]
 
     subgraph cluster_legend {
         label="Legend" style="rounded,filled" fillcolor="#ffffff" color="#d0d8e0" fontsize=11 margin=15
@@ -81,7 +81,7 @@ digraph MQ_QM_ESB_01 {
         fontsize=10
         label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
             <tr><td align="center"><b>MQ Manager: QM_ESB_01</b></td></tr>
-            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-31 00:58:56</font></td></tr>
             <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
         </table>>
     ]

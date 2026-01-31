@@ -41,8 +41,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Partner_Integration {
             label=<<b>🏬 Department: Partner Integration</b>>
             style="filled,rounded"
-            fillcolor="#e1f3ea"
-            color="#28bd70"
+            fillcolor="#e1eaf3"
+            color="#2872bd"
             penwidth=2.5
             fontsize=20
             margin=20
@@ -51,8 +51,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Partner_Gateway_Team {
                 label=<<b>👤 Biz_Ownr: Partner Gateway Team</b>>
                 style="filled,rounded"
-                fillcolor="#d4ecdf"
-                color="#1ead63"
+                fillcolor="#d4e0ec"
+                color="#1e65ad"
                 penwidth=2.5
                 fontsize=18
                 margin=18
@@ -103,8 +103,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Partner_Connect {
                     label=<<b>🧩 App: Partner Connect</b>>
                     style="filled,rounded"
-                    fillcolor="#cbe6d8"
-                    color="#169c57"
+                    fillcolor="#cbd8e6"
+                    color="#16599c"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -112,15 +112,35 @@ digraph MQ_Topology {
                     QM_PARTNER_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#d4ecdf"
-                        color="#169c57"
+                        fillcolor="#d4e0ec"
+                        color="#16599c"
                         penwidth=1.8
-                        fontcolor="#0a5b31"
+                        fontcolor="#0a325b"
                         URL="../individual/QM_PARTNER_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_PARTNER_01 details"
                         label=<<b>🗄️ QM_PARTNER_01</b><br/>QLocal: 3 | QRemote: 0 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 0+1 ➡>
                     ]
+                    QM_PARTNER_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• PARTNER.IN>
+                    ]
+                    QM_PARTNER_01_inbound_extra -> QM_PARTNER_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_PARTNER_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• PARTNER.OUT>
+                    ]
+                    QM_PARTNER_01 -> QM_PARTNER_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -132,8 +152,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Vendor_Systems {
             label=<<b>🏬 Department: Vendor Systems</b>>
             style="filled,rounded"
-            fillcolor="#e1e1f3"
-            color="#282abd"
+            fillcolor="#eff3e1"
+            color="#98bd28"
             penwidth=2.5
             fontsize=20
             margin=20
@@ -142,8 +162,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Vendor_Management {
                 label=<<b>👤 Biz_Ownr: Vendor Management</b>>
                 style="filled,rounded"
-                fillcolor="#d4d4ec"
-                color="#1e20ad"
+                fillcolor="#e6ecd4"
+                color="#89ad1e"
                 penwidth=2.5
                 fontsize=18
                 margin=18
@@ -194,8 +214,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Vendor_Integration {
                     label=<<b>🧩 App: Vendor Integration</b>>
                     style="filled,rounded"
-                    fillcolor="#cbcbe6"
-                    color="#16189c"
+                    fillcolor="#dfe6cb"
+                    color="#7a9c16"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -203,15 +223,35 @@ digraph MQ_Topology {
                     QM_VENDOR_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#d4d4ec"
-                        color="#16189c"
+                        fillcolor="#e6ecd4"
+                        color="#7a9c16"
                         penwidth=1.8
-                        fontcolor="#0a0b5b"
+                        fontcolor="#475b0a"
                         URL="../individual/QM_VENDOR_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_VENDOR_01 details"
                         label=<<b>🗄️ QM_VENDOR_01</b><br/>QLocal: 3 | QRemote: 0 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 0+1 ➡>
                     ]
+                    QM_VENDOR_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• VENDOR.IN>
+                    ]
+                    QM_VENDOR_01_inbound_extra -> QM_VENDOR_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_VENDOR_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• VENDOR.OUT>
+                    ]
+                    QM_VENDOR_01 -> QM_VENDOR_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -239,8 +279,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Capital_Markets {
             label=<<b>🏬 Department: Capital Markets</b>>
             style="filled,rounded"
-            fillcolor="#f3e5e1"
-            color="#bd4a28"
+            fillcolor="#e1f3e1"
+            color="#28bd28"
             penwidth=3
             fontsize=20
             margin=25
@@ -249,8 +289,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Trading_Desk {
                 label=<<b>👤 Biz_Ownr: Trading Desk</b>>
                 style="filled,rounded"
-                fillcolor="#ecd9d4"
-                color="#ad3f1e"
+                fillcolor="#d4ecd4"
+                color="#1ead1e"
                 penwidth=2.5
                 fontsize=18
                 margin=20
@@ -258,8 +298,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Equity_Trading_Platform {
                     label=<<b>🧩 App: Equity Trading Platform</b>>
                     style="filled,rounded"
-                    fillcolor="#e6d1cb"
-                    color="#9c3516"
+                    fillcolor="#cbe6cb"
+                    color="#169c16"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -267,36 +307,76 @@ digraph MQ_Topology {
                     QM_TRADING_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#ecd9d4"
-                        color="#9c3516"
+                        fillcolor="#d4ecd4"
+                        color="#169c16"
                         penwidth=1.8
-                        fontcolor="#5b1d0a"
+                        fontcolor="#0a5b0a"
                         URL="../individual/QM_TRADING_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_TRADING_01 details"
                         label=<<b>🗄️ QM_TRADING_01</b><br/>QLocal: 2 | QRemote: 3 | QAlias: 1<br/> ⬅ In: 0+1 | Out: 3+1 ➡>
                     ]
+                    QM_TRADING_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• EQUITY.ORDERS.IN>
+                    ]
+                    QM_TRADING_01_inbound_extra -> QM_TRADING_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_TRADING_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• EQUITY.ORDERS.OUT>
+                    ]
+                    QM_TRADING_01 -> QM_TRADING_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                     QM_TRADING_02 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#ecd9d4"
-                        color="#9c3516"
+                        fillcolor="#d4ecd4"
+                        color="#169c16"
                         penwidth=1.8
-                        fontcolor="#5b1d0a"
+                        fontcolor="#0a5b0a"
                         URL="../individual/QM_TRADING_02.svg"
                         target="_blank"
                         tooltip="Click to view QM_TRADING_02 details"
                         label=<<b>🗄️ QM_TRADING_02</b><br/>QLocal: 2 | QRemote: 2 | QAlias: 0<br/> ⬅ In: 0+1 | Out: 2+1 ➡>
                     ]
+                    QM_TRADING_02_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• EQUITY.ORDERS.IN>
+                    ]
+                    QM_TRADING_02_inbound_extra -> QM_TRADING_02 [style=dashed color="#999999" arrowhead=none]
+                    QM_TRADING_02_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• EQUITY.ORDERS.OUT>
+                    ]
+                    QM_TRADING_02 -> QM_TRADING_02_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
                 subgraph cluster_App_FX_Trading_System {
                     label=<<b>🧩 App: FX Trading System</b>>
                     style="filled,rounded"
-                    fillcolor="#e6d1cb"
-                    color="#9c3516"
+                    fillcolor="#cbe6cb"
+                    color="#169c16"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -304,15 +384,35 @@ digraph MQ_Topology {
                     QM_FX_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#ecd9d4"
-                        color="#9c3516"
+                        fillcolor="#d4ecd4"
+                        color="#169c16"
                         penwidth=1.8
-                        fontcolor="#5b1d0a"
+                        fontcolor="#0a5b0a"
                         URL="../individual/QM_FX_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_FX_01 details"
                         label=<<b>🗄️ QM_FX_01</b><br/>QLocal: 3 | QRemote: 2 | QAlias: 0<br/> ⬅ In: 0+1 | Out: 2+2 ➡>
                     ]
+                    QM_FX_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• FX.RATES.IN>
+                    ]
+                    QM_FX_01_inbound_extra -> QM_FX_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_FX_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• FX.CONFIRM<br/>• FX.TRADES.OUT>
+                    ]
+                    QM_FX_01 -> QM_FX_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -324,8 +424,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Risk_Management {
             label=<<b>🏬 Department: Risk Management</b>>
             style="filled,rounded"
-            fillcolor="#e1eff3"
-            color="#289abd"
+            fillcolor="#f3eae1"
+            color="#bd7228"
             penwidth=3
             fontsize=20
             margin=25
@@ -334,8 +434,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Risk_Analytics {
                 label=<<b>👤 Biz_Ownr: Risk Analytics</b>>
                 style="filled,rounded"
-                fillcolor="#d4e6ec"
-                color="#1e8cad"
+                fillcolor="#ece0d4"
+                color="#ad661e"
                 penwidth=2.5
                 fontsize=18
                 margin=20
@@ -343,8 +443,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Risk_Engine {
                     label=<<b>🧩 App: Risk Engine</b>>
                     style="filled,rounded"
-                    fillcolor="#cbdfe6"
-                    color="#167c9c"
+                    fillcolor="#e6d8cb"
+                    color="#9c5916"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -352,28 +452,68 @@ digraph MQ_Topology {
                     QM_RISK_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#d4e6ec"
-                        color="#167c9c"
+                        fillcolor="#ece0d4"
+                        color="#9c5916"
                         penwidth=1.8
-                        fontcolor="#0a485b"
+                        fontcolor="#5b330a"
                         URL="../individual/QM_RISK_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_RISK_01 details"
                         label=<<b>🗄️ QM_RISK_01</b><br/>QLocal: 5 | QRemote: 1 | QAlias: 1<br/> ⬅ In: 2+1 | Out: 1+2 ➡>
                     ]
+                    QM_RISK_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• RISK.CALC.IN>
+                    ]
+                    QM_RISK_01_inbound_extra -> QM_RISK_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_RISK_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• RISK.ALERTS<br/>• RISK.RESULTS>
+                    ]
+                    QM_RISK_01 -> QM_RISK_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                     QM_RISK_02 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#d4e6ec"
-                        color="#167c9c"
+                        fillcolor="#ece0d4"
+                        color="#9c5916"
                         penwidth=1.8
-                        fontcolor="#0a485b"
+                        fontcolor="#5b330a"
                         URL="../individual/QM_RISK_02.svg"
                         target="_blank"
                         tooltip="Click to view QM_RISK_02 details"
                         label=<<b>🗄️ QM_RISK_02</b><br/>QLocal: 3 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 1+1 ➡>
                     ]
+                    QM_RISK_02_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• RISK.CALC.IN>
+                    ]
+                    QM_RISK_02_inbound_extra -> QM_RISK_02 [style=dashed color="#999999" arrowhead=none]
+                    QM_RISK_02_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• RISK.RESULTS>
+                    ]
+                    QM_RISK_02 -> QM_RISK_02_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -401,8 +541,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Payments {
             label=<<b>🏬 Department: Payments</b>>
             style="filled,rounded"
-            fillcolor="#eee1f3"
-            color="#9528bd"
+            fillcolor="#f3e1e6"
+            color="#bd284d"
             penwidth=3
             fontsize=20
             margin=25
@@ -411,8 +551,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Payment_Processing {
                 label=<<b>👤 Biz_Ownr: Payment Processing</b>>
                 style="filled,rounded"
-                fillcolor="#e6d4ec"
-                color="#871ead"
+                fillcolor="#ecd4da"
+                color="#ad1e42"
                 penwidth=2.5
                 fontsize=18
                 margin=20
@@ -420,8 +560,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Payment_Gateway {
                     label=<<b>🧩 App: Payment Gateway</b>>
                     style="filled,rounded"
-                    fillcolor="#decbe6"
-                    color="#78169c"
+                    fillcolor="#e6cbd2"
+                    color="#9c1637"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -429,28 +569,68 @@ digraph MQ_Topology {
                     QM_PAY_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#e6d4ec"
-                        color="#78169c"
+                        fillcolor="#ecd4da"
+                        color="#9c1637"
                         penwidth=1.8
-                        fontcolor="#460a5b"
+                        fontcolor="#5b0a1e"
                         URL="../individual/QM_PAY_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_PAY_01 details"
                         label=<<b>🗄️ QM_PAY_01</b><br/>QLocal: 5 | QRemote: 2 | QAlias: 1<br/> ⬅ In: 1+1 | Out: 2+3 ➡>
                     ]
+                    QM_PAY_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• PAY.REQUEST>
+                    ]
+                    QM_PAY_01_inbound_extra -> QM_PAY_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_PAY_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• PAY.AUDIT<br/>• PAY.CONFIRM<br/>• PAY.REJECT>
+                    ]
+                    QM_PAY_01 -> QM_PAY_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                     QM_PAY_02 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#e6d4ec"
-                        color="#78169c"
+                        fillcolor="#ecd4da"
+                        color="#9c1637"
                         penwidth=1.8
-                        fontcolor="#460a5b"
+                        fontcolor="#5b0a1e"
                         URL="../individual/QM_PAY_02.svg"
                         target="_blank"
                         tooltip="Click to view QM_PAY_02 details"
                         label=<<b>🗄️ QM_PAY_02</b><br/>QLocal: 3 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 1+1 ➡>
                     ]
+                    QM_PAY_02_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• PAY.REQUEST>
+                    ]
+                    QM_PAY_02_inbound_extra -> QM_PAY_02 [style=dashed color="#999999" arrowhead=none]
+                    QM_PAY_02_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• PAY.CONFIRM>
+                    ]
+                    QM_PAY_02 -> QM_PAY_02_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -462,8 +642,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Trade_Settlement {
             label=<<b>🏬 Department: Trade Settlement</b>>
             style="filled,rounded"
-            fillcolor="#e6f3e1"
-            color="#4fbd28"
+            fillcolor="#e6e1f3"
+            color="#4d28bd"
             penwidth=3
             fontsize=20
             margin=25
@@ -472,8 +652,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Settlement_Operations {
                 label=<<b>👤 Biz_Ownr: Settlement Operations</b>>
                 style="filled,rounded"
-                fillcolor="#daecd4"
-                color="#44ad1e"
+                fillcolor="#dad4ec"
+                color="#421ead"
                 penwidth=2.5
                 fontsize=18
                 margin=20
@@ -481,8 +661,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Settlement_System {
                     label=<<b>🧩 App: Settlement System</b>>
                     style="filled,rounded"
-                    fillcolor="#d2e6cb"
-                    color="#3a9c16"
+                    fillcolor="#d2cbe6"
+                    color="#37169c"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -490,28 +670,68 @@ digraph MQ_Topology {
                     QM_SETTLE_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#daecd4"
-                        color="#3a9c16"
+                        fillcolor="#dad4ec"
+                        color="#37169c"
                         penwidth=1.8
-                        fontcolor="#1f5b0a"
+                        fontcolor="#1e0a5b"
                         URL="../individual/QM_SETTLE_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_SETTLE_01 details"
                         label=<<b>🗄️ QM_SETTLE_01</b><br/>QLocal: 4 | QRemote: 2 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 2+2 ➡>
                     ]
+                    QM_SETTLE_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• SETTLE.IN>
+                    ]
+                    QM_SETTLE_01_inbound_extra -> QM_SETTLE_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_SETTLE_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• SETTLE.CONFIRM<br/>• SETTLE.FAILS>
+                    ]
+                    QM_SETTLE_01 -> QM_SETTLE_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                     QM_SETTLE_02 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#daecd4"
-                        color="#3a9c16"
+                        fillcolor="#dad4ec"
+                        color="#37169c"
                         penwidth=1.8
-                        fontcolor="#1f5b0a"
+                        fontcolor="#1e0a5b"
                         URL="../individual/QM_SETTLE_02.svg"
                         target="_blank"
                         tooltip="Click to view QM_SETTLE_02 details"
                         label=<<b>🗄️ QM_SETTLE_02</b><br/>QLocal: 3 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 1+1 ➡>
                     ]
+                    QM_SETTLE_02_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• SETTLE.IN>
+                    ]
+                    QM_SETTLE_02_inbound_extra -> QM_SETTLE_02 [style=dashed color="#999999" arrowhead=none]
+                    QM_SETTLE_02_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• SETTLE.CONFIRM>
+                    ]
+                    QM_SETTLE_02 -> QM_SETTLE_02_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -539,8 +759,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Core_Systems {
             label=<<b>🏬 Department: Core Systems</b>>
             style="filled,rounded"
-            fillcolor="#f3e1ea"
-            color="#bd2875"
+            fillcolor="#f3e1f3"
+            color="#bd28bd"
             penwidth=3
             fontsize=20
             margin=25
@@ -549,8 +769,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Core_Banking {
                 label=<<b>👤 Biz_Ownr: Core Banking</b>>
                 style="filled,rounded"
-                fillcolor="#ecd4e0"
-                color="#ad1e68"
+                fillcolor="#ecd4ec"
+                color="#ad1ead"
                 penwidth=2.5
                 fontsize=18
                 margin=20
@@ -558,8 +778,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Core_Banking {
                     label=<<b>🧩 App: Core Banking</b>>
                     style="filled,rounded"
-                    fillcolor="#e6cbd9"
-                    color="#9c165b"
+                    fillcolor="#e6cbe6"
+                    color="#9c169c"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -567,28 +787,68 @@ digraph MQ_Topology {
                     QM_CORE_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#ecd4e0"
-                        color="#9c165b"
+                        fillcolor="#ecd4ec"
+                        color="#9c169c"
                         penwidth=1.8
-                        fontcolor="#5b0a34"
+                        fontcolor="#5b0a5b"
                         URL="../individual/QM_CORE_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_CORE_01 details"
                         label=<<b>🗄️ QM_CORE_01</b><br/>QLocal: 7 | QRemote: 1 | QAlias: 2<br/> ⬅ In: 2+1 | Out: 1+4 ➡>
                     ]
+                    QM_CORE_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• CORE.ACCOUNTS>
+                    ]
+                    QM_CORE_01_inbound_extra -> QM_CORE_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_CORE_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• CORE.AUDIT<br/>• CORE.BALANCE<br/>• CORE.INTEREST<br/>• CORE.LEDGER>
+                    ]
+                    QM_CORE_01 -> QM_CORE_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                     QM_CORE_02 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#ecd4e0"
-                        color="#9c165b"
+                        fillcolor="#ecd4ec"
+                        color="#9c169c"
                         penwidth=1.8
-                        fontcolor="#5b0a34"
+                        fontcolor="#5b0a5b"
                         URL="../individual/QM_CORE_02.svg"
                         target="_blank"
                         tooltip="Click to view QM_CORE_02 details"
                         label=<<b>🗄️ QM_CORE_02</b><br/>QLocal: 4 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 1+2 ➡>
                     ]
+                    QM_CORE_02_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• CORE.ACCOUNTS>
+                    ]
+                    QM_CORE_02_inbound_extra -> QM_CORE_02 [style=dashed color="#999999" arrowhead=none]
+                    QM_CORE_02_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• CORE.AUDIT<br/>• CORE.LEDGER>
+                    ]
+                    QM_CORE_02 -> QM_CORE_02_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -600,8 +860,8 @@ digraph MQ_Topology {
         subgraph cluster_Dep_Middleware {
             label=<<b>🏬 Department: Middleware</b>>
             style="filled,rounded"
-            fillcolor="#f3f3e1"
-            color="#bdba28"
+            fillcolor="#e1f3ef"
+            color="#28bd98"
             penwidth=3
             fontsize=20
             margin=25
@@ -610,8 +870,8 @@ digraph MQ_Topology {
             subgraph cluster_BO_Integration_Services {
                 label=<<b>👤 Biz_Ownr: Integration Services</b>>
                 style="filled,rounded"
-                fillcolor="#ececd4"
-                color="#adab1e"
+                fillcolor="#d4ece6"
+                color="#1ead89"
                 penwidth=2.5
                 fontsize=18
                 margin=20
@@ -619,8 +879,8 @@ digraph MQ_Topology {
                 subgraph cluster_App_Enterprise_Service_Bus {
                     label=<<b>🧩 App: Enterprise Service Bus</b>>
                     style="filled,rounded"
-                    fillcolor="#e6e5cb"
-                    color="#9c9916"
+                    fillcolor="#cbe6df"
+                    color="#169c7a"
                     penwidth=2
                     fontsize=16
                     margin=15
@@ -628,28 +888,68 @@ digraph MQ_Topology {
                     QM_ESB_01 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#ececd4"
-                        color="#9c9916"
+                        fillcolor="#d4ece6"
+                        color="#169c7a"
                         penwidth=1.8
-                        fontcolor="#5b5a0a"
+                        fontcolor="#0a5b47"
                         URL="../individual/QM_ESB_01.svg"
                         target="_blank"
                         tooltip="Click to view QM_ESB_01 details"
                         label=<<b>🗄️ QM_ESB_01</b><br/>QLocal: 4 | QRemote: 2 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 2+2 ➡>
                     ]
+                    QM_ESB_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• ESB.ROUTE>
+                    ]
+                    QM_ESB_01_inbound_extra -> QM_ESB_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_ESB_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• ESB.LOG<br/>• ESB.TRANSFORM>
+                    ]
+                    QM_ESB_01 -> QM_ESB_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                     QM_ESB_02 [
                         shape=cylinder
                         style="filled"
-                        fillcolor="#ececd4"
-                        color="#9c9916"
+                        fillcolor="#d4ece6"
+                        color="#169c7a"
                         penwidth=1.8
-                        fontcolor="#5b5a0a"
+                        fontcolor="#0a5b47"
                         URL="../individual/QM_ESB_02.svg"
                         target="_blank"
                         tooltip="Click to view QM_ESB_02 details"
                         label=<<b>🗄️ QM_ESB_02</b><br/>QLocal: 3 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 1+1 ➡>
                     ]
+                    QM_ESB_02_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• ESB.ROUTE>
+                    ]
+                    QM_ESB_02_inbound_extra -> QM_ESB_02 [style=dashed color="#999999" arrowhead=none]
+                    QM_ESB_02_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• ESB.TRANSFORM>
+                    ]
+                    QM_ESB_02 -> QM_ESB_02_outbound_extra [style=dashed color="#999999" arrowhead=none]
 
                 }
 
@@ -756,48 +1056,18 @@ digraph MQ_Topology {
 
     /* Cross-Organization / External */
     QM_GW_EXTERNAL_01 -> QM_PARTNER_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_GW_EXTERNAL_01 -> EXT_AUDIT [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_GW_EXTERNAL_01 -> EXT_OUTBOUND [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_PARTNER_01 -> PARTNER_OUT [color="#b455ff" penwidth=2.2 style=dashed]
     QM_GW_EXTERNAL_02 -> QM_VENDOR_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_GW_EXTERNAL_02 -> EXT_OUTBOUND [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_VENDOR_01 -> VENDOR_OUT [color="#b455ff" penwidth=2.2 style=dashed]
     QM_TRADING_01 -> QM_GW_INTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
     QM_TRADING_01 -> QM_SETTLE_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_TRADING_01 -> EQUITY_ORDERS_OUT [color="#b455ff" penwidth=2.2 style=dashed]
     QM_TRADING_02 -> QM_SETTLE_02 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_TRADING_02 -> EQUITY_ORDERS_OUT [color="#b455ff" penwidth=2.2 style=dashed]
     QM_FX_01 -> QM_GW_EXTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_FX_01 -> FX_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_FX_01 -> FX_TRADES_OUT [color="#b455ff" penwidth=2.2 style=dashed]
     QM_RISK_01 -> QM_CORE_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_RISK_01 -> RISK_ALERTS [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_RISK_01 -> RISK_RESULTS [color="#b455ff" penwidth=2.2 style=dashed]
     QM_RISK_02 -> QM_CORE_02 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_RISK_02 -> RISK_RESULTS [color="#b455ff" penwidth=2.2 style=dashed]
     QM_PAY_01 -> QM_CORE_01 [color="#b455ff" penwidth=2.2 style=dashed]
     QM_PAY_01 -> QM_GW_EXTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_PAY_01 -> PAY_AUDIT [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_PAY_01 -> PAY_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_PAY_01 -> PAY_REJECT [color="#b455ff" penwidth=2.2 style=dashed]
     QM_PAY_02 -> QM_GW_EXTERNAL_02 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_PAY_02 -> PAY_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
     QM_SETTLE_01 -> QM_GW_INTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_SETTLE_01 -> SETTLE_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_SETTLE_01 -> SETTLE_FAILS [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_SETTLE_02 -> SETTLE_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_CORE_01 -> CORE_AUDIT [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_CORE_01 -> CORE_BALANCE [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_CORE_01 -> CORE_INTEREST [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_CORE_01 -> CORE_LEDGER [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_CORE_02 -> CORE_AUDIT [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_CORE_02 -> CORE_LEDGER [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_ESB_01 -> ESB_LOG [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_ESB_01 -> ESB_TRANSFORM [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_ESB_02 -> ESB_TRANSFORM [color="#b455ff" penwidth=2.2 style=dashed]
     QM_GW_INTERNAL_01 -> QM_GW_EXTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_GW_INTERNAL_01 -> GW_OUTBOUND [color="#b455ff" penwidth=2.2 style=dashed]
-    QM_GW_INTERNAL_02 -> GW_OUTBOUND [color="#b455ff" penwidth=2.2 style=dashed]
 
     /* ==========================
        LEGEND
@@ -866,7 +1136,7 @@ digraph MQ_Topology {
         fontsize=10
         label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
             <tr><td align="center"><b>MQ CMDB Topology Diagram</b></td></tr>
-            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-31 00:58:56</font></td></tr>
             <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
         </table>>
     ]

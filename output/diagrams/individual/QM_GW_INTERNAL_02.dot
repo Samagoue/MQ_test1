@@ -28,14 +28,14 @@ digraph MQ_QM_GW_INTERNAL_02 {
     ]
 
     /* Inbound MQ Managers */
-    QM_ESB_01 [shape=cylinder style="filled" fillcolor="#d5f5e3" color="#82e0aa" penwidth=1.5
-        URL="QM_ESB_01.svg" target="_blank" tooltip="Click to view QM_ESB_01 details"
-        label=<<b>QM_ESB_01</b><br/><font point-size='8'>Integration Services</font>>]
-    QM_ESB_01 -> QM_GW_INTERNAL_02 [color="#28a745" penwidth=2.0 label="sends to"]
     QM_ESB_02 [shape=cylinder style="filled" fillcolor="#d5f5e3" color="#82e0aa" penwidth=1.5
         URL="QM_ESB_02.svg" target="_blank" tooltip="Click to view QM_ESB_02 details"
         label=<<b>QM_ESB_02</b><br/><font point-size='8'>Integration Services</font>>]
     QM_ESB_02 -> QM_GW_INTERNAL_02 [color="#28a745" penwidth=2.0 label="sends to"]
+    QM_ESB_01 [shape=cylinder style="filled" fillcolor="#d5f5e3" color="#82e0aa" penwidth=1.5
+        URL="QM_ESB_01.svg" target="_blank" tooltip="Click to view QM_ESB_01 details"
+        label=<<b>QM_ESB_01</b><br/><font point-size='8'>Integration Services</font>>]
+    QM_ESB_01 -> QM_GW_INTERNAL_02 [color="#28a745" penwidth=2.0 label="sends to"]
 
     /* External Inbound */
     ext_in_0_GW_INBOUND [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="GW.INBOUND" fontsize=9]
@@ -73,7 +73,7 @@ digraph MQ_QM_GW_INTERNAL_02 {
         fontsize=10
         label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
             <tr><td align="center"><b>MQ Manager: QM_GW_INTERNAL_02</b></td></tr>
-            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-31 00:58:56</font></td></tr>
             <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
         </table>>
     ]

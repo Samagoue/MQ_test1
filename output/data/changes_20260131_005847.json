@@ -1,0 +1,29 @@
+{
+  "mqmanagers": {
+    "added": [],
+    "removed": [],
+    "modified": []
+  },
+  "connections": {
+    "added": [],
+    "removed": []
+  },
+  "gateways": {
+    "added": [],
+    "removed": [],
+    "modified": []
+  },
+  "queue_counts": [],
+  "summary": {
+    "mqmanagers_added": 0,
+    "mqmanagers_removed": 0,
+    "mqmanagers_modified": 0,
+    "connections_added": 0,
+    "connections_removed": 0,
+    "gateways_added": 0,
+    "gateways_removed": 0,
+    "gateways_modified": 0,
+    "queue_count_changes": 0,
+    "total_changes": 0
+  }
+}

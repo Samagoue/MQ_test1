@@ -34,14 +34,14 @@ digraph MQ_QM_PAY_01 {
     QM_SETTLE_01 -> QM_PAY_01 [color="#28a745" penwidth=2.0 label="sends to"]
 
     /* Outbound MQ Managers */
-    QM_CORE_01 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
-        URL="QM_CORE_01.svg" target="_blank" tooltip="Click to view QM_CORE_01 details"
-        label=<<b>QM_CORE_01</b><br/><font point-size='8'>Core Banking</font>>]
-    QM_PAY_01 -> QM_CORE_01 [color="#2874a6" penwidth=2.0 label="sends to"]
     QM_GW_EXTERNAL_01 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
         URL="QM_GW_EXTERNAL_01.svg" target="_blank" tooltip="Click to view QM_GW_EXTERNAL_01 details"
         label=<<b>QM_GW_EXTERNAL_01</b><br/><font point-size='8'>Partner Gateway Team</font>>]
     QM_PAY_01 -> QM_GW_EXTERNAL_01 [color="#2874a6" penwidth=2.0 label="sends to"]
+    QM_CORE_01 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
+        URL="QM_CORE_01.svg" target="_blank" tooltip="Click to view QM_CORE_01 details"
+        label=<<b>QM_CORE_01</b><br/><font point-size='8'>Core Banking</font>>]
+    QM_PAY_01 -> QM_CORE_01 [color="#2874a6" penwidth=2.0 label="sends to"]
 
     /* External Inbound */
     ext_in_0_PAY_REQUEST [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="PAY.REQUEST" fontsize=9]
@@ -83,7 +83,7 @@ digraph MQ_QM_PAY_01 {
         fontsize=10
         label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
             <tr><td align="center"><b>MQ Manager: QM_PAY_01</b></td></tr>
-            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-31 00:58:56</font></td></tr>
             <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
         </table>>
     ]
