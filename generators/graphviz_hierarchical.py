@@ -322,7 +322,8 @@ class HierarchicalGraphVizGenerator:
         node_lines = []
 
         # URL for clickable SVG - links to individual diagram
-        url_path = f"individual_diagrams/{qm_id}.svg"
+        # Topology is in diagrams/topology/, individual is in diagrams/individual/
+        url_path = f"../individual/{qm_id}.svg"
 
         # Main MQ manager node
         node_lines.append(f"""{indent}{qm_id} [

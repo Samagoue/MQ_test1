@@ -73,7 +73,7 @@ class MQCMDBOrchestrator:
 
             # Change Detection
             safe_print("\n[5/13] Running change detection...")
-            baseline_file = Config.OUTPUT_DIR / "mq_cmdb_baseline.json"
+            baseline_file = Config.BASELINE_JSON
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
             if baseline_file.exists():
@@ -87,14 +87,14 @@ class MQCMDBOrchestrator:
                     baseline_time_str = datetime.fromtimestamp(baseline_timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
                     # Generate HTML report
-                    report_file = Config.OUTPUT_DIR / f"change_report_{timestamp}.html"
+                    report_file = Config.REPORTS_DIR / f"change_report_{timestamp}.html"
                     generate_html_report(changes, report_file, timestamp, baseline_time_str)
 
                     safe_print(f"✓ Detected {changes['summary']['total_changes']} changes")
                     safe_print(f"✓ Change report: {report_file}")
 
                     # Save change data as JSON for programmatic access
-                    change_json = Config.OUTPUT_DIR / f"changes_{timestamp}.json"
+                    change_json = Config.DATA_DIR / f"changes_{timestamp}.json"
                     save_json(changes, change_json)
                 except Exception as e:
                     safe_print(f"⚠ Change detection failed: {e}")
@@ -118,7 +118,7 @@ class MQCMDBOrchestrator:
            
             # Generate application diagrams
             safe_print("\n[7/13] Generating application diagrams...")
-            app_diagrams_dir = Config.OUTPUT_DIR / "application_diagrams"
+            app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
             count = app_gen.generate_all(app_diagrams_dir)
             if count > 0:
@@ -146,7 +146,7 @@ class MQCMDBOrchestrator:
             safe_print("\n[9/13] Generating smart filtered views...")
             try:
                 from utils.smart_filter import generate_filtered_diagrams
-                filtered_dir = Config.OUTPUT_DIR / "filtered_views"
+                filtered_dir = Config.FILTERED_VIEWS_DIR
                 filtered_count = generate_filtered_diagrams(enriched_data, filtered_dir, Config)
                 if filtered_count > 0:
                     safe_print(f"✓ Generated {filtered_count} filtered view diagrams in {filtered_dir}")
@@ -164,11 +164,11 @@ class MQCMDBOrchestrator:
 
                 if gateway_analytics['summary']['total_gateways'] > 0:
                     # Generate gateway analytics report
-                    analytics_report = Config.OUTPUT_DIR / f"gateway_analytics_{timestamp}.html"
+                    analytics_report = Config.REPORTS_DIR / f"gateway_analytics_{timestamp}.html"
                     generate_gateway_report_html(gateway_analytics, analytics_report)
 
                     # Save analytics data as JSON
-                    analytics_json = Config.OUTPUT_DIR / f"gateway_analytics_{timestamp}.json"
+                    analytics_json = Config.DATA_DIR / f"gateway_analytics_{timestamp}.json"
                     save_json(gateway_analytics, analytics_json)
 
                     safe_print(f"✓ Gateway analytics: {gateway_analytics['summary']['total_gateways']} gateways analyzed")
@@ -184,20 +184,19 @@ class MQCMDBOrchestrator:
                 # Export main topology to SVG and PNG
                 if Config.TOPOLOGY_DOT.exists():
                     from utils.export_formats import export_dot_to_svg, export_dot_to_png
-                    export_dot_to_svg(Config.TOPOLOGY_DOT)
-                    export_dot_to_png(Config.TOPOLOGY_DOT, dpi=200)
+                    export_dot_to_svg(Config.TOPOLOGY_DOT, Config.TOPOLOGY_DIR / "mq_topology.svg")
+                    export_dot_to_png(Config.TOPOLOGY_DOT, Config.TOPOLOGY_DIR / "mq_topology.png", dpi=200)
 
                 # Export all application diagrams
-                app_diagrams_dir = Config.OUTPUT_DIR / "application_diagrams"
-                if app_diagrams_dir.exists():
-                    export_directory_to_formats(app_diagrams_dir, formats=['svg'], dpi=150)
+                if Config.APPLICATION_DIAGRAMS_DIR.exists():
+                    export_directory_to_formats(Config.APPLICATION_DIAGRAMS_DIR, formats=['svg'], dpi=150)
 
                 # Export all individual diagrams
                 if Config.INDIVIDUAL_DIAGRAMS_DIR.exists():
                     export_directory_to_formats(Config.INDIVIDUAL_DIAGRAMS_DIR, formats=['svg'], dpi=150)
 
                 # Generate Excel inventory
-                excel_file = Config.OUTPUT_DIR / f"mqcmdb_inventory_{timestamp}.xlsx"
+                excel_file = Config.EXPORTS_DIR / f"mqcmdb_inventory_{timestamp}.xlsx"
                 if generate_excel_inventory(enriched_data, excel_file):
                     safe_print(f"✓ Excel inventory: {excel_file}")
             except Exception as e:
@@ -207,7 +206,7 @@ class MQCMDBOrchestrator:
             safe_print("\n[12/13] Generating Enterprise Architecture documentation...")
             try:
                 ea_doc_gen = EADocumentationGenerator(enriched_data)
-                confluence_doc = Config.OUTPUT_DIR / f"EA_Documentation_{timestamp}.txt"
+                confluence_doc = Config.EXPORTS_DIR / f"EA_Documentation_{timestamp}.txt"
                 ea_doc_gen.generate_confluence_markup(confluence_doc)
                 safe_print(f"✓ EA Documentation: {confluence_doc}")
                 safe_print("  → Import into Confluence using Insert → Markup")

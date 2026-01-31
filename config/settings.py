@@ -101,17 +101,29 @@ class Config:
     INPUT_DIR = BASE_DIR / "input"
     OUTPUT_DIR = BASE_DIR / "output"
     LOGS_DIR = BASE_DIR / "logs"
-    INDIVIDUAL_DIAGRAMS_DIR = OUTPUT_DIR / "individual_diagrams"
-   
+
+    # Output subdirectories
+    DATA_DIR = OUTPUT_DIR / "data"
+    DIAGRAMS_DIR = OUTPUT_DIR / "diagrams"
+    REPORTS_DIR = OUTPUT_DIR / "reports"
+    EXPORTS_DIR = OUTPUT_DIR / "exports"
+
+    # Diagram subdirectories
+    TOPOLOGY_DIR = DIAGRAMS_DIR / "topology"
+    INDIVIDUAL_DIAGRAMS_DIR = DIAGRAMS_DIR / "individual"
+    APPLICATION_DIAGRAMS_DIR = DIAGRAMS_DIR / "applications"
+    FILTERED_VIEWS_DIR = DIAGRAMS_DIR / "filtered"
+
     # Credential files
     CREDENTIALS_FILE = BASE_DIR / "db_credentials.enc"
     SALT_FILE = BASE_DIR / "db_credentials.salt"
-   
+
     # Data files
     INPUT_JSON = OUTPUT_DIR / "all_MQCMDB_assets.json"
-    PROCESSED_JSON = OUTPUT_DIR / "mq_cmdb_processed.json"
-    TOPOLOGY_DOT = OUTPUT_DIR / "mq_topology.dot"
-    TOPOLOGY_PDF = OUTPUT_DIR / "mq_topology.pdf"
+    PROCESSED_JSON = DATA_DIR / "mq_cmdb_processed.json"
+    BASELINE_JSON = DATA_DIR / "mq_cmdb_baseline.json"
+    TOPOLOGY_DOT = TOPOLOGY_DIR / "mq_topology.dot"
+    TOPOLOGY_PDF = TOPOLOGY_DIR / "mq_topology.pdf"
    
     # Hierarchy input files
     ORG_HIERARCHY_JSON = INPUT_DIR / "org_hierarchy.json"
@@ -129,14 +141,14 @@ class Config:
     # Output Cleanup Settings
     ENABLE_OUTPUT_CLEANUP = True       # Enable automatic cleanup of old output files
     OUTPUT_RETENTION_DAYS = 30         # Delete output files older than this many days
-    # File patterns to clean up (timestamped files only)
+    # File patterns to clean up (timestamped files only, relative to OUTPUT_DIR)
     OUTPUT_CLEANUP_PATTERNS = [
-        "change_report_*.html",
-        "changes_*.json",
-        "gateway_analytics_*.html",
-        "gateway_analytics_*.json",
-        "mqcmdb_inventory_*.xlsx",
-        "EA_Documentation_*.txt"
+        "reports/change_report_*.html",
+        "reports/gateway_analytics_*.html",
+        "data/changes_*.json",
+        "data/gateway_analytics_*.json",
+        "exports/mqcmdb_inventory_*.xlsx",
+        "exports/EA_Documentation_*.txt"
     ]
 
     # Multi-Format Export Settings
@@ -269,8 +281,23 @@ class Config:
     @classmethod
     def ensure_directories(cls):
         """Create necessary directories if they don't exist."""
-        for directory in [cls.DATABASE_DIR, cls.INPUT_DIR, cls.OUTPUT_DIR,
-                         cls.LOGS_DIR, cls.INDIVIDUAL_DIAGRAMS_DIR]:
+        directories = [
+            cls.DATABASE_DIR,
+            cls.INPUT_DIR,
+            cls.OUTPUT_DIR,
+            cls.LOGS_DIR,
+            # Output subdirectories
+            cls.DATA_DIR,
+            cls.DIAGRAMS_DIR,
+            cls.REPORTS_DIR,
+            cls.EXPORTS_DIR,
+            # Diagram subdirectories
+            cls.TOPOLOGY_DIR,
+            cls.INDIVIDUAL_DIAGRAMS_DIR,
+            cls.APPLICATION_DIAGRAMS_DIR,
+            cls.FILTERED_VIEWS_DIR,
+        ]
+        for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)
    
     @classmethod

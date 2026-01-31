@@ -416,7 +416,8 @@ class ApplicationDiagramGenerator:
         node_lines = []
 
         # URL for clickable SVG - links to individual diagram
-        url_path = f"../individual_diagrams/{qm_id}.svg"
+        # Applications is in diagrams/applications/, individual is in diagrams/individual/
+        url_path = f"../individual/{qm_id}.svg"
 
         # Main MQ manager node with breakdown
         node_lines.append(f"""{indent}{qm_id} [

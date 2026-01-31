@@ -150,21 +150,39 @@ export CONFLUENCE_TOKEN="your-api-token"
 - **TOGAF Documentation** - Generate EA documentation in Confluence markup
 - **Filtered Views** - Organization and gateway-specific filtered diagrams
 
-## Output Files
+## Output Directory Structure
 
-| File/Directory | Description |
-|----------------|-------------|
-| `output/all_MQCMDB_assets.json` | Raw export from database |
-| `output/mq_cmdb_processed.json` | Processed relationships |
-| `output/mq_cmdb_enriched.json` | Enriched with org hierarchy |
-| `output/hierarchical_topology.dot/pdf/svg` | Main topology diagram |
-| `output/individual_diagrams/*.svg` | Individual MQ manager diagrams |
-| `output/application_diagrams/*.svg` | Application-focused diagrams |
-| `output/filtered_views/*.svg` | Filtered organization/gateway views |
-| `output/change_report.html` | Change detection HTML report |
-| `output/gateway_analytics.html` | Gateway analytics HTML report |
-| `output/mq_inventory.xlsx` | Excel inventory report |
-| `output/ea_documentation.txt` | TOGAF EA documentation |
+```
+output/
+├── all_MQCMDB_assets.json              # Raw export from database
+│
+├── data/                               # JSON data files
+│   ├── mq_cmdb_processed.json          # Processed & enriched data
+│   ├── mq_cmdb_baseline.json           # Baseline for change detection
+│   ├── changes_*.json                  # Change detection data
+│   └── gateway_analytics_*.json        # Gateway analytics data
+│
+├── diagrams/                           # All visual outputs
+│   ├── topology/                       # Main topology diagram
+│   │   ├── mq_topology.dot
+│   │   ├── mq_topology.pdf
+│   │   ├── mq_topology.svg
+│   │   └── mq_topology.png
+│   ├── applications/                   # Per-application diagrams
+│   │   └── {app_name}.[dot|pdf|svg]
+│   ├── individual/                     # Per-MQ-manager diagrams
+│   │   └── {mqmgr}.[dot|pdf|svg]
+│   └── filtered/                       # Filtered view diagrams
+│       └── [org_|dept_|gateways_]*.[dot|svg]
+│
+├── reports/                            # HTML reports
+│   ├── change_report_*.html            # Change detection report
+│   └── gateway_analytics_*.html        # Gateway analytics report
+│
+└── exports/                            # Excel & documentation
+    ├── mqcmdb_inventory_*.xlsx         # Excel inventory (4 sheets)
+    └── EA_Documentation_*.txt          # TOGAF EA documentation
+```
 
 ## Configuration
 
