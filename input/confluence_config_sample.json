@@ -1,0 +1,40 @@
+{
+  "_comment": "Confluence sync configuration - rename to confluence_config.json and update values",
+  "base_url": "https://confluence.yourcompany.com",
+  "space_key": "MQCMDB",
+  "username": "your.username@company.com",
+  "api_token": "your-api-token-here",
+  "verify_ssl": true,
+  "output_dir": "input",
+  "pages": {
+    "app_to_qmgr": "PAGE_ID_OR_TITLE",
+    "gateways": "PAGE_ID_OR_TITLE",
+    "org_hierarchy": "PAGE_ID_OR_TITLE"
+  },
+  "_table_formats": {
+    "app_to_qmgr": {
+      "description": "Maps Queue Managers to Applications",
+      "columns": ["QmgrName", "Application"],
+      "example": [
+        {"QmgrName": "QM_PROD_01", "Application": "Trading System"},
+        {"QmgrName": "QM_PROD_02", "Application": "Risk Management"}
+      ]
+    },
+    "gateways": {
+      "description": "Defines which Queue Managers are gateways",
+      "columns": ["QmgrName", "Scope", "Description"],
+      "example": [
+        {"QmgrName": "QM_GATEWAY_INTERNAL_01", "Scope": "Internal", "Description": "Inter-departmental gateway"},
+        {"QmgrName": "QM_GATEWAY_EXTERNAL_01", "Scope": "External", "Description": "External partner gateway"}
+      ]
+    },
+    "org_hierarchy": {
+      "description": "Organizational hierarchy mapping",
+      "columns": ["Biz_Ownr", "Organization", "Department", "Org_Type"],
+      "example": [
+        {"Biz_Ownr": "Trading Desk", "Organization": "Finance", "Department": "Capital Markets", "Org_Type": "Internal"},
+        {"Biz_Ownr": "Partner Systems", "Organization": "External Partners", "Department": "Integration", "Org_Type": "External"}
+      ]
+    }
+  }
+}
