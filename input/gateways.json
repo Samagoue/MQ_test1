@@ -1,12 +1,22 @@
 [
   {
-    "QmgrName": "QM_GATEWAY_INTERNAL_01",
+    "QmgrName": "QM_GW_INTERNAL_01",
     "Scope": "Internal",
-    "Description": "Gateway for inter-departmental communication"
+    "Description": "Primary internal gateway for cross-departmental messaging"
   },
   {
-    "QmgrName": "QM_GATEWAY_EXTERNAL_01",
+    "QmgrName": "QM_GW_INTERNAL_02",
+    "Scope": "Internal",
+    "Description": "Secondary internal gateway for high-availability"
+  },
+  {
+    "QmgrName": "QM_GW_EXTERNAL_01",
     "Scope": "External",
-    "Description": "Gateway for external organization communication"
+    "Description": "Primary external gateway for partner integration"
+  },
+  {
+    "QmgrName": "QM_GW_EXTERNAL_02",
+    "Scope": "External",
+    "Description": "Secondary external gateway for vendor systems"
   }
 ]

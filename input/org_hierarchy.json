@@ -1,8 +1,50 @@
 [
   {
-    "Biz_Ownr": "Example Directorate",
-    "Organization": "Example Organization",
-    "Department": "Example Department",
+    "Biz_Ownr": "Trading Desk",
+    "Organization": "Global Markets",
+    "Department": "Capital Markets",
     "Org_Type": "Internal"
+  },
+  {
+    "Biz_Ownr": "Risk Analytics",
+    "Organization": "Global Markets",
+    "Department": "Risk Management",
+    "Org_Type": "Internal"
+  },
+  {
+    "Biz_Ownr": "Settlement Operations",
+    "Organization": "Operations",
+    "Department": "Trade Settlement",
+    "Org_Type": "Internal"
+  },
+  {
+    "Biz_Ownr": "Payment Processing",
+    "Organization": "Operations",
+    "Department": "Payments",
+    "Org_Type": "Internal"
+  },
+  {
+    "Biz_Ownr": "Core Banking",
+    "Organization": "Technology",
+    "Department": "Core Systems",
+    "Org_Type": "Internal"
+  },
+  {
+    "Biz_Ownr": "Integration Services",
+    "Organization": "Technology",
+    "Department": "Middleware",
+    "Org_Type": "Internal"
+  },
+  {
+    "Biz_Ownr": "Partner Gateway Team",
+    "Organization": "External Partners",
+    "Department": "Partner Integration",
+    "Org_Type": "External"
+  },
+  {
+    "Biz_Ownr": "Vendor Management",
+    "Organization": "External Partners",
+    "Department": "Vendor Systems",
+    "Org_Type": "External"
   }
 ]

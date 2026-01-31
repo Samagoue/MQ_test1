@@ -1,0 +1,255 @@
+digraph MQ_Topology {
+    rankdir=LR
+    newrank=true
+    fontname="Helvetica"
+    bgcolor="#f7f9fb"
+    splines=curved
+    nodesep=0.9
+    ranksep=1.5
+    /* pack=true
+    packmode=cluster */
+
+    node [
+        fontname="Helvetica"
+        margin="0.35,0.25"
+        penwidth=1.2
+    ]
+    edge [
+        fontname="Helvetica"
+        fontsize=10
+        color="#5d6d7e"
+        arrowsize=0.8
+    ]
+
+
+    /* ==========================
+       INTERNAL ORGANIZATION
+    ========================== */
+    subgraph cluster_Operations {
+        label=<<b>🏢 Organization: Operations</b>>
+        style="filled,rounded"
+        fillcolor="#FEDCDB"
+        color="#2d3e50"
+        penwidth=3
+        fontsize=22
+        margin=40
+        rankdir=TB
+
+        /* Department: Payments */
+        subgraph cluster_Dep_Payments {
+            label=<<b>🏬 Department: Payments</b>>
+            style="filled,rounded"
+            fillcolor="#f3f1e1"
+            color="#bda928"
+            penwidth=3
+            fontsize=20
+            margin=25
+
+            /* BIZ OWNER: Payment Processing */
+            subgraph cluster_BO_Payment_Processing {
+                label=<<b>👤 Biz_Ownr: Payment Processing</b>>
+                style="filled,rounded"
+                fillcolor="#ece9d4"
+                color="#ad9a1e"
+                penwidth=2.5
+                fontsize=18
+                margin=20
+
+                subgraph cluster_App_Payment_Gateway {
+                    label=<<b>🧩 App: Payment Gateway</b>>
+                    style="filled,rounded"
+                    fillcolor="#e6e2cb"
+                    color="#9c8a16"
+                    penwidth=2
+                    fontsize=16
+                    margin=15
+
+                    QM_PAY_01 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#ece9d4"
+                        color="#9c8a16"
+                        penwidth=1.8
+                        fontcolor="#5b500a"
+                        URL="../individual/QM_PAY_01.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_PAY_01 details"
+                        label=<<b>🗄️ QM_PAY_01</b><br/>QLocal: 5 | QRemote: 2 | QAlias: 1<br/> ⬅ In: 1+1 | Out: 2+3 ➡>
+                    ]
+
+                    QM_PAY_02 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#ece9d4"
+                        color="#9c8a16"
+                        penwidth=1.8
+                        fontcolor="#5b500a"
+                        URL="../individual/QM_PAY_02.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_PAY_02 details"
+                        label=<<b>🗄️ QM_PAY_02</b><br/>QLocal: 3 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 1+1 ➡>
+                    ]
+
+                }
+
+            }
+
+        }
+
+        /* Department: Trade Settlement */
+        subgraph cluster_Dep_Trade_Settlement {
+            label=<<b>🏬 Department: Trade Settlement</b>>
+            style="filled,rounded"
+            fillcolor="#e1e3f3"
+            color="#283cbd"
+            penwidth=3
+            fontsize=20
+            margin=25
+
+            /* BIZ OWNER: Settlement Operations */
+            subgraph cluster_BO_Settlement_Operations {
+                label=<<b>👤 Biz_Ownr: Settlement Operations</b>>
+                style="filled,rounded"
+                fillcolor="#d4d7ec"
+                color="#1e31ad"
+                penwidth=2.5
+                fontsize=18
+                margin=20
+
+                subgraph cluster_App_Settlement_System {
+                    label=<<b>🧩 App: Settlement System</b>>
+                    style="filled,rounded"
+                    fillcolor="#cbcee6"
+                    color="#16289c"
+                    penwidth=2
+                    fontsize=16
+                    margin=15
+
+                    QM_SETTLE_01 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#d4d7ec"
+                        color="#16289c"
+                        penwidth=1.8
+                        fontcolor="#0a155b"
+                        URL="../individual/QM_SETTLE_01.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_SETTLE_01 details"
+                        label=<<b>🗄️ QM_SETTLE_01</b><br/>QLocal: 4 | QRemote: 2 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 2+2 ➡>
+                    ]
+
+                    QM_SETTLE_02 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#d4d7ec"
+                        color="#16289c"
+                        penwidth=1.8
+                        fontcolor="#0a155b"
+                        URL="../individual/QM_SETTLE_02.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_SETTLE_02 details"
+                        label=<<b>🗄️ QM_SETTLE_02</b><br/>QLocal: 3 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 1+1 | Out: 1+1 ➡>
+                    ]
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    /* ==========================
+       CONNECTIONS
+    ========================== */
+
+    /* Cross-Department */
+    QM_SETTLE_01 -> QM_PAY_01   [color="#ff6b5a" penwidth=2.2 style=dashed]
+    QM_SETTLE_02 -> QM_PAY_02   [color="#ff6b5a" penwidth=2.2 style=dashed]
+
+    /* Cross-Organization / External */
+    QM_PAY_01 -> QM_CORE_01 [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_PAY_01 -> QM_GW_EXTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_PAY_01 -> PAY_AUDIT [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_PAY_01 -> PAY_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_PAY_01 -> PAY_REJECT [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_PAY_02 -> QM_GW_EXTERNAL_02 [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_PAY_02 -> PAY_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_SETTLE_01 -> QM_GW_INTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_SETTLE_01 -> SETTLE_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_SETTLE_01 -> SETTLE_FAILS [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_SETTLE_02 -> SETTLE_CONFIRM [color="#b455ff" penwidth=2.2 style=dashed]
+
+    /* ==========================
+       LEGEND
+    ========================== */
+    subgraph cluster_legend {
+        label=<<b>Legend</b>>
+        style="rounded,filled"
+        fillcolor="#ffffff"
+        color="#d0d8e0"
+        penwidth=1.8
+        fontsize=14
+        margin=20
+
+        legend_item [
+            shape=box
+            style="rounded,filled"
+            fillcolor="#f7f9fb"
+            color="#d6d6d6"
+            penwidth=1
+          label=<
+                <table border="0" cellborder="0" cellspacing="4" cellpadding="2">
+                    <tr><td align="left"><b>Hierarchy</b></td></tr>
+                    <tr><td align="left">🏢 Organization (Internal/External)</td></tr>
+                    <tr><td align="left">🏬 Department</td></tr>
+                    <tr><td align="left">👤 Biz_Ownr</td></tr>
+                    <tr><td align="left">🧩 Application</td></tr>
+                    <tr><td align="left">🔀 Gateway (Internal/External)</td></tr>
+                    <tr><td align="left">🗄️ MQ Manager (clickable)</td></tr>
+
+                    <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>MQ Manager Metrics</b></td></tr>
+                    <tr><td align="left">QLocal — Local queues</td></tr>
+                    <tr><td align="left">QRemote — Remote queues</td></tr>
+                    <tr><td align="left">QAlias — Alias queues</td></tr>
+                    <tr><td align="left">In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">Out: X+Y — Internal+External outbound</td></tr>
+
+                    <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>Connection Types</b></td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>──── </b></font> Internal (same department)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a"><b>- - - - </b></font> Cross-department</td></tr>
+                    <tr><td align="left"><font color="#b455ff"><b>- - - - </b></font> Cross-org / External</td></tr>
+
+                    <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>External Connection Notes</b></td></tr>
+                    <tr><td align="left"><font color="#ffc107">📋</font> External Inbound (yellow)</td></tr>
+                    <tr><td align="left"><font color="#17a2b8">📋</font> External Outbound (blue)</td></tr>
+
+                </table>
+            >
+        ]
+    }
+
+    /* ==========================
+       FOOTER
+    ========================== */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>MQ CMDB Topology Diagram</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
+        </table>>
+    ]
+}

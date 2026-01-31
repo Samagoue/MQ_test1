@@ -1,0 +1,92 @@
+digraph MQ_QM_CORE_01 {
+    rankdir=LR fontname="Helvetica" bgcolor="#f7f9fb"
+    splines=curved nodesep=0.6 ranksep=1.0
+
+    labelloc="t"
+    label=<<b>MQ Manager: QM_CORE_01</b><br/><font point-size='11'>Directorate: Core Banking</font>>
+    fontsize=18
+
+    node [fontname="Helvetica" margin="0.40,0.25" penwidth=1.2]
+    edge [fontname="Helvetica" fontsize=9 arrowsize=0.7]
+
+    QM_CORE_01 [
+        shape=cylinder style="filled"
+        fillcolor="#ffd700" color="#ff8c00" penwidth=3.0
+        fontcolor="#000000"
+        label=<
+            <table border="0" cellborder="0" cellspacing="0" cellpadding="4">
+                <tr><td align="center"><b><font point-size='16'>🗄️ QM_CORE_01</font></b></td></tr>
+                <tr><td align="center"><font point-size="10"><b>Directorate: Core Banking</b></font></td></tr>
+                <tr><td><br/></td></tr>
+                <tr><td align="center"><b>Queue Statistics</b></td></tr>
+                <tr><td align="center"><font point-size="10">QLocal: 7 | QRemote: 1 | QAlias: 2</font></td></tr>
+                <tr><td><br/></td></tr>
+                <tr><td align="center"><b>Connections</b></td></tr>
+                <tr><td align="center"><font point-size="10">⬅ Inbound: 2+1 | Outbound: 1+4 ➡</font></td></tr>
+            </table>
+        >
+    ]
+
+    /* Inbound MQ Managers */
+    QM_RISK_01 [shape=cylinder style="filled" fillcolor="#d5f5e3" color="#82e0aa" penwidth=1.5
+        URL="QM_RISK_01.svg" target="_blank" tooltip="Click to view QM_RISK_01 details"
+        label=<<b>QM_RISK_01</b><br/><font point-size='8'>Risk Analytics</font>>]
+    QM_RISK_01 -> QM_CORE_01 [color="#28a745" penwidth=2.0 label="sends to"]
+    QM_PAY_01 [shape=cylinder style="filled" fillcolor="#d5f5e3" color="#82e0aa" penwidth=1.5
+        URL="QM_PAY_01.svg" target="_blank" tooltip="Click to view QM_PAY_01 details"
+        label=<<b>QM_PAY_01</b><br/><font point-size='8'>Payment Processing</font>>]
+    QM_PAY_01 -> QM_CORE_01 [color="#28a745" penwidth=2.0 label="sends to"]
+
+    /* Outbound MQ Managers */
+    QM_ESB_01 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
+        URL="QM_ESB_01.svg" target="_blank" tooltip="Click to view QM_ESB_01 details"
+        label=<<b>QM_ESB_01</b><br/><font point-size='8'>Integration Services</font>>]
+    QM_CORE_01 -> QM_ESB_01 [color="#2874a6" penwidth=2.0 label="sends to"]
+
+    /* External Inbound */
+    ext_in_0_CORE_ACCOUNTS [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.ACCOUNTS" fontsize=9]
+    ext_in_0_CORE_ACCOUNTS -> QM_CORE_01 [color="#f39c12" style=dashed label="external"]
+    /* External Outbound */
+    ext_out_0_CORE_AUDIT [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.AUDIT" fontsize=9]
+    QM_CORE_01 -> ext_out_0_CORE_AUDIT [color="#f39c12" style=dashed label="external"]
+    ext_out_1_CORE_INTEREST [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.INTEREST" fontsize=9]
+    QM_CORE_01 -> ext_out_1_CORE_INTEREST [color="#f39c12" style=dashed label="external"]
+    ext_out_2_CORE_BALANCE [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.BALANCE" fontsize=9]
+    QM_CORE_01 -> ext_out_2_CORE_BALANCE [color="#f39c12" style=dashed label="external"]
+    ext_out_3_CORE_LEDGER [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="CORE.LEDGER" fontsize=9]
+    QM_CORE_01 -> ext_out_3_CORE_LEDGER [color="#f39c12" style=dashed label="external"]
+
+    subgraph cluster_legend {
+        label="Legend" style="rounded,filled" fillcolor="#ffffff" color="#d0d8e0" fontsize=11 margin=15
+
+        legend_item [shape=box style="rounded,filled" fillcolor="#f7f9fb"
+            label=<
+                <table border="0" cellborder="0" cellspacing="3" cellpadding="2">
+                    <tr><td align="left"><font color="#ff8c00">🗄️</font> <b>This MQ Manager</b></td></tr>
+                    <tr><td align="left"><font color="#28a745">🗄️</font> Inbound Sources (clickable)</td></tr>
+                    <tr><td align="left"><font color="#2874a6">🗄️</font> Outbound Targets (clickable)</td></tr>
+                    <tr><td align="left"><font color="#f39c12">⬜</font> External Systems</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>Connection Metrics</b></td></tr>
+                    <tr><td align="left">  In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">  Out: X+Y — Internal+External outbound</td></tr>
+                </table>
+            >
+        ]
+    }
+
+    /* Footer */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>MQ Manager: QM_CORE_01</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
+        </table>>
+    ]
+}

@@ -176,6 +176,7 @@ output/
 │       └── [org_|dept_|gateways_]*.[dot|svg]
 │
 ├── reports/                            # HTML reports
+│   ├── dashboard.html                  # Interactive dashboard
 │   ├── change_report_*.html            # Change detection report
 │   └── gateway_analytics_*.html        # Gateway analytics report
 │
@@ -196,7 +197,7 @@ Edit `config/settings.py` to customize:
 
 ## Pipeline Steps
 
-The orchestrator runs a 13-step pipeline:
+The orchestrator runs a 14-step pipeline:
 
 1. **Output Cleanup** - Remove old files (if enabled)
 2. **Load Data** - Read `all_MQCMDB_assets.json`
@@ -211,6 +212,7 @@ The orchestrator runs a 13-step pipeline:
 11. **Gateway Analytics** - Analyze gateway usage, generate HTML report
 12. **Multi-Format Export** - Export to SVG, PNG, Excel
 13. **EA Documentation** - Generate Confluence markup documentation
+14. **Interactive Dashboard** - Generate single-page HTML dashboard
 
 ## Maintenance
 

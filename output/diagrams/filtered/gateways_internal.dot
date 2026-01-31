@@ -1,0 +1,221 @@
+digraph MQ_Topology {
+    rankdir=LR
+    newrank=true
+    fontname="Helvetica"
+    bgcolor="#f7f9fb"
+    splines=curved
+    nodesep=0.9
+    ranksep=1.5
+    /* pack=true
+    packmode=cluster */
+
+    node [
+        fontname="Helvetica"
+        margin="0.35,0.25"
+        penwidth=1.2
+    ]
+    edge [
+        fontname="Helvetica"
+        fontsize=10
+        color="#5d6d7e"
+        arrowsize=0.8
+    ]
+
+
+    /* ==========================
+       INTERNAL ORGANIZATION
+    ========================== */
+    subgraph cluster_Technology {
+        label=<<b>🏢 Organization: Technology</b>>
+        style="filled,rounded"
+        fillcolor="#FEDCDB"
+        color="#2d3e50"
+        penwidth=3
+        fontsize=22
+        margin=40
+        rankdir=TB
+
+        /* Department: Middleware */
+        subgraph cluster_Dep_Middleware {
+            label=<<b>🏬 Department: Middleware</b>>
+            style="filled,rounded"
+            fillcolor="#f3ece1"
+            color="#bd7f28"
+            penwidth=3
+            fontsize=20
+            margin=25
+
+            /* BIZ OWNER: Integration Services */
+            subgraph cluster_BO_Integration_Services {
+                label=<<b>👤 Biz_Ownr: Integration Services</b>>
+                style="filled,rounded"
+                fillcolor="#ece2d4"
+                color="#ad711e"
+                penwidth=2.5
+                fontsize=18
+                margin=20
+
+                subgraph cluster_Gateway_Gateway__Internal_ {
+                    label=<<b>🔀 Gateway: Internal</b>>
+                    style="filled,rounded"
+                    fillcolor="#fff3e0"
+                    color="#ff9800"
+                    penwidth=2.5
+                    fontsize=16
+                    margin=15
+                    QM_GW_INTERNAL_01 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#ffe0b2"
+                        color="#f57c00"
+                        penwidth=1.8
+                        fontcolor="#e65100"
+                        URL="../individual/QM_GW_INTERNAL_01.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_GW_INTERNAL_01 details"
+                        label=<<b>🗄️ QM_GW_INTERNAL_01</b><br/>QLocal: 6 | QRemote: 1 | QAlias: 0<br/> ⬅ In: 3+1 | Out: 1+1 ➡>
+                    ]
+                    QM_GW_INTERNAL_01_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• GW.INBOUND>
+                    ]
+                    QM_GW_INTERNAL_01_inbound_extra -> QM_GW_INTERNAL_01 [style=dashed color="#999999" arrowhead=none]
+                    QM_GW_INTERNAL_01_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• GW.OUTBOUND>
+                    ]
+                    QM_GW_INTERNAL_01 -> QM_GW_INTERNAL_01_outbound_extra [style=dashed color="#999999" arrowhead=none]
+
+                    QM_GW_INTERNAL_02 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#ffe0b2"
+                        color="#f57c00"
+                        penwidth=1.8
+                        fontcolor="#e65100"
+                        URL="../individual/QM_GW_INTERNAL_02.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_GW_INTERNAL_02 details"
+                        label=<<b>🗄️ QM_GW_INTERNAL_02</b><br/>QLocal: 4 | QRemote: 0 | QAlias: 0<br/> ⬅ In: 2+1 | Out: 0+1 ➡>
+                    ]
+                    QM_GW_INTERNAL_02_inbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#fff3cd"
+                        color="#ffc107"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<⬅ <b>External Inbound</b><br/>• GW.INBOUND>
+                    ]
+                    QM_GW_INTERNAL_02_inbound_extra -> QM_GW_INTERNAL_02 [style=dashed color="#999999" arrowhead=none]
+                    QM_GW_INTERNAL_02_outbound_extra [
+                        shape=note
+                        style="filled"
+                        fillcolor="#d1ecf1"
+                        color="#17a2b8"
+                        penwidth=1.5
+                        fontsize=9
+                        label=<➡ <b>External Outbound</b><br/>• GW.OUTBOUND>
+                    ]
+                    QM_GW_INTERNAL_02 -> QM_GW_INTERNAL_02_outbound_extra [style=dashed color="#999999" arrowhead=none]
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    /* ==========================
+       CONNECTIONS
+    ========================== */
+
+    /* Cross-Organization / External */
+    QM_GW_INTERNAL_01 -> QM_GW_EXTERNAL_01 [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_GW_INTERNAL_01 -> GW_OUTBOUND [color="#b455ff" penwidth=2.2 style=dashed]
+    QM_GW_INTERNAL_02 -> GW_OUTBOUND [color="#b455ff" penwidth=2.2 style=dashed]
+
+    /* ==========================
+       LEGEND
+    ========================== */
+    subgraph cluster_legend {
+        label=<<b>Legend</b>>
+        style="rounded,filled"
+        fillcolor="#ffffff"
+        color="#d0d8e0"
+        penwidth=1.8
+        fontsize=14
+        margin=20
+
+        legend_item [
+            shape=box
+            style="rounded,filled"
+            fillcolor="#f7f9fb"
+            color="#d6d6d6"
+            penwidth=1
+          label=<
+                <table border="0" cellborder="0" cellspacing="4" cellpadding="2">
+                    <tr><td align="left"><b>Hierarchy</b></td></tr>
+                    <tr><td align="left">🏢 Organization (Internal/External)</td></tr>
+                    <tr><td align="left">🏬 Department</td></tr>
+                    <tr><td align="left">👤 Biz_Ownr</td></tr>
+                    <tr><td align="left">🧩 Application</td></tr>
+                    <tr><td align="left">🔀 Gateway (Internal/External)</td></tr>
+                    <tr><td align="left">🗄️ MQ Manager (clickable)</td></tr>
+
+                    <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>MQ Manager Metrics</b></td></tr>
+                    <tr><td align="left">QLocal — Local queues</td></tr>
+                    <tr><td align="left">QRemote — Remote queues</td></tr>
+                    <tr><td align="left">QAlias — Alias queues</td></tr>
+                    <tr><td align="left">In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">Out: X+Y — Internal+External outbound</td></tr>
+
+                    <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>Connection Types</b></td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>──── </b></font> Internal (same department)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a"><b>- - - - </b></font> Cross-department</td></tr>
+                    <tr><td align="left"><font color="#b455ff"><b>- - - - </b></font> Cross-org / External</td></tr>
+
+                    <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>External Connection Notes</b></td></tr>
+                    <tr><td align="left"><font color="#ffc107">📋</font> External Inbound (yellow)</td></tr>
+                    <tr><td align="left"><font color="#17a2b8">📋</font> External Outbound (blue)</td></tr>
+
+                </table>
+            >
+        ]
+    }
+
+    /* ==========================
+       FOOTER
+    ========================== */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>MQ CMDB Topology Diagram</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
+        </table>>
+    ]
+}

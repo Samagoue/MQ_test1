@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gateway Analytics Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #9b59b6;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            border-left: 4px solid #9b59b6;
+            padding-left: 10px;
+            margin-top: 30px;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #9b59b6 0%, #e91e63 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .summary-card.internal { background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); }
+        .summary-card.external { background: linear-gradient(135deg, #00bcd4 0%, #009688 100%); }
+        .summary-card h3 { margin: 0 0 10px 0; font-size: 14px; }
+        .summary-card .count { font-size: 36px; font-weight: bold; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #9b59b6;
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-internal { background-color: #ff9800; color: white; }
+        .badge-external { background-color: #00bcd4; color: white; }
+        .badge-warning { background-color: #e74c3c; color: white; }
+        .badge-ok { background-color: #27ae60; color: white; }
+        .chart-bar {
+            background-color: #9b59b6;
+            color: white;
+            padding: 5px 10px;
+            margin: 2px 0;
+            border-radius: 3px;
+        }
+        .alert {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔀 Gateway Analytics Report</h1>
+        <p><strong>Generated:</strong> 2026-01-30 23:40:41</p>
+
+        <div class="summary">
+            <div class="summary-card">
+                <h3>Total Gateways</h3>
+                <div class="count">4</div>
+            </div>
+            <div class="summary-card internal">
+                <h3>Internal Gateways</h3>
+                <div class="count">2</div>
+            </div>
+            <div class="summary-card external">
+                <h3>External Gateways</h3>
+                <div class="count">2</div>
+            </div>
+            <div class="summary-card">
+                <h3>Total Connections</h3>
+                <div class="count">21</div>
+            </div>
+        </div>
+
+        <h2>📊 Gateway Traffic Overview</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Gateway</th>
+                    <th>Scope</th>
+                    <th>Organization</th>
+                    <th>Inbound</th>
+                    <th>Outbound</th>
+                    <th>Total</th>
+                    <th>Connected Orgs</th>
+                    <th>Connected Depts</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong>QM_GW_EXTERNAL_01</strong></td>
+                    <td><span class="badge badge-external">External</span></td>
+                    <td>External Partners</td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td><strong>7</strong></td>
+                    <td>4</td>
+                    <td>4</td>
+                </tr>
+
+                <tr>
+                    <td><strong>QM_GW_INTERNAL_01</strong></td>
+                    <td><span class="badge badge-internal">Internal</span></td>
+                    <td>Technology</td>
+                    <td>4</td>
+                    <td>2</td>
+                    <td><strong>6</strong></td>
+                    <td>4</td>
+                    <td>4</td>
+                </tr>
+
+                <tr>
+                    <td><strong>QM_GW_INTERNAL_02</strong></td>
+                    <td><span class="badge badge-internal">Internal</span></td>
+                    <td>Technology</td>
+                    <td>3</td>
+                    <td>1</td>
+                    <td><strong>4</strong></td>
+                    <td>1</td>
+                    <td>1</td>
+                </tr>
+
+                <tr>
+                    <td><strong>QM_GW_EXTERNAL_02</strong></td>
+                    <td><span class="badge badge-external">External</span></td>
+                    <td>External Partners</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td><strong>4</strong></td>
+                    <td>2</td>
+                    <td>2</td>
+                </tr>
+
+            </tbody>
+        </table>
+
+        <div class="alert alert-danger">
+            <h2>⚠ Single Points of Failure Detected</h2>
+            <p>Found <strong>6</strong> critical routes with no gateway redundancy:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Route</th>
+                        <th>Type</th>
+                        <th>Gateway</th>
+                        <th>Connections</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>Operations <-> Technology</td>
+                        <td>Organization</td>
+                        <td><strong>QM_GW_INTERNAL_01</strong></td>
+                        <td>1</td>
+                    </tr>
+
+                    <tr>
+                        <td>Global Markets <-> Technology</td>
+                        <td>Organization</td>
+                        <td><strong>QM_GW_INTERNAL_01</strong></td>
+                        <td>1</td>
+                    </tr>
+
+                    <tr>
+                        <td>External Partners <-> Global Markets</td>
+                        <td>Organization</td>
+                        <td><strong>QM_GW_EXTERNAL_01</strong></td>
+                        <td>1</td>
+                    </tr>
+
+                    <tr>
+                        <td>Middleware <-> Trade Settlement</td>
+                        <td>Department</td>
+                        <td><strong>QM_GW_INTERNAL_01</strong></td>
+                        <td>1</td>
+                    </tr>
+
+                    <tr>
+                        <td>Capital Markets <-> Middleware</td>
+                        <td>Department</td>
+                        <td><strong>QM_GW_INTERNAL_01</strong></td>
+                        <td>1</td>
+                    </tr>
+
+                    <tr>
+                        <td>Middleware <-> Partner Integration</td>
+                        <td>Department</td>
+                        <td><strong>QM_GW_INTERNAL_01</strong></td>
+                        <td>1</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <h2>⚖️ Load Distribution</h2>
+        <h3>Internal Gateways</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Gateway</th>
+                    <th>Connections</th>
+                    <th>Queues</th>
+                    <th>Load Score</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td>QM_GW_INTERNAL_01</td>
+                    <td>6</td>
+                    <td>7</td>
+                    <td><strong>19</strong></td>
+                </tr>
+
+                <tr>
+                    <td>QM_GW_INTERNAL_02</td>
+                    <td>4</td>
+                    <td>4</td>
+                    <td><strong>12</strong></td>
+                </tr>
+
+            </tbody>
+        </table>
+
+        <h3>External Gateways</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Gateway</th>
+                    <th>Connections</th>
+                    <th>Queues</th>
+                    <th>Load Score</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td>QM_GW_EXTERNAL_01</td>
+                    <td>7</td>
+                    <td>8</td>
+                    <td><strong>22</strong></td>
+                </tr>
+
+                <tr>
+                    <td>QM_GW_EXTERNAL_02</td>
+                    <td>4</td>
+                    <td>4</td>
+                    <td><strong>12</strong></td>
+                </tr>
+
+            </tbody>
+        </table>
+
+        <h2>🔗 Organization Connectivity Matrix</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Organization Route</th>
+                    <th>Gateways</th>
+                    <th>Connections</th>
+                    <th>Redundancy</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td>External Partners <-> Technology</td>
+                    <td>QM_GW_EXTERNAL_01, QM_GW_INTERNAL_01</td>
+                    <td>2</td>
+                    <td><span class="badge badge-ok">Yes</span></td>
+                </tr>
+
+                <tr>
+                    <td>External Partners <-> Operations</td>
+                    <td>QM_GW_EXTERNAL_02, QM_GW_EXTERNAL_01</td>
+                    <td>2</td>
+                    <td><span class="badge badge-ok">Yes</span></td>
+                </tr>
+
+                <tr>
+                    <td>Operations <-> Technology</td>
+                    <td>QM_GW_INTERNAL_01</td>
+                    <td>1</td>
+                    <td><span class="badge badge-warning">No</span></td>
+                </tr>
+
+                <tr>
+                    <td>Global Markets <-> Technology</td>
+                    <td>QM_GW_INTERNAL_01</td>
+                    <td>1</td>
+                    <td><span class="badge badge-warning">No</span></td>
+                </tr>
+
+                <tr>
+                    <td>External Partners <-> Global Markets</td>
+                    <td>QM_GW_EXTERNAL_01</td>
+                    <td>1</td>
+                    <td><span class="badge badge-warning">No</span></td>
+                </tr>
+
+            </tbody>
+        </table>
+
+    </div>
+</body>
+</html>

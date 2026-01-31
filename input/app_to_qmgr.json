@@ -1,6 +1,17 @@
 [
-  {
-    "QmgrName": "QM_EXAMPLE_01",
-    "Application": "Example Application"
-  }
+  {"QmgrName": "QM_TRADING_01", "Application": "Equity Trading Platform"},
+  {"QmgrName": "QM_TRADING_02", "Application": "Equity Trading Platform"},
+  {"QmgrName": "QM_FX_01", "Application": "FX Trading System"},
+  {"QmgrName": "QM_RISK_01", "Application": "Risk Engine"},
+  {"QmgrName": "QM_RISK_02", "Application": "Risk Engine"},
+  {"QmgrName": "QM_SETTLE_01", "Application": "Settlement System"},
+  {"QmgrName": "QM_SETTLE_02", "Application": "Settlement System"},
+  {"QmgrName": "QM_PAY_01", "Application": "Payment Gateway"},
+  {"QmgrName": "QM_PAY_02", "Application": "Payment Gateway"},
+  {"QmgrName": "QM_CORE_01", "Application": "Core Banking"},
+  {"QmgrName": "QM_CORE_02", "Application": "Core Banking"},
+  {"QmgrName": "QM_ESB_01", "Application": "Enterprise Service Bus"},
+  {"QmgrName": "QM_ESB_02", "Application": "Enterprise Service Bus"},
+  {"QmgrName": "QM_PARTNER_01", "Application": "Partner Connect"},
+  {"QmgrName": "QM_VENDOR_01", "Application": "Vendor Integration"}
 ]

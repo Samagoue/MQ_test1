@@ -1,0 +1,574 @@
+{
+  "Global Markets": {
+    "_org_type": "Internal",
+    "_departments": {
+      "Capital Markets": {
+        "Trading Desk": {
+          "Equity Trading Platform": {
+            "QM_TRADING_01": {
+              "Organization": "Global Markets",
+              "Org_Type": "Internal",
+              "Department": "Capital Markets",
+              "Biz_Ownr": "Trading Desk",
+              "Application": "Equity Trading Platform",
+              "MQmanager": "QM_TRADING_01",
+              "qlocal_count": 2,
+              "qremote_count": 3,
+              "qalias_count": 1,
+              "total_count": 6,
+              "inbound": [],
+              "outbound": [
+                "QM_GW_INTERNAL_01",
+                "QM_RISK_01",
+                "QM_SETTLE_01"
+              ],
+              "inbound_extra": [
+                "EQUITY.ORDERS.IN"
+              ],
+              "outbound_extra": [
+                "EQUITY.ORDERS.OUT"
+              ],
+              "IsGateway": false
+            },
+            "QM_TRADING_02": {
+              "Organization": "Global Markets",
+              "Org_Type": "Internal",
+              "Department": "Capital Markets",
+              "Biz_Ownr": "Trading Desk",
+              "Application": "Equity Trading Platform",
+              "MQmanager": "QM_TRADING_02",
+              "qlocal_count": 2,
+              "qremote_count": 2,
+              "qalias_count": 0,
+              "total_count": 4,
+              "inbound": [],
+              "outbound": [
+                "QM_RISK_02",
+                "QM_SETTLE_02"
+              ],
+              "inbound_extra": [
+                "EQUITY.ORDERS.IN"
+              ],
+              "outbound_extra": [
+                "EQUITY.ORDERS.OUT"
+              ],
+              "IsGateway": false
+            }
+          },
+          "FX Trading System": {
+            "QM_FX_01": {
+              "Organization": "Global Markets",
+              "Org_Type": "Internal",
+              "Department": "Capital Markets",
+              "Biz_Ownr": "Trading Desk",
+              "Application": "FX Trading System",
+              "MQmanager": "QM_FX_01",
+              "qlocal_count": 3,
+              "qremote_count": 2,
+              "qalias_count": 0,
+              "total_count": 5,
+              "inbound": [],
+              "outbound": [
+                "QM_GW_EXTERNAL_01",
+                "QM_RISK_01"
+              ],
+              "inbound_extra": [
+                "FX.RATES.IN"
+              ],
+              "outbound_extra": [
+                "FX.CONFIRM",
+                "FX.TRADES.OUT"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      },
+      "Risk Management": {
+        "Risk Analytics": {
+          "Risk Engine": {
+            "QM_RISK_01": {
+              "Organization": "Global Markets",
+              "Org_Type": "Internal",
+              "Department": "Risk Management",
+              "Biz_Ownr": "Risk Analytics",
+              "Application": "Risk Engine",
+              "MQmanager": "QM_RISK_01",
+              "qlocal_count": 5,
+              "qremote_count": 1,
+              "qalias_count": 1,
+              "total_count": 7,
+              "inbound": [
+                "QM_FX_01",
+                "QM_TRADING_01"
+              ],
+              "outbound": [
+                "QM_CORE_01"
+              ],
+              "inbound_extra": [
+                "RISK.CALC.IN"
+              ],
+              "outbound_extra": [
+                "RISK.ALERTS",
+                "RISK.RESULTS"
+              ],
+              "IsGateway": false
+            },
+            "QM_RISK_02": {
+              "Organization": "Global Markets",
+              "Org_Type": "Internal",
+              "Department": "Risk Management",
+              "Biz_Ownr": "Risk Analytics",
+              "Application": "Risk Engine",
+              "MQmanager": "QM_RISK_02",
+              "qlocal_count": 3,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 4,
+              "inbound": [
+                "QM_TRADING_02"
+              ],
+              "outbound": [
+                "QM_CORE_02"
+              ],
+              "inbound_extra": [
+                "RISK.CALC.IN"
+              ],
+              "outbound_extra": [
+                "RISK.RESULTS"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "Operations": {
+    "_org_type": "Internal",
+    "_departments": {
+      "Trade Settlement": {
+        "Settlement Operations": {
+          "Settlement System": {
+            "QM_SETTLE_01": {
+              "Organization": "Operations",
+              "Org_Type": "Internal",
+              "Department": "Trade Settlement",
+              "Biz_Ownr": "Settlement Operations",
+              "Application": "Settlement System",
+              "MQmanager": "QM_SETTLE_01",
+              "qlocal_count": 4,
+              "qremote_count": 2,
+              "qalias_count": 0,
+              "total_count": 6,
+              "inbound": [
+                "QM_TRADING_01"
+              ],
+              "outbound": [
+                "QM_GW_INTERNAL_01",
+                "QM_PAY_01"
+              ],
+              "inbound_extra": [
+                "SETTLE.IN"
+              ],
+              "outbound_extra": [
+                "SETTLE.CONFIRM",
+                "SETTLE.FAILS"
+              ],
+              "IsGateway": false
+            },
+            "QM_SETTLE_02": {
+              "Organization": "Operations",
+              "Org_Type": "Internal",
+              "Department": "Trade Settlement",
+              "Biz_Ownr": "Settlement Operations",
+              "Application": "Settlement System",
+              "MQmanager": "QM_SETTLE_02",
+              "qlocal_count": 3,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 4,
+              "inbound": [
+                "QM_TRADING_02"
+              ],
+              "outbound": [
+                "QM_PAY_02"
+              ],
+              "inbound_extra": [
+                "SETTLE.IN"
+              ],
+              "outbound_extra": [
+                "SETTLE.CONFIRM"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      },
+      "Payments": {
+        "Payment Processing": {
+          "Payment Gateway": {
+            "QM_PAY_01": {
+              "Organization": "Operations",
+              "Org_Type": "Internal",
+              "Department": "Payments",
+              "Biz_Ownr": "Payment Processing",
+              "Application": "Payment Gateway",
+              "MQmanager": "QM_PAY_01",
+              "qlocal_count": 5,
+              "qremote_count": 2,
+              "qalias_count": 1,
+              "total_count": 8,
+              "inbound": [
+                "QM_SETTLE_01"
+              ],
+              "outbound": [
+                "QM_CORE_01",
+                "QM_GW_EXTERNAL_01"
+              ],
+              "inbound_extra": [
+                "PAY.REQUEST"
+              ],
+              "outbound_extra": [
+                "PAY.AUDIT",
+                "PAY.CONFIRM",
+                "PAY.REJECT"
+              ],
+              "IsGateway": false
+            },
+            "QM_PAY_02": {
+              "Organization": "Operations",
+              "Org_Type": "Internal",
+              "Department": "Payments",
+              "Biz_Ownr": "Payment Processing",
+              "Application": "Payment Gateway",
+              "MQmanager": "QM_PAY_02",
+              "qlocal_count": 3,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 4,
+              "inbound": [
+                "QM_SETTLE_02"
+              ],
+              "outbound": [
+                "QM_GW_EXTERNAL_02"
+              ],
+              "inbound_extra": [
+                "PAY.REQUEST"
+              ],
+              "outbound_extra": [
+                "PAY.CONFIRM"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "Technology": {
+    "_org_type": "Internal",
+    "_departments": {
+      "Middleware": {
+        "Integration Services": {
+          "Gateway (Internal)": {
+            "QM_GW_INTERNAL_01": {
+              "Organization": "Technology",
+              "Org_Type": "Internal",
+              "Department": "Middleware",
+              "Biz_Ownr": "Integration Services",
+              "Application": "Gateway (Internal)",
+              "MQmanager": "QM_GW_INTERNAL_01",
+              "qlocal_count": 6,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 7,
+              "inbound": [
+                "QM_ESB_01",
+                "QM_SETTLE_01",
+                "QM_TRADING_01"
+              ],
+              "outbound": [
+                "QM_GW_EXTERNAL_01"
+              ],
+              "inbound_extra": [
+                "GW.INBOUND"
+              ],
+              "outbound_extra": [
+                "GW.OUTBOUND"
+              ],
+              "IsGateway": true,
+              "GatewayScope": "Internal",
+              "GatewayDescription": "Primary internal gateway for cross-departmental messaging"
+            },
+            "QM_GW_INTERNAL_02": {
+              "Organization": "Technology",
+              "Org_Type": "Internal",
+              "Department": "Middleware",
+              "Biz_Ownr": "Integration Services",
+              "Application": "Gateway (Internal)",
+              "MQmanager": "QM_GW_INTERNAL_02",
+              "qlocal_count": 4,
+              "qremote_count": 0,
+              "qalias_count": 0,
+              "total_count": 4,
+              "inbound": [
+                "QM_ESB_01",
+                "QM_ESB_02"
+              ],
+              "outbound": [],
+              "inbound_extra": [
+                "GW.INBOUND"
+              ],
+              "outbound_extra": [
+                "GW.OUTBOUND"
+              ],
+              "IsGateway": true,
+              "GatewayScope": "Internal",
+              "GatewayDescription": "Secondary internal gateway for high-availability"
+            }
+          },
+          "Enterprise Service Bus": {
+            "QM_ESB_01": {
+              "Organization": "Technology",
+              "Org_Type": "Internal",
+              "Department": "Middleware",
+              "Biz_Ownr": "Integration Services",
+              "Application": "Enterprise Service Bus",
+              "MQmanager": "QM_ESB_01",
+              "qlocal_count": 4,
+              "qremote_count": 2,
+              "qalias_count": 0,
+              "total_count": 6,
+              "inbound": [
+                "QM_CORE_01"
+              ],
+              "outbound": [
+                "QM_GW_INTERNAL_01",
+                "QM_GW_INTERNAL_02"
+              ],
+              "inbound_extra": [
+                "ESB.ROUTE"
+              ],
+              "outbound_extra": [
+                "ESB.LOG",
+                "ESB.TRANSFORM"
+              ],
+              "IsGateway": false
+            },
+            "QM_ESB_02": {
+              "Organization": "Technology",
+              "Org_Type": "Internal",
+              "Department": "Middleware",
+              "Biz_Ownr": "Integration Services",
+              "Application": "Enterprise Service Bus",
+              "MQmanager": "QM_ESB_02",
+              "qlocal_count": 3,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 4,
+              "inbound": [
+                "QM_CORE_02"
+              ],
+              "outbound": [
+                "QM_GW_INTERNAL_02"
+              ],
+              "inbound_extra": [
+                "ESB.ROUTE"
+              ],
+              "outbound_extra": [
+                "ESB.TRANSFORM"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      },
+      "Core Systems": {
+        "Core Banking": {
+          "Core Banking": {
+            "QM_CORE_01": {
+              "Organization": "Technology",
+              "Org_Type": "Internal",
+              "Department": "Core Systems",
+              "Biz_Ownr": "Core Banking",
+              "Application": "Core Banking",
+              "MQmanager": "QM_CORE_01",
+              "qlocal_count": 7,
+              "qremote_count": 1,
+              "qalias_count": 2,
+              "total_count": 10,
+              "inbound": [
+                "QM_PAY_01",
+                "QM_RISK_01"
+              ],
+              "outbound": [
+                "QM_ESB_01"
+              ],
+              "inbound_extra": [
+                "CORE.ACCOUNTS"
+              ],
+              "outbound_extra": [
+                "CORE.AUDIT",
+                "CORE.BALANCE",
+                "CORE.INTEREST",
+                "CORE.LEDGER"
+              ],
+              "IsGateway": false
+            },
+            "QM_CORE_02": {
+              "Organization": "Technology",
+              "Org_Type": "Internal",
+              "Department": "Core Systems",
+              "Biz_Ownr": "Core Banking",
+              "Application": "Core Banking",
+              "MQmanager": "QM_CORE_02",
+              "qlocal_count": 4,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 5,
+              "inbound": [
+                "QM_RISK_02"
+              ],
+              "outbound": [
+                "QM_ESB_02"
+              ],
+              "inbound_extra": [
+                "CORE.ACCOUNTS"
+              ],
+              "outbound_extra": [
+                "CORE.AUDIT",
+                "CORE.LEDGER"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "External Partners": {
+    "_org_type": "External",
+    "_departments": {
+      "Partner Integration": {
+        "Partner Gateway Team": {
+          "Gateway (External)": {
+            "QM_GW_EXTERNAL_01": {
+              "Organization": "External Partners",
+              "Org_Type": "External",
+              "Department": "Partner Integration",
+              "Biz_Ownr": "Partner Gateway Team",
+              "Application": "Gateway (External)",
+              "MQmanager": "QM_GW_EXTERNAL_01",
+              "qlocal_count": 7,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 8,
+              "inbound": [
+                "QM_FX_01",
+                "QM_GW_INTERNAL_01",
+                "QM_PAY_01"
+              ],
+              "outbound": [
+                "QM_PARTNER_01"
+              ],
+              "inbound_extra": [
+                "EXT.INBOUND"
+              ],
+              "outbound_extra": [
+                "EXT.AUDIT",
+                "EXT.OUTBOUND"
+              ],
+              "IsGateway": true,
+              "GatewayScope": "External",
+              "GatewayDescription": "Primary external gateway for partner integration"
+            }
+          },
+          "Partner Connect": {
+            "QM_PARTNER_01": {
+              "Organization": "External Partners",
+              "Org_Type": "External",
+              "Department": "Partner Integration",
+              "Biz_Ownr": "Partner Gateway Team",
+              "Application": "Partner Connect",
+              "MQmanager": "QM_PARTNER_01",
+              "qlocal_count": 3,
+              "qremote_count": 0,
+              "qalias_count": 0,
+              "total_count": 3,
+              "inbound": [
+                "QM_GW_EXTERNAL_01"
+              ],
+              "outbound": [],
+              "inbound_extra": [
+                "PARTNER.IN"
+              ],
+              "outbound_extra": [
+                "PARTNER.OUT"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      },
+      "Vendor Systems": {
+        "Vendor Management": {
+          "Gateway (External)": {
+            "QM_GW_EXTERNAL_02": {
+              "Organization": "External Partners",
+              "Org_Type": "External",
+              "Department": "Vendor Systems",
+              "Biz_Ownr": "Vendor Management",
+              "Application": "Gateway (External)",
+              "MQmanager": "QM_GW_EXTERNAL_02",
+              "qlocal_count": 3,
+              "qremote_count": 1,
+              "qalias_count": 0,
+              "total_count": 4,
+              "inbound": [
+                "QM_PAY_02"
+              ],
+              "outbound": [
+                "QM_VENDOR_01"
+              ],
+              "inbound_extra": [
+                "EXT.INBOUND"
+              ],
+              "outbound_extra": [
+                "EXT.OUTBOUND"
+              ],
+              "IsGateway": true,
+              "GatewayScope": "External",
+              "GatewayDescription": "Secondary external gateway for vendor systems"
+            }
+          },
+          "Vendor Integration": {
+            "QM_VENDOR_01": {
+              "Organization": "External Partners",
+              "Org_Type": "External",
+              "Department": "Vendor Systems",
+              "Biz_Ownr": "Vendor Management",
+              "Application": "Vendor Integration",
+              "MQmanager": "QM_VENDOR_01",
+              "qlocal_count": 3,
+              "qremote_count": 0,
+              "qalias_count": 0,
+              "total_count": 3,
+              "inbound": [
+                "QM_GW_EXTERNAL_02"
+              ],
+              "outbound": [],
+              "inbound_extra": [
+                "VENDOR.IN"
+              ],
+              "outbound_extra": [
+                "VENDOR.OUT"
+              ],
+              "IsGateway": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

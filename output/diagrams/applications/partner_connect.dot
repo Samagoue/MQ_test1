@@ -1,0 +1,169 @@
+digraph "Partner Connect" {
+    rankdir=TB
+    fontname="Helvetica"
+    bgcolor="#f7f9fb"
+    splines=curved
+    nodesep=0.8
+    ranksep=1.2
+
+    node [fontname="Helvetica" margin="0.3,0.2"]
+    edge [fontname="Helvetica" fontsize=10 arrowsize=0.8]
+
+    labelloc="t"
+    label=<<b><font point-size="20">Application: Partner Connect</font></b><br/><font point-size="14">External Partners → Partner Integration → Partner Gateway Team</font>>
+
+    subgraph cluster_External_Partners {
+        label=<<b>🏢 Organization: External Partners</b>>
+        style="filled,rounded"
+        fillcolor="#daeca8"
+        color="#6a3fa0"
+        penwidth=3
+        fontsize=18
+
+        subgraph cluster_Dep_Partner_Integration {
+            label=<<b>🏬 Department: Partner Integration</b>>
+            style="filled,rounded"
+            fillcolor="#e8ddf5"
+            color="#5a2f90"
+            penwidth=2.5
+
+            subgraph cluster_BO_Partner_Gateway_Team {
+                label=<<b>👤 Biz_Ownr: Partner Gateway Team</b>>
+                style="filled,rounded"
+                fillcolor="#e8ddf5"
+                color="#5a2f90"
+                penwidth=2
+
+                subgraph cluster_Gateway_Gateway__External_ {
+                    label=<<b>🔀 Gateway: External</b>>
+                    style="filled,rounded"
+                    fillcolor="#e0f7fa"
+                    color="#00bcd4"
+                    penwidth=2.5
+
+                    QM_GW_EXTERNAL_01 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#b2ebf2"
+                        color="#0097a7"
+                        penwidth=1.8
+                        fontcolor="#000000"
+                        URL="../individual/QM_GW_EXTERNAL_01.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_GW_EXTERNAL_01 details"
+                        label=<<b>🗄️ QM_GW_EXTERNAL_01</b><br/>QLocal: 7 | QRemote: 1 | QAlias: 0<br/>⬅ In: 3+1 | Out: 1+2 ➡>
+                    ]
+
+                }
+
+                subgraph cluster_App_Partner_Connect {
+                    label=<<b>🧩 App: Partner Connect</b>>
+                    style="filled,rounded"
+                    fillcolor="#fffacd"
+                    color="#ffa500"
+                    penwidth=3
+
+                    QM_PARTNER_01 [
+                        shape=cylinder
+                        style="filled"
+                        fillcolor="#ffeb3b"
+                        color="#ff9800"
+                        penwidth=1.8
+                        fontcolor="#000000"
+                        URL="../individual/QM_PARTNER_01.svg"
+                        target="_blank"
+                        tooltip="Click to view QM_PARTNER_01 details"
+                        label=<<b>🗄️ QM_PARTNER_01</b><br/>QLocal: 3 | QRemote: 0 | QAlias: 0<br/>⬅ In: 1+1 | Out: 0+1 ➡>
+                    ]
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    /* External Connection Notes */
+    QM_PARTNER_01_inbound_extra [
+        shape=note
+        style="filled"
+        fillcolor="#fff3cd"
+        color="#ffc107"
+        penwidth=1.5
+        fontsize=9
+        label=<⬅ <b>External Inbound</b><br/>• PARTNER.IN>
+    ]
+    QM_PARTNER_01_inbound_extra -> QM_PARTNER_01 [style=dashed color="#ffc107" penwidth=2]
+    QM_PARTNER_01_outbound_extra [
+        shape=note
+        style="filled"
+        fillcolor="#d1ecf1"
+        color="#17a2b8"
+        penwidth=1.5
+        fontsize=9
+        label=<➡ <b>External Outbound</b><br/>• PARTNER.OUT>
+    ]
+    QM_PARTNER_01 -> QM_PARTNER_01_outbound_extra [style=dashed color="#17a2b8" penwidth=2]
+
+    /* Connections */
+
+
+    /* Legend */
+    subgraph cluster_legend {
+        label="Legend"
+        style="rounded,filled"
+        fillcolor="#ffffff"
+        color="#d0d8e0"
+        penwidth=1.5
+        fontsize=12
+
+        legend [
+            shape=box
+            style="rounded,filled"
+            fillcolor="#f7f9fb"
+            label=<
+                <table border="0" cellborder="0" cellspacing="2" cellpadding="4">
+                    <tr><td align="left"><b>Focus Application</b></td></tr>
+                    <tr><td bgcolor="#fffacd" align="left">  Highlighted in yellow</td></tr>
+                    <tr><td align="left">  MQ Managers: 1 (clickable)</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>Connected MQ Managers</b></td></tr>
+                    <tr><td align="left">  Total shown: 2</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>MQ Manager Metrics</b></td></tr>
+                    <tr><td align="left">  In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">  Out: X+Y — Internal+External outbound</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>Direct Connections (from focus)</b></td></tr>
+                    <tr><td align="left"><font color="#1f78d1">──── </font> Same department</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a">- - - </font> Cross-department</td></tr>
+                    <tr><td align="left"><font color="#b455ff">- - - </font> Cross-organization</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>Reverse Connections (to focus)</b></td></tr>
+                    <tr><td align="left"><font color="#28a745">- - - </font> From external sources</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>External Connection Notes</b></td></tr>
+                    <tr><td align="left"><font color="#ffc107">📋</font> External Inbound (yellow)</td></tr>
+                    <tr><td align="left"><font color="#17a2b8">📋</font> External Outbound (blue)</td></tr>
+                </table>
+            >
+        ]
+    }
+
+    /* Footer */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>Application Diagram: Partner Connect</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
+        </table>>
+    ]
+}

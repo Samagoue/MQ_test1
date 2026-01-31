@@ -1,0 +1,80 @@
+digraph MQ_QM_TRADING_02 {
+    rankdir=LR fontname="Helvetica" bgcolor="#f7f9fb"
+    splines=curved nodesep=0.6 ranksep=1.0
+
+    labelloc="t"
+    label=<<b>MQ Manager: QM_TRADING_02</b><br/><font point-size='11'>Directorate: Trading Desk</font>>
+    fontsize=18
+
+    node [fontname="Helvetica" margin="0.40,0.25" penwidth=1.2]
+    edge [fontname="Helvetica" fontsize=9 arrowsize=0.7]
+
+    QM_TRADING_02 [
+        shape=cylinder style="filled"
+        fillcolor="#ffd700" color="#ff8c00" penwidth=3.0
+        fontcolor="#000000"
+        label=<
+            <table border="0" cellborder="0" cellspacing="0" cellpadding="4">
+                <tr><td align="center"><b><font point-size='16'>🗄️ QM_TRADING_02</font></b></td></tr>
+                <tr><td align="center"><font point-size="10"><b>Directorate: Trading Desk</b></font></td></tr>
+                <tr><td><br/></td></tr>
+                <tr><td align="center"><b>Queue Statistics</b></td></tr>
+                <tr><td align="center"><font point-size="10">QLocal: 2 | QRemote: 2 | QAlias: 0</font></td></tr>
+                <tr><td><br/></td></tr>
+                <tr><td align="center"><b>Connections</b></td></tr>
+                <tr><td align="center"><font point-size="10">⬅ Inbound: 0+1 | Outbound: 2+1 ➡</font></td></tr>
+            </table>
+        >
+    ]
+
+    /* Outbound MQ Managers */
+    QM_RISK_02 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
+        URL="QM_RISK_02.svg" target="_blank" tooltip="Click to view QM_RISK_02 details"
+        label=<<b>QM_RISK_02</b><br/><font point-size='8'>Risk Analytics</font>>]
+    QM_TRADING_02 -> QM_RISK_02 [color="#2874a6" penwidth=2.0 label="sends to"]
+    QM_SETTLE_02 [shape=cylinder style="filled" fillcolor="#d6eaf8" color="#85c1e9" penwidth=1.5
+        URL="QM_SETTLE_02.svg" target="_blank" tooltip="Click to view QM_SETTLE_02 details"
+        label=<<b>QM_SETTLE_02</b><br/><font point-size='8'>Settlement Operations</font>>]
+    QM_TRADING_02 -> QM_SETTLE_02 [color="#2874a6" penwidth=2.0 label="sends to"]
+
+    /* External Inbound */
+    ext_in_0_EQUITY_ORDERS_IN [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="EQUITY.ORDERS.IN" fontsize=9]
+    ext_in_0_EQUITY_ORDERS_IN -> QM_TRADING_02 [color="#f39c12" style=dashed label="external"]
+    /* External Outbound */
+    ext_out_0_EQUITY_ORDERS_OUT [shape=box style="rounded,filled,dashed" fillcolor="#fef9e7" color="#f39c12" label="EQUITY.ORDERS.OUT" fontsize=9]
+    QM_TRADING_02 -> ext_out_0_EQUITY_ORDERS_OUT [color="#f39c12" style=dashed label="external"]
+
+    subgraph cluster_legend {
+        label="Legend" style="rounded,filled" fillcolor="#ffffff" color="#d0d8e0" fontsize=11 margin=15
+
+        legend_item [shape=box style="rounded,filled" fillcolor="#f7f9fb"
+            label=<
+                <table border="0" cellborder="0" cellspacing="3" cellpadding="2">
+                    <tr><td align="left"><font color="#ff8c00">🗄️</font> <b>This MQ Manager</b></td></tr>
+                    <tr><td align="left"><font color="#28a745">🗄️</font> Inbound Sources (clickable)</td></tr>
+                    <tr><td align="left"><font color="#2874a6">🗄️</font> Outbound Targets (clickable)</td></tr>
+                    <tr><td align="left"><font color="#f39c12">⬜</font> External Systems</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>Connection Metrics</b></td></tr>
+                    <tr><td align="left">  In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">  Out: X+Y — Internal+External outbound</td></tr>
+                </table>
+            >
+        ]
+    }
+
+    /* Footer */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>MQ Manager: QM_TRADING_02</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: 2026-01-30 23:40:41</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
+        </table>>
+    ]
+}
