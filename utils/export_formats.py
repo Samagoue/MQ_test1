@@ -9,6 +9,7 @@ Supports exporting diagrams and data to multiple formats:
 
 import subprocess
 import shutil
+import re
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
@@ -43,6 +44,10 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None) -> bool:
             capture_output=True,
             text=True
         )
+
+        # Post-process SVG to remove underlines from hyperlinks
+        _remove_svg_link_underlines(svg_file)
+
         print(f"✓ SVG generated: {svg_file}")
         return True
     except subprocess.CalledProcessError as e:
@@ -51,6 +56,42 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None) -> bool:
     except Exception as e:
         print(f"✗ SVG generation failed: {e}")
         return False
+
+
+def _remove_svg_link_underlines(svg_file: Path) -> None:
+    """
+    Post-process SVG file to remove underlines from hyperlinks.
+
+    Injects CSS into the SVG to set text-decoration: none on all links.
+
+    Args:
+        svg_file: Path to SVG file to modify
+    """
+    try:
+        content = svg_file.read_text(encoding='utf-8')
+
+        # CSS to remove underlines from links
+        css_style = '''<defs>
+<style type="text/css">
+a { text-decoration: none !important; }
+a:hover { text-decoration: none !important; }
+a text { text-decoration: none !important; }
+</style>
+</defs>'''
+
+        # Insert CSS after opening <svg> tag
+        if '<defs>' not in content:
+            # Insert after the opening <svg ...> tag
+            content = re.sub(
+                r'(<svg[^>]*>)',
+                r'\1\n' + css_style,
+                content,
+                count=1
+            )
+            svg_file.write_text(content, encoding='utf-8')
+    except Exception as e:
+        # Non-fatal - SVG still works, just with underlines
+        print(f"  ⚠ Could not remove link underlines: {e}")
 
 
 def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150) -> bool:
