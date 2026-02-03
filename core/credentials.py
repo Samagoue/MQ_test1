@@ -40,8 +40,11 @@ class CredentialsManager:
                 encrypted = self.credentials_file.read_bytes()
                 decrypted = fernet.decrypt(encrypted)
                 all_profiles = json.loads(decrypted)
-            except:
-                pass
+            except (json.JSONDecodeError, Exception) as e:
+                # Log the error but continue - we'll create a new file
+                print(f"⚠ Warning: Could not decrypt existing credentials (wrong password or corrupted file): {e}")
+                print("  Existing profiles will be overwritten.")
+                all_profiles = {}
        
         # Add/update profile
         all_profiles[profile] = credentials
@@ -55,10 +58,17 @@ class CredentialsManager:
         """Load and decrypt credentials."""
         if not self.credentials_file.exists() or not self.salt_file.exists():
             return None
-       
+
         try:
             salt = self.salt_file.read_bytes()
-            password = os.environ.get('DB_MASTER_PASSWORD') or getpass.getpass("Enter master password: ")
+            password = os.environ.get('DB_MASTER_PASSWORD')
+            if not password:
+                # Check if running in interactive mode (stdin is a terminal)
+                import sys
+                if not sys.stdin.isatty():
+                    print("✗ Error: DB_MASTER_PASSWORD environment variable not set and running in non-interactive mode")
+                    return None
+                password = getpass.getpass("Enter master password: ")
            
             fernet = self._generate_key(password, salt)
             encrypted = self.credentials_file.read_bytes()

@@ -216,8 +216,16 @@ class ChangeDetector:
                 curr_count = curr.get(count_type, 0)
                 base_count = base.get(count_type, 0)
 
-                if base_count == 0 and curr_count > 0:
+                # Skip if both are zero (no change)
+                if base_count == 0 and curr_count == 0:
+                    continue
+                # New queues added (0 -> N)
+                elif base_count == 0 and curr_count > 0:
                     change_percent = 100
+                # All queues removed (N -> 0)
+                elif base_count > 0 and curr_count == 0:
+                    change_percent = 100
+                # Normal percentage change
                 elif base_count > 0:
                     change_percent = abs((curr_count - base_count) / base_count * 100)
                 else:
@@ -247,7 +255,7 @@ class ChangeDetector:
             'total_changes': 0
         }
 
-        # Calculate total changes
+        # Calculate total changes (including queue count changes)
         self.changes['summary']['total_changes'] = sum([
             self.changes['summary']['mqmanagers_added'],
             self.changes['summary']['mqmanagers_removed'],
@@ -256,7 +264,8 @@ class ChangeDetector:
             self.changes['summary']['connections_removed'],
             self.changes['summary']['gateways_added'],
             self.changes['summary']['gateways_removed'],
-            self.changes['summary']['gateways_modified']
+            self.changes['summary']['gateways_modified'],
+            self.changes['summary']['queue_count_changes']
         ])
 
 

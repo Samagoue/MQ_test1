@@ -75,6 +75,7 @@ class MQCMDBOrchestrator:
             safe_print("\n[5/13] Running change detection...")
             baseline_file = Config.BASELINE_JSON
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            change_detection_success = True
 
             if baseline_file.exists():
                 try:
@@ -98,12 +99,17 @@ class MQCMDBOrchestrator:
                     save_json(changes, change_json)
                 except Exception as e:
                     safe_print(f"⚠ Change detection failed: {e}")
+                    safe_print("⚠ Baseline will NOT be updated to preserve change detection capability")
+                    change_detection_success = False
             else:
                 safe_print("⚠ No baseline found - this will be the first baseline")
 
-            # Update baseline
-            save_json(enriched_data, baseline_file)
-            safe_print(f"✓ Baseline updated: {baseline_file}")
+            # Update baseline only if change detection succeeded (or no baseline existed)
+            if change_detection_success:
+                save_json(enriched_data, baseline_file)
+                safe_print(f"✓ Baseline updated: {baseline_file}")
+            else:
+                safe_print("⚠ Baseline NOT updated due to change detection failure")
 
             # Generate hierarchical topology
             safe_print("\n[6/13] Generating hierarchical topology diagram...")

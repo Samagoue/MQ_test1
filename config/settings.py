@@ -6,29 +6,37 @@ from pathlib import Path
 from typing import Dict, List
 
 
-def generate_department_colors(num_departments: int) -> List[Dict[str, str]]:
+def generate_department_colors(num_departments: int, seed: int = None) -> List[Dict[str, str]]:
     """
-    Generate random, distinct colors for departments.
+    Generate distinct colors for departments with deterministic output.
 
     Args:
         num_departments: Number of department color schemes to generate
+        seed: Optional seed for reproducibility. If None, uses a fixed seed
+              based on num_departments for consistent colors across runs.
 
     Returns:
         List of color dictionaries for departments
     """
+    # Use a deterministic seed for reproducible colors across runs
+    # This ensures diagrams look the same each time they're generated
+    if seed is None:
+        seed = 42 + num_departments  # Fixed seed based on department count
+    rng = random.Random(seed)
+
     # Base hues to ensure good distribution and distinction
     base_hues = []
-    hue_step = 360 / num_departments
+    hue_step = 360 / max(num_departments, 1)
 
-    # Start at a random offset for variety
-    start_hue = random.randint(0, 360)
+    # Start at a fixed offset for consistency
+    start_hue = rng.randint(0, 360)
 
     for i in range(num_departments):
         hue = (start_hue + i * hue_step) % 360
         base_hues.append(hue)
 
-    # Shuffle to avoid gradual progression
-    random.shuffle(base_hues)
+    # Shuffle using the seeded RNG for deterministic but varied order
+    rng.shuffle(base_hues)
 
     color_schemes = []
     for hue in base_hues:

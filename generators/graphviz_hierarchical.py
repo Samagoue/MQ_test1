@@ -311,6 +311,7 @@ class HierarchicalGraphVizGenerator:
                 f'                    penwidth=2.5',
                 f'                    fontsize=16',
                 f'                    margin=15',
+                ""
             ]
         else:
             # Regular application cluster - create gradient fill

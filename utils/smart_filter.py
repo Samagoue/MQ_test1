@@ -54,7 +54,8 @@ def filter_gateways_only(enriched_data: Dict, scope: str = None) -> Dict:
             for biz_ownr, applications in dept_data.items():
                 for app_name, mqmgr_dict in applications.items():
                     if app_name.startswith('Gateway ('):
-                        if scope and not app_name.startswith(f'Gateway ({scope})'):
+                        # Check for exact scope match: "Gateway (Internal)" or "Gateway (External)"
+                        if scope and app_name != f'Gateway ({scope})':
                             continue
 
                         if org_name not in filtered:

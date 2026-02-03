@@ -15,13 +15,36 @@ from typing import Dict, List
 from datetime import datetime
 
 
-def export_dot_to_svg(dot_file: Path, svg_file: Path = None) -> bool:
+def _select_layout_engine(dot_file: Path, layout_engine: str = None) -> str:
+    """
+    Select appropriate GraphViz layout engine.
+
+    Args:
+        dot_file: Path to DOT file
+        layout_engine: Optional explicit layout engine ('dot', 'sfdp', 'neato', etc.)
+
+    Returns:
+        Name of layout engine to use
+    """
+    if layout_engine:
+        return layout_engine
+
+    # Use sfdp for large hierarchical layouts (topology files)
+    # Use dot for everything else (better for smaller, structured graphs)
+    stem_lower = dot_file.stem.lower()
+    if 'topology' in stem_lower or 'hierarchical' in stem_lower:
+        return 'sfdp'
+    return 'dot'
+
+
+def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str = None) -> bool:
     """
     Export GraphViz DOT file to SVG format.
 
     Args:
         dot_file: Path to DOT file
         svg_file: Output SVG file path (optional, defaults to same name as dot_file)
+        layout_engine: Optional explicit layout engine ('dot', 'sfdp', etc.)
 
     Returns:
         True if successful, False otherwise
@@ -35,11 +58,11 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None) -> bool:
         return False
 
     try:
-        # Use sfdp for hierarchical layouts, dot for others
-        layout_engine = 'sfdp' if 'topology' in dot_file.stem else 'dot'
+        # Select appropriate layout engine
+        engine = _select_layout_engine(dot_file, layout_engine)
 
         subprocess.run(
-            [layout_engine, '-Tsvg', str(dot_file), '-o', str(svg_file)],
+            [engine, '-Tsvg', str(dot_file), '-o', str(svg_file)],
             check=True,
             capture_output=True,
             text=True
@@ -94,7 +117,7 @@ a text { text-decoration: none !important; }
         print(f"  ⚠ Could not remove link underlines: {e}")
 
 
-def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150) -> bool:
+def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, layout_engine: str = None) -> bool:
     """
     Export GraphViz DOT file to PNG format.
 
@@ -102,6 +125,7 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150) -> 
         dot_file: Path to DOT file
         png_file: Output PNG file path (optional, defaults to same name as dot_file)
         dpi: Resolution in dots per inch (default: 150)
+        layout_engine: Optional explicit layout engine ('dot', 'sfdp', etc.)
 
     Returns:
         True if successful, False otherwise
@@ -115,11 +139,11 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150) -> 
         return False
 
     try:
-        # Use sfdp for hierarchical layouts, dot for others
-        layout_engine = 'sfdp' if 'topology' in dot_file.stem else 'dot'
+        # Select appropriate layout engine
+        engine = _select_layout_engine(dot_file, layout_engine)
 
         subprocess.run(
-            [layout_engine, '-Tpng', f'-Gdpi={dpi}', str(dot_file), '-o', str(png_file)],
+            [engine, '-Tpng', f'-Gdpi={dpi}', str(dot_file), '-o', str(png_file)],
             check=True,
             capture_output=True,
             text=True
@@ -267,9 +291,11 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path):
             column = get_column_letter(idx)
             for cell in col:
                 try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
+                    cell_len = len(str(cell.value)) if cell.value is not None else 0
+                    if cell_len > max_length:
+                        max_length = cell_len
+                except (TypeError, AttributeError):
+                    # Skip cells that can't be converted to string
                     pass
             adjusted_width = min(max_length + 2, 50)
             ws1.column_dimensions[column].width = adjusted_width
@@ -296,9 +322,11 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path):
             column = get_column_letter(idx)
             for cell in col:
                 try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
+                    cell_len = len(str(cell.value)) if cell.value is not None else 0
+                    if cell_len > max_length:
+                        max_length = cell_len
+                except (TypeError, AttributeError):
+                    # Skip cells that can't be converted to string
                     pass
             adjusted_width = min(max_length + 2, 50)
             ws2.column_dimensions[column].width = adjusted_width
@@ -325,9 +353,11 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path):
             column = get_column_letter(idx)
             for cell in col:
                 try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
+                    cell_len = len(str(cell.value)) if cell.value is not None else 0
+                    if cell_len > max_length:
+                        max_length = cell_len
+                except (TypeError, AttributeError):
+                    # Skip cells that can't be converted to string
                     pass
             adjusted_width = min(max_length + 2, 50)
             ws3.column_dimensions[column].width = adjusted_width

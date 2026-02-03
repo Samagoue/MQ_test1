@@ -2,6 +2,7 @@
 
 import sys
 import re
+import hashlib
 
 
 def setup_utf8_output():
@@ -55,10 +56,13 @@ def sanitize_id(name: str) -> str:
     if sanitized and sanitized[0].isdigit():
         sanitized = '_' + sanitized
    
-    # Handle empty result
+    # Handle empty result - use deterministic hash (hashlib) instead of
+    # Python's built-in hash() which is randomized per session
     if not sanitized:
-        sanitized = 'node_' + str(abs(hash(name)))[:8]
-   
+        # MD5 is sufficient for generating a short identifier (not for security)
+        hash_val = hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
+        sanitized = 'node_' + hash_val
+
     return sanitized
 
 

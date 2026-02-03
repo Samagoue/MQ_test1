@@ -20,15 +20,30 @@ class HierarchyMashup:
     def _load_org_hierarchy(self, filepath: Path) -> Dict:
         """Load and index org hierarchy by Biz_Ownr (directorate)."""
         from utils.file_io import load_json
-       
+
         if not filepath.exists():
             print(f"⚠ Warning: {filepath} not found. Using default hierarchy.")
             return {}
-       
-        data = load_json(filepath)
+
+        try:
+            data = load_json(filepath)
+        except Exception as e:
+            print(f"⚠ Warning: Failed to load {filepath}: {e}. Using default hierarchy.")
+            return {}
+
+        # Validate that data is a list
+        if not isinstance(data, list):
+            print(f"⚠ Warning: {filepath} should contain a JSON array. Using default hierarchy.")
+            return {}
+
         hierarchy = {}
-       
-        for record in data:
+
+        for idx, record in enumerate(data):
+            # Validate each record is a dictionary
+            if not isinstance(record, dict):
+                print(f"⚠ Warning: Record {idx} in {filepath} is not a valid object, skipping.")
+                continue
+
             biz_ownr = str(record.get('Biz_Ownr', '')).strip()
             if biz_ownr:
                 hierarchy[biz_ownr] = {
@@ -37,7 +52,7 @@ class HierarchyMashup:
                     'Biz_Ownr': biz_ownr,
                     'Org_Type': str(record.get('Org_Type', 'Internal')).strip()
                 }
-       
+
         return hierarchy
    
     def _load_app_mapping(self, filepath: Path) -> Dict:
@@ -48,10 +63,25 @@ class HierarchyMashup:
             print(f"⚠ Warning: {filepath} not found. Using default app mappings.")
             return {}
 
-        data = load_json(filepath)
+        try:
+            data = load_json(filepath)
+        except Exception as e:
+            print(f"⚠ Warning: Failed to load {filepath}: {e}. Using default app mappings.")
+            return {}
+
+        # Validate that data is a list
+        if not isinstance(data, list):
+            print(f"⚠ Warning: {filepath} should contain a JSON array. Using default app mappings.")
+            return {}
+
         mapping = {}
 
-        for record in data:
+        for idx, record in enumerate(data):
+            # Validate each record is a dictionary
+            if not isinstance(record, dict):
+                print(f"⚠ Warning: Record {idx} in {filepath} is not a valid object, skipping.")
+                continue
+
             qmgr_name = str(record.get('QmgrName', '')).strip()
             if qmgr_name:
                 mapping[qmgr_name] = str(record.get('Application', 'No Application')).strip()
@@ -67,10 +97,25 @@ class HierarchyMashup:
                 print(f"⚠ Warning: {filepath} not found. No gateway mappings loaded.")
             return {}
 
-        data = load_json(filepath)
+        try:
+            data = load_json(filepath)
+        except Exception as e:
+            print(f"⚠ Warning: Failed to load {filepath}: {e}. No gateway mappings loaded.")
+            return {}
+
+        # Validate that data is a list
+        if not isinstance(data, list):
+            print(f"⚠ Warning: {filepath} should contain a JSON array. No gateway mappings loaded.")
+            return {}
+
         mapping = {}
 
-        for record in data:
+        for idx, record in enumerate(data):
+            # Validate each record is a dictionary
+            if not isinstance(record, dict):
+                print(f"⚠ Warning: Record {idx} in {filepath} is not a valid object, skipping.")
+                continue
+
             qmgr_name = str(record.get('QmgrName', '')).strip()
             scope = str(record.get('Scope', 'Internal')).strip()
             if qmgr_name:

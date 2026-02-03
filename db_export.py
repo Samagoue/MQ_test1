@@ -147,6 +147,12 @@ def process_single_query(db_conn: DatabaseConnection, args):
     elif args.query:
         query = args.query
     elif args.table:
+        # Validate table name to prevent SQL injection
+        # Only allow alphanumeric characters and underscores
+        import re
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', args.table):
+            safe_print(f"Error: Invalid table name '{args.table}'. Table names must contain only letters, numbers, and underscores.")
+            return False
         query = f"SELECT * FROM {args.table}"
     else:
         safe_print("Error: No query, query file, or table specified")
