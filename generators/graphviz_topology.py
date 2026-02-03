@@ -7,11 +7,37 @@ from pathlib import Path
 
 class GraphVizTopologyGenerator:
     """Generate complete MQ topology diagrams."""
-   
+
     def __init__(self, data: Dict, config):
         self.data = data
         self.config = config
         self.mqmanager_to_directorate = self._build_index()
+
+    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Lighten a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = min(255, int(r + (255 - r) * factor))
+        g = min(255, int(g + (255 - g) * factor))
+        b = min(255, int(b + (255 - b) * factor))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
+
+    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Darken a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = max(0, int(r * (1 - factor)))
+        g = max(0, int(g * (1 - factor)))
+        b = max(0, int(b * (1 - factor)))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
    
     def _build_index(self) -> Dict[str, str]:
         """Build MQmanager to directorate lookup."""
@@ -97,38 +123,49 @@ class GraphVizTopologyGenerator:
         return "\n".join(lines)
    
     def _generate_directorates(self) -> str:
-        """Generate all directorate clusters."""
+        """Generate all directorate clusters with gradient fills."""
         from utils.common import sanitize_id
-       
+
         sections = []
         for dir_idx, (directorate, mqmanagers) in enumerate(sorted(self.data.items())):
             colors = self.config.DIRECTORATE_COLORS[dir_idx % len(self.config.DIRECTORATE_COLORS)]
-           
+
+            # Create gradient fill for directorate
+            dir_bg = colors["org_bg"]
+            dir_bg_light = self._lighten_color(dir_bg, 0.15)
+
             lines = [
                 f"    /* DIRECTORATE: {directorate} */",
                 f'    subgraph cluster_{sanitize_id(directorate)} {{',
                 f'        label="Directorate: {directorate}"',
-                f'        style=filled fillcolor="{colors["org_bg"]}" color="{colors["org_border"]}"',
+                f'        style=filled fillcolor="{dir_bg}:{dir_bg_light}" gradientangle=270',
+                f'        color="{colors["org_border"]}"',
                 f'        penwidth=2.5 fontsize=16 fontcolor="#2c3e50" margin=30', ""
             ]
-           
+
             for mqmanager, info in sorted(mqmanagers.items()):
                 lines.extend(self._generate_mqmanager_node(mqmanager, info, colors))
-           
+
             lines.extend(["    }", ""])
             sections.append("\n".join(lines))
-       
+
         return "\n".join(sections)
    
     def _generate_mqmanager_node(self, mqmanager: str, info: Dict, colors: Dict) -> List[str]:
-        """Generate MQ Manager node."""
+        """Generate MQ Manager node with gradient fill."""
         from utils.common import sanitize_id
-       
+
         qm_id = sanitize_id(mqmanager)
+
+        # Create gradient fill for MQ manager node
+        qm_bg = colors["qm_bg"]
+        qm_bg_dark = self._darken_color(qm_bg, 0.08)
+
         return [
             f"        {qm_id} [",
             f'            shape=cylinder style="filled"',
-            f'            fillcolor="{colors["qm_bg"]}" color="{colors["qm_border"]}"',
+            f'            fillcolor="{qm_bg}:{qm_bg_dark}" gradientangle=90',
+            f'            color="{colors["qm_border"]}"',
             f'            penwidth=1.8 fontcolor="{colors["qm_text"]}"',
             "            label=<",
             '                <table border="0" cellborder="0" cellspacing="0" cellpadding="3">',
@@ -143,11 +180,15 @@ class GraphVizTopologyGenerator:
         ]
    
     def _generate_connections(self) -> str:
-        """Generate connection edges with proper formatting."""
+        """Generate connection edges with bidirectional detection and proper formatting."""
         from utils.common import sanitize_id
-       
-        internal, cross = [], []
-       
+
+        # Get connection colors from config
+        conn_colors = self.config.CONNECTION_COLORS
+        conn_arrows = self.config.CONNECTION_ARROWHEADS
+
+        # Collect all connections
+        all_connections = []
         for directorate, mqmanagers in self.data.items():
             for mqmanager, info in mqmanagers.items():
                 for outbound in info.get('outbound', []):
@@ -157,11 +198,45 @@ class GraphVizTopologyGenerator:
                         'from_dir': directorate, 'to_dir': target_dir,
                         'label': f"{mqmanager}.{outbound}"
                     }
-                    (internal if directorate == target_dir else cross).append(conn)
-       
+                    all_connections.append(conn)
+
+        # Build connection pairs to detect bidirectional
+        connection_pairs = {}
+        for conn in all_connections:
+            pair_key = tuple(sorted([conn['from'], conn['to']]))
+            if pair_key not in connection_pairs:
+                connection_pairs[pair_key] = []
+            connection_pairs[pair_key].append(conn)
+
+        # Classify connections
+        internal = []
+        cross = []
+        bidirectional = []
+        processed_bidirectional = set()
+
+        for conn in all_connections:
+            pair_key = tuple(sorted([conn['from'], conn['to']]))
+
+            # Check if this is a bidirectional connection
+            reverse_exists = any(
+                c['from'] == conn['to'] and c['to'] == conn['from']
+                for c in connection_pairs.get(pair_key, [])
+            )
+
+            if reverse_exists and pair_key not in processed_bidirectional:
+                # This is a bidirectional connection - add only once
+                bidirectional.append(conn)
+                processed_bidirectional.add(pair_key)
+            elif not reverse_exists:
+                # Single direction - classify normally
+                if conn['from_dir'] == conn['to_dir']:
+                    internal.append(conn)
+                else:
+                    cross.append(conn)
+
         sections = []
-       
-        # Internal connections
+
+        # Internal connections - no explicit ports for shortest path
         if internal:
             lines = [
                 "    /* ==========================",
@@ -171,10 +246,11 @@ class GraphVizTopologyGenerator:
             for conn in internal:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
-                    f'[label="{conn["label"]}" color="#5dade2" penwidth=2.2 fontcolor="#2c3e50"]'
+                    f'[label="{conn["label"]}" color="{conn_colors["same_dept"]}" penwidth=2.2 '
+                    f'arrowhead={conn_arrows["same_dept"]} fontcolor="#2c3e50" weight=3]'
                 )
             sections.append("\n".join(lines) + "\n")
-       
+
         # Cross-directorate connections
         if cross:
             lines = [
@@ -185,10 +261,26 @@ class GraphVizTopologyGenerator:
             for conn in cross:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
-                    f'[label="{conn["label"]}" color="#ec7063" penwidth=2.2 style=dashed fontcolor="#2c3e50"]'
+                    f'[label="{conn["label"]}" color="{conn_colors["cross_dept"]}" penwidth=2.2 '
+                    f'style=dashed arrowhead={conn_arrows["cross_dept"]} fontcolor="#2c3e50" weight=2]'
                 )
             sections.append("\n".join(lines) + "\n")
-       
+
+        # Bidirectional connections - teal, bold, dir=both
+        if bidirectional:
+            lines = [
+                "    /* ==========================",
+                "       Bidirectional Connections",
+                "    ========================== */"
+            ]
+            for conn in bidirectional:
+                lines.append(
+                    f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
+                    f'[label="{conn["label"]}" color="{conn_colors["bidirectional"]}" penwidth=2.5 '
+                    f'style=bold arrowhead={conn_arrows["bidirectional"]} dir=both arrowtail=odot fontcolor="#2c3e50" weight=1]'
+                )
+            sections.append("\n".join(lines) + "\n")
+
         return "\n".join(sections)
    
     def _generate_legend(self) -> str:
@@ -239,8 +331,9 @@ class GraphVizTopologyGenerator:
                     <tr><td><br/></td></tr>
 
                     <tr><td align="left"><b>Channel Types</b></td></tr>
-                    <tr><td align="left"><font color="#5dade2"><b>────</b></font> Internal (Same Directorate)</td></tr>
-                    <tr><td align="left"><font color="#ec7063"><b>- - - -</b></font> Cross-Directorate Channel</td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>────</b></font> Internal (Same Directorate)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a"><b>- - ◆</b></font> Cross-Directorate Channel</td></tr>
+                    <tr><td align="left"><font color="#00897b"><b>◯━━━●</b></font> Bidirectional</td></tr>
 
                     <tr><td><br/></td></tr>
 

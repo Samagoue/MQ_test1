@@ -12,20 +12,46 @@ from datetime import datetime
 
 class ApplicationDiagramGenerator:
     """Generate individual diagrams for each application with full hierarchical context."""
-   
+
     def __init__(self, enriched_data: Dict, config):
         """
         Initialize generator with enriched hierarchical data.
-       
+
         Args:
             enriched_data: {Organization: {_org_type: str, _departments: {Department: {Biz_Ownr: {Application: {MQmanager: {...}}}}}}}
             config: Configuration object
         """
         self.enriched_data = enriched_data
         self.config = config
-       
+
         # Build lookup for quick access to any MQ manager's full context
         self.mqmgr_lookup = self._build_mqmgr_lookup()
+
+    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Lighten a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = min(255, int(r + (255 - r) * factor))
+        g = min(255, int(g + (255 - g) * factor))
+        b = min(255, int(b + (255 - b) * factor))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
+
+    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Darken a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = max(0, int(r * (1 - factor)))
+        g = max(0, int(g * (1 - factor)))
+        b = max(0, int(b * (1 - factor)))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
    
     def _build_mqmgr_lookup(self) -> Dict:
         """Build a lookup dict: {mqmanager_name: full_context}"""
@@ -238,12 +264,17 @@ class ApplicationDiagramGenerator:
                 colors = self.config.INTERNAL_ORG_COLORS[0]
            
             org_id = self._sanitize_id(org_name)
-           
+
+            # Create gradient fill for organization
+            org_bg = colors["org_bg"]
+            org_bg_light = self._lighten_color(org_bg, 0.15)
+
             lines.extend([
                 f'    subgraph cluster_{org_id} {{',
                 f'        label=<<b>🏢 Organization: {org_name}</b>>',
                 f'        style="filled,rounded"',
-                f'        fillcolor="{colors["org_bg"]}"',
+                f'        fillcolor="{org_bg}:{org_bg_light}"',
+                f'        gradientangle=270',
                 f'        color="{colors["org_border"]}"',
                 f'        penwidth=3',
                 f'        fontsize=18',
@@ -253,12 +284,17 @@ class ApplicationDiagramGenerator:
             for dept_name, biz_owners in sorted(org_data['departments'].items()):
                 is_focus_dept = (is_focus_org and dept_name == focus_dept)
                 dept_id = self._sanitize_id(dept_name)
-               
+
+                # Create gradient fill for department
+                dept_bg = colors["dept_bg"]
+                dept_bg_light = self._lighten_color(dept_bg, 0.12)
+
                 lines.extend([
                     f'        subgraph cluster_Dep_{dept_id} {{',
                     f'            label=<<b>🏬 Department: {dept_name}</b>>',
                     f'            style="filled,rounded"',
-                    f'            fillcolor="{colors["dept_bg"]}"',
+                    f'            fillcolor="{dept_bg}:{dept_bg_light}"',
+                    f'            gradientangle=270',
                     f'            color="{colors["dept_border"]}"',
                     f'            penwidth=2.5',
                     ''
@@ -267,12 +303,17 @@ class ApplicationDiagramGenerator:
                 for biz_ownr, applications in sorted(biz_owners.items()):
                     is_focus_biz = (is_focus_dept and biz_ownr == focus_biz_ownr)
                     biz_id = self._sanitize_id(biz_ownr)
-                   
+
+                    # Create gradient fill for business owner
+                    biz_bg = colors["biz_bg"]
+                    biz_bg_light = self._lighten_color(biz_bg, 0.10)
+
                     lines.extend([
                         f'            subgraph cluster_BO_{biz_id} {{',
                         f'                label=<<b>👤 Biz_Ownr: {biz_ownr}</b>>',
                         f'                style="filled,rounded"',
-                        f'                fillcolor="{colors["biz_bg"]}"',
+                        f'                fillcolor="{biz_bg}:{biz_bg_light}"',
+                        f'                gradientangle=270',
                         f'                color="{colors["biz_border"]}"',
                         f'                penwidth=2',
                         ''
@@ -298,10 +339,12 @@ class ApplicationDiagramGenerator:
                             # Highlight focus gateway if applicable
                             if is_focus_app:
                                 app_fillcolor = "#fffacd"  # Light yellow highlight
+                                app_fillcolor_light = "#fffff0"
                                 app_border = "#ffa500"
                                 penwidth = "3"
                             else:
                                 app_fillcolor = gateway_colors["gateway_bg"]
+                                app_fillcolor_light = self._lighten_color(app_fillcolor, 0.10)
                                 app_border = gateway_colors["gateway_border"]
                                 penwidth = "2.5"
 
@@ -309,7 +352,8 @@ class ApplicationDiagramGenerator:
                                 f'                subgraph cluster_Gateway_{app_id} {{',
                                 f'                    label=<<b>🔀 Gateway: {scope}</b>>',
                                 f'                    style="filled,rounded"',
-                                f'                    fillcolor="{app_fillcolor}"',
+                                f'                    fillcolor="{app_fillcolor}:{app_fillcolor_light}"',
+                                f'                    gradientangle=270',
                                 f'                    color="{app_border}"',
                                 f'                    penwidth={penwidth}',
                                 ''
@@ -318,10 +362,12 @@ class ApplicationDiagramGenerator:
                             # Highlight focus application
                             if is_focus_app:
                                 app_fillcolor = "#fffacd"  # Light yellow highlight
+                                app_fillcolor_light = "#fffff0"
                                 app_border = "#ffa500"
                                 penwidth = "3"
                             else:
                                 app_fillcolor = colors["app_bg"]
+                                app_fillcolor_light = self._lighten_color(app_fillcolor, 0.10)
                                 app_border = colors["app_border"]
                                 penwidth = "2"
 
@@ -329,7 +375,8 @@ class ApplicationDiagramGenerator:
                                 f'                subgraph cluster_App_{app_id} {{',
                                 f'                    label=<<b>🧩 App: {app_name}</b>>',
                                 f'                    style="filled,rounded"',
-                                f'                    fillcolor="{app_fillcolor}"',
+                                f'                    fillcolor="{app_fillcolor}:{app_fillcolor_light}"',
+                                f'                    gradientangle=270',
                                 f'                    color="{app_border}"',
                                 f'                    penwidth={penwidth}',
                                 ''
@@ -407,9 +454,11 @@ class ApplicationDiagramGenerator:
         # Highlight focus MQ managers
         if is_focus:
             fillcolor = "#ffeb3b"
+            fillcolor_dark = "#ffd700"
             bordercolor = "#ff9800"
         else:
             fillcolor = colors['qm_bg']
+            fillcolor_dark = self._darken_color(fillcolor, 0.08)
             bordercolor = colors['qm_border']
 
         # Build node output
@@ -419,11 +468,12 @@ class ApplicationDiagramGenerator:
         # Applications is in diagrams/applications/, individual is in diagrams/individual/
         url_path = f"../individual/{qm_id}.svg"
 
-        # Main MQ manager node with breakdown
+        # Main MQ manager node with gradient fill
         node_lines.append(f"""{indent}{qm_id} [
 {indent}    shape=cylinder
 {indent}    style="filled"
-{indent}    fillcolor="{fillcolor}"
+{indent}    fillcolor="{fillcolor}:{fillcolor_dark}"
+{indent}    gradientangle=90
 {indent}    color="{bordercolor}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="#000000"
@@ -435,6 +485,7 @@ class ApplicationDiagramGenerator:
 """)
 
         # Store external connection note boxes for focused MQ managers (render outside clusters)
+        # Inbound note positioned on TOP with headport=n tailport=s
         if is_focus and inbound_extra:
             note_id = f"{qm_id}_inbound_extra"
             extra_list = '<br/>'.join([f"• {src}" for src in inbound_extra[:10]])
@@ -452,11 +503,12 @@ class ApplicationDiagramGenerator:
         label=<⬅ <b>External Inbound</b><br/>{extra_list}>
     ]"""
 
-            # Connection FROM note box TO the MQ manager
-            connection = f"    {note_id} -> {qm_id} [style=dashed color=\"#ffc107\" penwidth=2]"
+            # Connection FROM note box TO the MQ manager (top position)
+            connection = f"    {note_id} -> {qm_id} [style=dashed color=\"#ffc107\" penwidth=2 constraint=false headport=n tailport=s]"
 
             self.external_notes.append({'box_def': box_def, 'connection': connection})
 
+        # Outbound note positioned on BOTTOM with tailport=s headport=n
         if is_focus and outbound_extra:
             note_id = f"{qm_id}_outbound_extra"
             extra_list = '<br/>'.join([f"• {tgt}" for tgt in outbound_extra[:10]])
@@ -474,8 +526,8 @@ class ApplicationDiagramGenerator:
         label=<➡ <b>External Outbound</b><br/>{extra_list}>
     ]"""
 
-            # Connection FROM the MQ manager TO note box
-            connection = f"    {qm_id} -> {note_id} [style=dashed color=\"#17a2b8\" penwidth=2]"
+            # Connection FROM the MQ manager TO note box (bottom position)
+            connection = f"    {qm_id} -> {note_id} [style=dashed color=\"#17a2b8\" penwidth=2 constraint=false tailport=s headport=n]"
 
             self.external_notes.append({'box_def': box_def, 'connection': connection})
 
@@ -483,93 +535,134 @@ class ApplicationDiagramGenerator:
    
     def _generate_connections_section(self, connections: List, focus_org: str, focus_dept: str) -> str:
         """
-        Generate connections with classification.
+        Generate connections with classification and bidirectional detection.
         Only shows:
         1. Direct connections FROM focus application MQ managers TO targets
         2. Reverse connections FROM those targets BACK TO focus application MQ managers
-       
+        3. Bidirectional connections shown with teal color and dir=both
+
         Does NOT show connections between non-focus MQ managers.
         """
         if not connections:
             return ""
-       
+
+        # Get connection colors from config
+        conn_colors = self.config.CONNECTION_COLORS
+        conn_arrows = self.config.CONNECTION_ARROWHEADS
+
         # Get focus application MQ managers
         focus_mqmgrs = set()
         for conn in connections:
             if conn.get('is_focus_source'):
                 focus_mqmgrs.add(conn['from'])
-       
+
+        # Build connection pairs to detect bidirectional
+        connection_pairs = {}
+        for conn in connections:
+            pair_key = tuple(sorted([conn['from'], conn['to']]))
+            if pair_key not in connection_pairs:
+                connection_pairs[pair_key] = []
+            connection_pairs[pair_key].append(conn)
+
         # Filter connections:
         # 1. Direct: focus -> target
         # 2. Reverse: target -> focus (if target was in direct connections)
+        # 3. Bidirectional: both directions exist
         direct_connections = []
         reverse_connections = []
+        bidirectional_connections = []
         seen_pairs = set()
-       
+        processed_bidirectional = set()
+
         for conn in connections:
             from_mqmgr = conn['from']
             to_mqmgr = conn['to']
-           
-            # Direct connection: from focus MQ manager to any target
-            if from_mqmgr in focus_mqmgrs:
+            pair_key = tuple(sorted([from_mqmgr, to_mqmgr]))
+
+            # Check if this is a bidirectional connection
+            reverse_exists = any(
+                c['from'] == to_mqmgr and c['to'] == from_mqmgr
+                for c in connection_pairs.get(pair_key, [])
+            )
+
+            if reverse_exists and pair_key not in processed_bidirectional:
+                # This is a bidirectional connection - add only once
+                if from_mqmgr in focus_mqmgrs or to_mqmgr in focus_mqmgrs:
+                    bidirectional_connections.append(conn)
+                    processed_bidirectional.add(pair_key)
+            elif not reverse_exists:
+                # Single direction - classify normally
                 pair = (from_mqmgr, to_mqmgr)
-                if pair not in seen_pairs:
-                    direct_connections.append(conn)
-                    seen_pairs.add(pair)
-           
-            # Reverse connection: from target back to focus MQ manager
-            elif to_mqmgr in focus_mqmgrs and from_mqmgr not in focus_mqmgrs:
-                pair = (from_mqmgr, to_mqmgr)
-                if pair not in seen_pairs:
-                    reverse_connections.append(conn)
-                    seen_pairs.add(pair)
-       
+
+                # Direct connection: from focus MQ manager to any target
+                if from_mqmgr in focus_mqmgrs:
+                    if pair not in seen_pairs:
+                        direct_connections.append(conn)
+                        seen_pairs.add(pair)
+
+                # Reverse connection: from target back to focus MQ manager
+                elif to_mqmgr in focus_mqmgrs and from_mqmgr not in focus_mqmgrs:
+                    if pair not in seen_pairs:
+                        reverse_connections.append(conn)
+                        seen_pairs.add(pair)
+
         lines = ['', '    /* Connections */', '']
-       
-        # Draw direct connections (focus -> target)
+
+        # Draw direct connections (focus -> target) - no explicit ports for shortest path
         if direct_connections:
             lines.append('    /* Direct connections from focus application */')
             for conn in direct_connections:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-               
+
                 from_context = self.mqmgr_lookup.get(conn['from'], {})
                 to_context = self.mqmgr_lookup.get(conn['to'], {})
-               
+
                 from_org = from_context.get('organization', '')
                 from_dept = from_context.get('department', '')
                 to_org = to_context.get('organization', '')
                 to_dept = to_context.get('department', '')
-               
-                # Classify connection
+
+                # Classify connection with config colors and arrowheads
                 if from_org != to_org:
-                    color = "#b455ff"  # Purple - cross-organization
+                    color = conn_colors["cross_org"]
                     style = "dashed"
                     penwidth = "2.5"
+                    arrowhead = conn_arrows["cross_org"]
                 elif from_dept != to_dept:
-                    color = "#ff6b5a"  # Red - cross-department
+                    color = conn_colors["cross_dept"]
                     style = "dashed"
                     penwidth = "2.2"
+                    arrowhead = conn_arrows["cross_dept"]
                 else:
-                    color = "#1f78d1"  # Blue - same department
+                    color = conn_colors["same_dept"]
                     style = "solid"
                     penwidth = "2.0"
-               
-                lines.append(f'    {from_id} -> {to_id} [color="{color}" penwidth={penwidth} style={style}]')
+                    arrowhead = conn_arrows["same_dept"]
+
+                lines.append(f'    {from_id} -> {to_id} [color="{color}" penwidth={penwidth} style={style} arrowhead={arrowhead}]')
             lines.append('')
-       
-        # Draw reverse connections (target -> focus) in different color
+
+        # Draw bidirectional connections with teal color
+        if bidirectional_connections:
+            lines.append('    /* Bidirectional connections - teal */')
+            for conn in bidirectional_connections:
+                from_id = self._sanitize_id(conn['from'])
+                to_id = self._sanitize_id(conn['to'])
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold arrowhead={conn_arrows["bidirectional"]} dir=both arrowtail=odot]')
+            lines.append('')
+
+        # Draw reverse connections (target -> focus) in green
         if reverse_connections:
             lines.append('    /* Reverse connections to focus application */')
             for conn in reverse_connections:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-               
+
                 # Reverse connections in green - arrow points TO focus
-                # conn already has correct direction (from external -> to focus)
-                lines.append(f'    {from_id} -> {to_id} [color="#28a745" penwidth=2.0 style=dashed]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["reverse"]}" penwidth=2.0 style=dashed]')
             lines.append('')
-       
+
         return '\n'.join(lines)
    
     def _generate_legend(self, focus_count: int, total_count: int) -> str:
@@ -603,8 +696,11 @@ class ApplicationDiagramGenerator:
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Direct Connections (from focus)</b></td></tr>
                     <tr><td align="left"><font color="#1f78d1">──── </font> Same department</td></tr>
-                    <tr><td align="left"><font color="#ff6b5a">- - - </font> Cross-department</td></tr>
-                    <tr><td align="left"><font color="#b455ff">- - - </font> Cross-organization</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a">- - ◆ </font> Cross-department</td></tr>
+                    <tr><td align="left"><font color="#b455ff">- - ● </font> Cross-organization</td></tr>
+                    <tr><td><br/></td></tr>
+                    <tr><td align="left"><b>Bidirectional Connections</b></td></tr>
+                    <tr><td align="left"><font color="#00897b"><b>◯━━━●</b></font> Two-way communication</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Reverse Connections (to focus)</b></td></tr>
                     <tr><td align="left"><font color="#28a745">- - - </font> From external sources</td></tr>

@@ -201,7 +201,7 @@ class Config:
    
     # Internal Organization Colors
     INTERNAL_ORG_COLORS = [
-        # Finance/First Department - Blue
+        # First Department - Blue
         {
             'org_bg': '#FEDCDB',
             'org_border': '#2d3e50',
@@ -215,7 +215,7 @@ class Config:
             'qm_border': '#155fb3',
             'qm_text': '#0f2a45'
         },
-        # Operations/Second Department - Green
+        # Second Department - Green
         {
             'org_bg': '#FEDCDB',
             'org_border': '#2d3e50',
@@ -254,6 +254,24 @@ class Config:
         "inbound": {"fill": "#d5f5e3", "border": "#82e0aa", "arrow": "#28a745"},
         "outbound": {"fill": "#d6eaf8", "border": "#85c1e9", "arrow": "#2874a6"},
         "external": {"fill": "#fef9e7", "border": "#f39c12", "arrow": "#f39c12"}
+    }
+
+    # ==================== CONNECTION COLORS ====================
+    # Connection type colors for diagram edges
+    CONNECTION_COLORS = {
+        "same_dept": "#1f78d1",        # Blue - same department connections
+        "cross_dept": "#ff6b5a",       # Coral - cross-department connections
+        "cross_org": "#b455ff",        # Purple - cross-organization/external connections
+        "bidirectional": "#00897b",    # Teal - bidirectional relationships
+        "reverse": "#28a745",          # Green - reverse connections to focus
+    }
+
+    # Arrowhead styles by connection type
+    CONNECTION_ARROWHEADS = {
+        "same_dept": "normal",         # Standard arrow
+        "cross_dept": "diamond",       # Diamond for cross-department
+        "cross_org": "dot",            # Dot for cross-organization
+        "bidirectional": "dot",        # Dot with dir=both for bidirectional
     }
    
     # ==================== FIELD MAPPINGS ====================
