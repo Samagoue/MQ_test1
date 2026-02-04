@@ -212,11 +212,192 @@ The orchestrator runs a 13-step pipeline:
 12. **Multi-Format Export** - Export to SVG, PNG, Excel
 13. **EA Documentation** - Generate Confluence markup documentation
 
+## RHEL/Linux Deployment
+
+### Quick Start (RHEL/CentOS)
+
+```bash
+# Clone or copy the project to the server
+cd /path/to/MQ_test1
+
+# Run the installer (as root)
+sudo ./deploy/install.sh
+
+# Configure database credentials
+sudo -u mqcmdb bash
+cd /opt/mqcmdb
+export DB_MASTER_PASSWORD='your_secure_password'
+python3 db_export.py --setup --profile production
+
+# Edit environment file
+sudo vi /opt/mqcmdb/.env
+# Set: DB_MASTER_PASSWORD=your_secure_password
+
+# Test the pipeline
+sudo -u mqcmdb /opt/mqcmdb/deploy/run_pipeline.sh
+
+# Enable scheduled execution
+sudo systemctl enable --now mqcmdb.timer
+```
+
+### Installation Script Options
+
+```bash
+sudo ./deploy/install.sh [OPTIONS]
+
+Options:
+  --install-dir DIR    Installation directory (default: /opt/mqcmdb)
+  --user USER          Service user (default: mqcmdb)
+  --skip-graphviz      Skip GraphViz installation
+  --skip-python        Skip Python installation (use existing)
+  --help               Show help message
+```
+
+### Running the Pipeline (Linux)
+
+```bash
+# Set required environment variable
+export DB_MASTER_PASSWORD='your_secure_password'
+
+# Full pipeline (export + process)
+./deploy/run_pipeline.sh
+
+# Skip database export (use existing data)
+./deploy/run_pipeline.sh --skip-export
+
+# Regenerate diagrams only
+./deploy/run_pipeline.sh --diagrams-only
+
+# Verbose output
+./deploy/run_pipeline.sh --verbose
+
+# Dry run (show what would be executed)
+./deploy/run_pipeline.sh --dry-run
+```
+
+### Scheduling with Systemd (Recommended)
+
+The installer creates systemd service and timer files:
+
+```bash
+# Enable scheduled execution (daily at 6 AM)
+sudo systemctl enable --now mqcmdb.timer
+
+# Check timer status
+sudo systemctl status mqcmdb.timer
+sudo systemctl list-timers mqcmdb.timer
+
+# Run manually
+sudo systemctl start mqcmdb.service
+
+# View logs
+journalctl -u mqcmdb.service -f
+
+# Disable scheduled execution
+sudo systemctl disable mqcmdb.timer
+```
+
+Edit the timer schedule:
+```bash
+sudo systemctl edit mqcmdb.timer
+```
+
+Add custom schedule (example: 7 AM weekdays):
+```ini
+[Timer]
+OnCalendar=Mon-Fri *-*-* 07:00:00
+```
+
+### Scheduling with Cron (Alternative)
+
+```bash
+# Install cron job (default: daily at 6 AM)
+./deploy/setup_cron.sh
+
+# Custom schedule (weekdays at 7:30 AM)
+./deploy/setup_cron.sh --schedule "30 7 * * 1-5"
+
+# List current cron jobs
+./deploy/setup_cron.sh --list
+
+# Remove cron jobs
+./deploy/setup_cron.sh --remove
+```
+
+### Directory Structure (After Installation)
+
+```
+/opt/mqcmdb/                        # Installation directory
+├── .env                            # Environment configuration
+├── credentials/                    # Encrypted database credentials
+├── deploy/
+│   ├── install.sh                  # Installation script
+│   ├── run_pipeline.sh             # Pipeline runner
+│   ├── setup_cron.sh               # Cron setup utility
+│   └── cron_wrapper.sh             # Cron environment wrapper
+├── input/                          # Configuration files
+│   ├── gateways.json
+│   ├── app_to_qmgr.json
+│   └── org_hierarchy.json
+├── output/                         # Generated files
+│   ├── data/
+│   ├── diagrams/
+│   ├── reports/
+│   └── exports/
+└── logs/                           # Log files
+```
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DB_MASTER_PASSWORD` | Master password for encrypted credentials | Yes |
+| `MQCMDB_HOME` | Installation directory | No (default: /opt/mqcmdb) |
+| `MQCMDB_PROFILE` | Database credential profile | No (default: production) |
+| `CONFLUENCE_USER` | Confluence username for sync | No |
+| `CONFLUENCE_TOKEN` | Confluence API token | No |
+
+### Troubleshooting
+
+**Check service status:**
+```bash
+sudo systemctl status mqcmdb.service
+sudo systemctl status mqcmdb.timer
+```
+
+**View recent logs:**
+```bash
+# Systemd logs
+journalctl -u mqcmdb.service --since "1 hour ago"
+
+# Application logs
+tail -100 /opt/mqcmdb/logs/pipeline_*.log
+```
+
+**Test database connection:**
+```bash
+sudo -u mqcmdb bash
+cd /opt/mqcmdb
+export DB_MASTER_PASSWORD='your_password'
+python3 -c "from core.database import DatabaseConnection; print('OK')"
+```
+
+**Verify GraphViz:**
+```bash
+dot -V
+```
+
 ## Maintenance
 
 ```bash
 # Cleanup old logs (Python)
 python -c "from pathlib import Path; import time; [f.unlink() for f in Path('logs').glob('*.log') if time.time() - f.stat().st_mtime > 7*86400]"
+
+# Cleanup old logs (Linux)
+find /opt/mqcmdb/logs -name "*.log" -mtime +7 -delete
+
+# Check disk usage
+du -sh /opt/mqcmdb/output/*
 ```
 
 ## License
