@@ -6,29 +6,37 @@ from pathlib import Path
 from typing import Dict, List
 
 
-def generate_department_colors(num_departments: int) -> List[Dict[str, str]]:
+def generate_department_colors(num_departments: int, seed: int = None) -> List[Dict[str, str]]:
     """
-    Generate random, distinct colors for departments.
+    Generate distinct colors for departments with deterministic output.
 
     Args:
         num_departments: Number of department color schemes to generate
+        seed: Optional seed for reproducibility. If None, uses a fixed seed
+              based on num_departments for consistent colors across runs.
 
     Returns:
         List of color dictionaries for departments
     """
+    # Use a deterministic seed for reproducible colors across runs
+    # This ensures diagrams look the same each time they're generated
+    if seed is None:
+        seed = 42 + num_departments  # Fixed seed based on department count
+    rng = random.Random(seed)
+
     # Base hues to ensure good distribution and distinction
     base_hues = []
-    hue_step = 360 / num_departments
+    hue_step = 360 / max(num_departments, 1)
 
-    # Start at a random offset for variety
-    start_hue = random.randint(0, 360)
+    # Start at a fixed offset for consistency
+    start_hue = rng.randint(0, 360)
 
     for i in range(num_departments):
         hue = (start_hue + i * hue_step) % 360
         base_hues.append(hue)
 
-    # Shuffle to avoid gradual progression
-    random.shuffle(base_hues)
+    # Shuffle using the seeded RNG for deterministic but varied order
+    rng.shuffle(base_hues)
 
     color_schemes = []
     for hue in base_hues:
@@ -101,17 +109,29 @@ class Config:
     INPUT_DIR = BASE_DIR / "input"
     OUTPUT_DIR = BASE_DIR / "output"
     LOGS_DIR = BASE_DIR / "logs"
-    INDIVIDUAL_DIAGRAMS_DIR = OUTPUT_DIR / "individual_diagrams"
-   
+
+    # Output subdirectories
+    DATA_DIR = OUTPUT_DIR / "data"
+    DIAGRAMS_DIR = OUTPUT_DIR / "diagrams"
+    REPORTS_DIR = OUTPUT_DIR / "reports"
+    EXPORTS_DIR = OUTPUT_DIR / "exports"
+
+    # Diagram subdirectories
+    TOPOLOGY_DIR = DIAGRAMS_DIR / "topology"
+    INDIVIDUAL_DIAGRAMS_DIR = DIAGRAMS_DIR / "individual"
+    APPLICATION_DIAGRAMS_DIR = DIAGRAMS_DIR / "applications"
+    FILTERED_VIEWS_DIR = DIAGRAMS_DIR / "filtered"
+
     # Credential files
     CREDENTIALS_FILE = BASE_DIR / "db_credentials.enc"
     SALT_FILE = BASE_DIR / "db_credentials.salt"
-   
+
     # Data files
     INPUT_JSON = OUTPUT_DIR / "all_MQCMDB_assets.json"
-    PROCESSED_JSON = OUTPUT_DIR / "mq_cmdb_processed.json"
-    TOPOLOGY_DOT = OUTPUT_DIR / "mq_topology.dot"
-    TOPOLOGY_PDF = OUTPUT_DIR / "mq_topology.pdf"
+    PROCESSED_JSON = DATA_DIR / "mq_cmdb_processed.json"
+    BASELINE_JSON = DATA_DIR / "mq_cmdb_baseline.json"
+    TOPOLOGY_DOT = TOPOLOGY_DIR / "mq_topology.dot"
+    TOPOLOGY_PDF = TOPOLOGY_DIR / "mq_topology.pdf"
    
     # Hierarchy input files
     ORG_HIERARCHY_JSON = INPUT_DIR / "org_hierarchy.json"
@@ -129,14 +149,14 @@ class Config:
     # Output Cleanup Settings
     ENABLE_OUTPUT_CLEANUP = True       # Enable automatic cleanup of old output files
     OUTPUT_RETENTION_DAYS = 30         # Delete output files older than this many days
-    # File patterns to clean up (timestamped files only)
+    # File patterns to clean up (timestamped files only, relative to OUTPUT_DIR)
     OUTPUT_CLEANUP_PATTERNS = [
-        "change_report_*.html",
-        "changes_*.json",
-        "gateway_analytics_*.html",
-        "gateway_analytics_*.json",
-        "mqcmdb_inventory_*.xlsx",
-        "EA_Documentation_*.txt"
+        "reports/change_report_*.html",
+        "reports/gateway_analytics_*.html",
+        "data/changes_*.json",
+        "data/gateway_analytics_*.json",
+        "exports/mqcmdb_inventory_*.xlsx",
+        "exports/EA_Documentation_*.txt"
     ]
 
     # Multi-Format Export Settings
@@ -189,7 +209,7 @@ class Config:
    
     # Internal Organization Colors
     INTERNAL_ORG_COLORS = [
-        # Finance/First Department - Blue
+        # First Department - Blue
         {
             'org_bg': '#FEDCDB',
             'org_border': '#2d3e50',
@@ -203,7 +223,7 @@ class Config:
             'qm_border': '#155fb3',
             'qm_text': '#0f2a45'
         },
-        # Operations/Second Department - Green
+        # Second Department - Green
         {
             'org_bg': '#FEDCDB',
             'org_border': '#2d3e50',
@@ -243,6 +263,24 @@ class Config:
         "outbound": {"fill": "#d6eaf8", "border": "#85c1e9", "arrow": "#2874a6"},
         "external": {"fill": "#fef9e7", "border": "#f39c12", "arrow": "#f39c12"}
     }
+
+    # ==================== CONNECTION COLORS ====================
+    # Connection type colors for diagram edges
+    CONNECTION_COLORS = {
+        "same_dept": "#1f78d1",        # Blue - same department connections
+        "cross_dept": "#ff6b5a",       # Coral - cross-department connections
+        "cross_org": "#b455ff",        # Purple - cross-organization/external connections
+        "bidirectional": "#00897b",    # Teal - bidirectional relationships
+        "reverse": "#28a745",          # Green - reverse connections to focus
+    }
+
+    # Arrowhead styles by connection type
+    CONNECTION_ARROWHEADS = {
+        "same_dept": "normal",         # Standard arrow
+        "cross_dept": "diamond",       # Diamond for cross-department
+        "cross_org": "dot",            # Dot for cross-organization
+        "bidirectional": "dot",        # Dot with dir=both for bidirectional
+    }
    
     # ==================== FIELD MAPPINGS ====================
     FIELD_MAPPINGS = {
@@ -269,8 +307,23 @@ class Config:
     @classmethod
     def ensure_directories(cls):
         """Create necessary directories if they don't exist."""
-        for directory in [cls.DATABASE_DIR, cls.INPUT_DIR, cls.OUTPUT_DIR,
-                         cls.LOGS_DIR, cls.INDIVIDUAL_DIAGRAMS_DIR]:
+        directories = [
+            cls.DATABASE_DIR,
+            cls.INPUT_DIR,
+            cls.OUTPUT_DIR,
+            cls.LOGS_DIR,
+            # Output subdirectories
+            cls.DATA_DIR,
+            cls.DIAGRAMS_DIR,
+            cls.REPORTS_DIR,
+            cls.EXPORTS_DIR,
+            # Diagram subdirectories
+            cls.TOPOLOGY_DIR,
+            cls.INDIVIDUAL_DIAGRAMS_DIR,
+            cls.APPLICATION_DIAGRAMS_DIR,
+            cls.FILTERED_VIEWS_DIR,
+        ]
+        for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)
    
     @classmethod

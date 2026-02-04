@@ -1,0 +1,19 @@
+# MQ CMDB Automation System - Dependencies
+# Install with: pip install -r requirements.txt
+
+# Database connectivity
+mysql-connector-python>=8.0.0
+
+# Encrypted credentials
+cryptography>=3.4.0
+
+# Excel report generation
+openpyxl>=3.0.0
+
+# Confluence API integration (optional - for confluence_sync)
+requests>=2.25.0
+
+# Note: GraphViz must be installed separately via system package manager:
+#   - macOS: brew install graphviz
+#   - Ubuntu/Debian: sudo apt-get install graphviz
+#   - Windows: Download from https://graphviz.org/download/

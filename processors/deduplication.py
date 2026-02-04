@@ -31,11 +31,17 @@ class AssetDeduplicator:
     def deduplicate(self, data: List[Dict]) -> List[Dict]:
         """
         Remove duplicates based on rules.
-       
+
         Rule: If asset is duplicated and one record has asset_type = 'QCluster',
               ignore the QCluster record and keep the other one.
         """
-        if not data or self.asset_field not in data[0]:
+        # Handle empty or invalid data
+        if not data:
+            return data
+
+        # Check if first element is a valid dict with the asset field
+        first_record = data[0]
+        if not isinstance(first_record, dict) or self.asset_field not in first_record:
             return data
        
         # Group by asset

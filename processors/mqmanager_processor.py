@@ -112,11 +112,13 @@ class MQManagerProcessor:
             mqmanager = self._normalize_value(record.get(mqmanager_field, ''))
            
             if mqmanager:
-                self.valid_mqmanagers.add(mqmanager.upper())
+                mqmanager_upper = mqmanager.upper()
+                self.valid_mqmanagers.add(mqmanager_upper)
                 directorate = self._normalize_value(record.get(directorate_field, ''))
                 if not directorate:
                     directorate = "Unknown"
-                self.mqmanager_to_directorate[mqmanager] = directorate
+                # Store with uppercase key for consistent lookups
+                self.mqmanager_to_directorate[mqmanager_upper] = directorate
        
         print(f"✓ Found {len(self.valid_mqmanagers)} unique MQ Managers")
    
@@ -198,30 +200,32 @@ class MQManagerProcessor:
                         self.stats['outbound_found'] += 1
                        
                         # INVERSE: found_mqmanager receives FROM this mqmanager
-                        target_dir = self.mqmanager_to_directorate.get(found_mqmanager, "Unknown")
+                        # Use uppercase for lookup to match how keys are stored
+                        target_dir = self.mqmanager_to_directorate.get(found_mqmanager.upper(), "Unknown")
                         directorate_data[target_dir][found_mqmanager]['inbound'].add(mqmanager)
                     else:
                         # No MQmanager found -> Outbound_Extra
                         directorate_data[directorate][mqmanager]['outbound_extra'].add(remaining)
                         self.stats['outbound_extra_found'] += 1
-           
+
             elif 'RECEIVER' in kalala_comments and asset:
                 self.stats['processed_receiver'] += 1
-               
+
                 # Extract remaining string after removing MQmanager
                 remaining = self._extract_mqmanager_from_asset(asset, mqmanager)
-               
+
                 if remaining:
                     # Check if remaining contains another MQmanager
                     found_mqmanager = self._find_mqmanager_in_string(remaining, mqmanager)
-                   
+
                     if found_mqmanager:
                         # This MQmanager receives FROM found_mqmanager -> Inbound
                         directorate_data[directorate][mqmanager]['inbound'].add(found_mqmanager)
                         self.stats['inbound_found'] += 1
-                       
+
                         # INVERSE: found_mqmanager sends TO this mqmanager
-                        target_dir = self.mqmanager_to_directorate.get(found_mqmanager, "Unknown")
+                        # Use uppercase for lookup to match how keys are stored
+                        target_dir = self.mqmanager_to_directorate.get(found_mqmanager.upper(), "Unknown")
                         directorate_data[target_dir][found_mqmanager]['outbound'].add(mqmanager)
                     else:
                         # No MQmanager found -> Inbound_Extra

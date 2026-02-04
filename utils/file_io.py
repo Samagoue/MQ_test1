@@ -207,21 +207,28 @@ def format_file_size(size_bytes: int) -> str:
     return f"{size_bytes:.1f} PB"
 
 
-def backup_file(filepath: Path, suffix: str = '.bak'):
+def backup_file(filepath: Path, suffix: str = '.bak') -> bool:
     """
     Create a backup of a file.
-   
+
     Args:
         filepath: Path to file to backup
         suffix: Suffix for backup file (default: '.bak')
+
+    Returns:
+        True if backup was created successfully, False otherwise
     """
     from shutil import copy2
-   
+
     if not filepath.exists():
-        return
-   
-    backup_path = filepath.with_suffix(filepath.suffix + suffix)
-    copy2(filepath, backup_path)
+        return False
+
+    try:
+        backup_path = filepath.with_suffix(filepath.suffix + suffix)
+        copy2(filepath, backup_path)
+        return True
+    except Exception:
+        return False
 
 
 def clean_old_files(directory: Path, days: int, pattern: str = '*') -> int:
@@ -267,11 +274,16 @@ def cleanup_output_directory(directory: Path, days: int, patterns: List[str]) ->
         Dictionary with cleanup results including total deleted and per-pattern counts
     """
     from datetime import datetime, timedelta
+    import time
 
     if not directory.exists():
-        return {'total_deleted': 0, 'patterns': {}, 'errors': []}
+        return {'total_deleted': 0, 'patterns': {}, 'errors': [], 'deleted_files': []}
 
     cutoff = datetime.now() - timedelta(days=days)
+    # Safety buffer: don't delete files modified in the last 60 seconds
+    # to avoid deleting files currently being written
+    safety_buffer = time.time() - 60
+
     results = {
         'total_deleted': 0,
         'patterns': {},
@@ -284,14 +296,19 @@ def cleanup_output_directory(directory: Path, days: int, patterns: List[str]) ->
         try:
             for filepath in directory.glob(pattern):
                 if filepath.is_file():
-                    file_time = datetime.fromtimestamp(filepath.stat().st_mtime)
-                    if file_time < cutoff:
-                        try:
+                    try:
+                        stat_info = filepath.stat()
+                        file_mtime = stat_info.st_mtime
+                        file_time = datetime.fromtimestamp(file_mtime)
+
+                        # Check if file is old enough AND not recently modified
+                        if file_time < cutoff and file_mtime < safety_buffer:
                             filepath.unlink()
                             pattern_deleted += 1
                             results['deleted_files'].append(str(filepath.name))
-                        except Exception as e:
-                            results['errors'].append(f"Failed to delete {filepath}: {e}")
+                    except OSError as e:
+                        # File might be in use or already deleted
+                        results['errors'].append(f"Failed to delete {filepath}: {e}")
         except Exception as e:
             results['errors'].append(f"Error processing pattern {pattern}: {e}")
 

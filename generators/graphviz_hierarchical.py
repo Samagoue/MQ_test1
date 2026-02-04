@@ -7,6 +7,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import Dict, List
+from datetime import datetime
 
 
 class HierarchicalGraphVizGenerator:
@@ -47,6 +48,7 @@ class HierarchicalGraphVizGenerator:
             self._generate_organizations(),
             self._generate_connections(),
             self._generate_legend(),
+            self._generate_footer(),
             "}"
         ]
         return "\n".join(sections)
@@ -84,6 +86,32 @@ class HierarchicalGraphVizGenerator:
         if sanitized and sanitized[0].isdigit():
             sanitized = '_' + sanitized
         return sanitized or 'node'
+
+    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Lighten a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = min(255, int(r + (255 - r) * factor))
+        g = min(255, int(g + (255 - g) * factor))
+        b = min(255, int(b + (255 - b) * factor))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
+
+    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Darken a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = max(0, int(r * (1 - factor)))
+        g = max(0, int(g * (1 - factor)))
+        b = max(0, int(b * (1 - factor)))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
 
     def _generate_department_color_mapping(self) -> Dict[str, Dict[str, str]]:
         """Generate unique colors for each department across all organizations."""
@@ -148,6 +176,11 @@ class HierarchicalGraphVizGenerator:
             colors = self.config.INTERNAL_ORG_COLORS[0]
             title = f"🏢 Organization: {org_name}"
        
+        # Create gradient fill for organization
+        org_bg = colors["org_bg"]
+        # Lighten the color slightly for gradient end
+        org_bg_light = self._lighten_color(org_bg, 0.15)
+
         lines = [
             "",
             f"    /* {'='*26}",
@@ -156,7 +189,8 @@ class HierarchicalGraphVizGenerator:
             f"    subgraph cluster_{org_id} {{",
             f'        label=<<b>{title}</b>>',
             f'        style="filled,rounded"',
-            f'        fillcolor="{colors["org_bg"]}"',
+            f'        fillcolor="{org_bg}:{org_bg_light}"',
+            f'        gradientangle=270',
             f'        color="{colors["org_border"]}"',
             f'        penwidth=3',
             f'        fontsize=22' if org_type == 'Internal' else f'        fontsize=20',
@@ -187,13 +221,18 @@ class HierarchicalGraphVizGenerator:
     def _generate_department(self, dept_name: str, biz_owners: Dict, colors: Dict, org_type: str) -> str:
         """Generate department cluster."""
         dept_id = self._sanitize_id(dept_name)
-       
+
+        # Create gradient fill for department
+        dept_bg = colors["dept_bg"]
+        dept_bg_light = self._lighten_color(dept_bg, 0.12)
+
         lines = [
             f"        /* {'Department: ' + dept_name} */",
             f'        subgraph cluster_Dep_{dept_id} {{',
             f'            label=<<b>🏬 Department: {dept_name}</b>>',
             f'            style="filled,rounded"',
-            f'            fillcolor="{colors["dept_bg"]}"',
+            f'            fillcolor="{dept_bg}:{dept_bg_light}"',
+            f'            gradientangle=270',
             f'            color="{colors["dept_border"]}"',
             f'            penwidth=3' if org_type == 'Internal' else f'            penwidth=2.5',
             f'            fontsize=20',
@@ -211,13 +250,18 @@ class HierarchicalGraphVizGenerator:
     def _generate_biz_owner(self, biz_ownr: str, applications: Dict, colors: Dict, org_type: str) -> str:
         """Generate business owner cluster."""
         biz_id = self._sanitize_id(biz_ownr)
-       
+
+        # Create gradient fill for business owner
+        biz_bg = colors["biz_bg"]
+        biz_bg_light = self._lighten_color(biz_bg, 0.10)
+
         lines = [
             f'            /* BIZ OWNER: {biz_ownr} */',
             f'            subgraph cluster_BO_{biz_id} {{',
             f'                label=<<b>👤 Biz_Ownr: {biz_ownr}</b>>',
             f'                style="filled,rounded"',
-            f'                fillcolor="{colors["biz_bg"]}"',
+            f'                fillcolor="{biz_bg}:{biz_bg_light}"',
+            f'                gradientangle=270',
             f'                color="{colors["biz_border"]}"',
             f'                penwidth=2.5',
             f'                fontsize=18',
@@ -253,23 +297,33 @@ class HierarchicalGraphVizGenerator:
             else:
                 gateway_colors = self.config.EXTERNAL_GATEWAY_COLORS
 
+            # Create gradient fill for gateway
+            gw_bg = gateway_colors["gateway_bg"]
+            gw_bg_light = self._lighten_color(gw_bg, 0.10)
+
             lines = [
                 f'                subgraph cluster_Gateway_{app_id} {{',
                 f'                    label=<<b>🔀 Gateway: {scope}</b>>',
                 f'                    style="filled,rounded"',
-                f'                    fillcolor="{gateway_colors["gateway_bg"]}"',
+                f'                    fillcolor="{gw_bg}:{gw_bg_light}"',
+                f'                    gradientangle=270',
                 f'                    color="{gateway_colors["gateway_border"]}"',
                 f'                    penwidth=2.5',
                 f'                    fontsize=16',
                 f'                    margin=15',
+                ""
             ]
         else:
-            # Regular application cluster
+            # Regular application cluster - create gradient fill
+            app_bg = colors["app_bg"]
+            app_bg_light = self._lighten_color(app_bg, 0.10)
+
             lines = [
                 f'                subgraph cluster_App_{app_id} {{',
                 f'                    label=<<b>🧩 App: {app_name}</b>>',
                 f'                    style="filled,rounded"',
-                f'                    fillcolor="{colors["app_bg"]}"',
+                f'                    fillcolor="{app_bg}:{app_bg_light}"',
+                f'                    gradientangle=270',
                 f'                    color="{colors["app_border"]}"',
                 f'                    penwidth=2',
                 f'                    fontsize=16',
@@ -319,14 +373,26 @@ class HierarchicalGraphVizGenerator:
         # Build node output
         node_lines = []
 
-        # Main MQ manager node
+        # URL for clickable SVG - links to individual diagram
+        # Topology is in diagrams/topology/, individual is in diagrams/individual/
+        url_path = f"../individual/{qm_id}.svg"
+
+        # Create gradient fill for MQ manager node (horizontal gradient)
+        qm_bg = colors['qm_bg']
+        qm_bg_dark = self._darken_color(qm_bg, 0.08)
+
+        # Main MQ manager node with gradient
         node_lines.append(f"""{indent}{qm_id} [
 {indent}    shape=cylinder
 {indent}    style="filled"
-{indent}    fillcolor="{colors['qm_bg']}"
+{indent}    fillcolor="{qm_bg}:{qm_bg_dark}"
+{indent}    gradientangle=90
 {indent}    color="{colors['qm_border']}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="{colors['qm_text']}"
+{indent}    URL="{url_path}"
+{indent}    target="_blank"
+{indent}    tooltip="Click to view {mqmanager} details"
 {indent}    label=<<b>🗄️ {mqmanager}</b><br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/> ⬅ In: {len(inbound)}+{len(inbound_extra)} | Out: {len(outbound)}+{len(outbound_extra)} ➡>
 {indent}]
 """)
@@ -335,6 +401,7 @@ class HierarchicalGraphVizGenerator:
         is_gateway = mq_data.get('IsGateway', False)
 
         # Add note box for inbound_extra if present (gateways only)
+        # Inbound note positioned on TOP of QM manager with headport=n tailport=s
         if is_gateway and inbound_extra:
             note_id = f"{qm_id}_inbound_extra"
             extra_list = '<br/>'.join([f"• {src}" for src in inbound_extra[:10]])  # Limit to 10
@@ -350,10 +417,11 @@ class HierarchicalGraphVizGenerator:
 {indent}    fontsize=9
 {indent}    label=<⬅ <b>External Inbound</b><br/>{extra_list}>
 {indent}]
-{indent}{note_id} -> {qm_id} [style=dashed color="#999999" arrowhead=none]
+{indent}{note_id} -> {qm_id} [style=dashed color="#999999" arrowhead=none constraint=false headport=n tailport=s]
 """)
 
         # Add note box for outbound_extra if present (gateways only)
+        # Outbound note positioned on BOTTOM of QM manager with tailport=s headport=n
         if is_gateway and outbound_extra:
             note_id = f"{qm_id}_outbound_extra"
             extra_list = '<br/>'.join([f"• {tgt}" for tgt in outbound_extra[:10]])  # Limit to 10
@@ -369,41 +437,67 @@ class HierarchicalGraphVizGenerator:
 {indent}    fontsize=9
 {indent}    label=<➡ <b>External Outbound</b><br/>{extra_list}>
 {indent}]
-{indent}{qm_id} -> {note_id} [style=dashed color="#999999" arrowhead=none]
+{indent}{qm_id} -> {note_id} [style=dashed color="#999999" arrowhead=none constraint=false tailport=s headport=n]
 """)
 
         return ''.join(node_lines)
    
     def _generate_connections(self) -> str:
-        """Generate connections section."""
+        """Generate connections section with bidirectional detection."""
         if not self.all_connections:
             return ""
-       
+
+        # Get connection colors from config
+        conn_colors = self.config.CONNECTION_COLORS
+        conn_arrows = self.config.CONNECTION_ARROWHEADS
+
+        # Build connection pairs to detect bidirectional
+        connection_pairs = {}
+        for conn in self.all_connections:
+            pair_key = tuple(sorted([conn['from'], conn['to']]))
+            if pair_key not in connection_pairs:
+                connection_pairs[pair_key] = []
+            connection_pairs[pair_key].append(conn)
+
         # Classify connections
         internal_dept = []
         cross_dept = []
         cross_org_external = []
-       
+        bidirectional = []
+        processed_pairs = set()
+
         for conn in self.all_connections:
             from_info = self.mqmgr_lookup.get(conn['from'], {})
             to_info = self.mqmgr_lookup.get(conn['to'], {})
-           
+
             from_org = from_info.get('Organization', '')
             from_dept = from_info.get('Department', '')
             from_org_type = from_info.get('Org_Type', 'Internal')
-           
+
             to_org = to_info.get('Organization', '')
             to_dept = to_info.get('Department', '')
             to_org_type = to_info.get('Org_Type', 'Internal')
-           
-            # Classify
-            if from_org_type == 'External' or to_org_type == 'External' or from_org != to_org:
-                cross_org_external.append(conn)
-            elif from_dept == to_dept:
-                internal_dept.append(conn)
-            else:
-                cross_dept.append(conn)
-       
+
+            # Check if this is a bidirectional connection
+            pair_key = tuple(sorted([conn['from'], conn['to']]))
+            reverse_exists = any(
+                c['from'] == conn['to'] and c['to'] == conn['from']
+                for c in connection_pairs[pair_key]
+            )
+
+            if reverse_exists and pair_key not in processed_pairs:
+                # This is a bidirectional connection - add only once
+                bidirectional.append(conn)
+                processed_pairs.add(pair_key)
+            elif not reverse_exists:
+                # Single direction - classify normally
+                if from_org_type == 'External' or to_org_type == 'External' or from_org != to_org:
+                    cross_org_external.append(conn)
+                elif from_dept == to_dept:
+                    internal_dept.append(conn)
+                else:
+                    cross_dept.append(conn)
+
         lines = [
             "",
             "    /* ==========================",
@@ -411,31 +505,40 @@ class HierarchicalGraphVizGenerator:
             "    ========================== */",
             ""
         ]
-       
+
+        # No explicit ports on connections - let Graphviz find shortest path
         if internal_dept:
-            lines.append("    /* Internal Department */")
+            lines.append("    /* Internal Department - solid blue */")
             for conn in internal_dept:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id}   [color="#1f78d1" penwidth=2.0]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["same_dept"]}" penwidth=2.0 arrowhead={conn_arrows["same_dept"]} weight=3]')
             lines.append("")
-       
+
         if cross_dept:
-            lines.append("    /* Cross-Department */")
+            lines.append("    /* Cross-Department - dashed coral, diamond arrows */")
             for conn in cross_dept:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id}   [color="#ff6b5a" penwidth=2.2 style=dashed]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_dept"]}" penwidth=2.2 style=dashed arrowhead={conn_arrows["cross_dept"]} weight=2]')
             lines.append("")
-       
+
         if cross_org_external:
-            lines.append("    /* Cross-Organization / External */")
+            lines.append("    /* Cross-Organization / External - dashed purple, dot arrows */")
             for conn in cross_org_external:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id} [color="#b455ff" penwidth=2.2 style=dashed]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_org"]}" penwidth=2.2 style=dashed arrowhead={conn_arrows["cross_org"]} weight=1]')
             lines.append("")
-       
+
+        if bidirectional:
+            lines.append("    /* Bidirectional - teal, bold, dir=both */")
+            for conn in bidirectional:
+                from_id = self._sanitize_id(conn['from'])
+                to_id = self._sanitize_id(conn['to'])
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold arrowhead={conn_arrows["bidirectional"]} dir=both arrowtail=odot weight=1]')
+            lines.append("")
+
         return "\n".join(lines)
    
     def _generate_legend(self) -> str:
@@ -461,11 +564,12 @@ class HierarchicalGraphVizGenerator:
           label=<
                 <table border="0" cellborder="0" cellspacing="4" cellpadding="2">
                     <tr><td align="left"><b>Hierarchy</b></td></tr>
-                    <tr><td align="left">🏢 Organization</td></tr>
+                    <tr><td align="left">🏢 Organization (Internal/External)</td></tr>
                     <tr><td align="left">🏬 Department</td></tr>
                     <tr><td align="left">👤 Biz_Ownr</td></tr>
                     <tr><td align="left">🧩 Application</td></tr>
-                    <tr><td align="left">🗄️ MQ Manager</td></tr>
+                    <tr><td align="left">🔀 Gateway (Internal/External)</td></tr>
+                    <tr><td align="left">🗄️ MQ Manager (clickable)</td></tr>
 
                     <tr><td><br/></td></tr>
 
@@ -473,21 +577,48 @@ class HierarchicalGraphVizGenerator:
                     <tr><td align="left">QLocal — Local queues</td></tr>
                     <tr><td align="left">QRemote — Remote queues</td></tr>
                     <tr><td align="left">QAlias — Alias queues</td></tr>
-                    <tr><td align="left">Inbound / Outbound — Channel counts</td></tr>
+                    <tr><td align="left">In: X+Y — Internal+External inbound</td></tr>
+                    <tr><td align="left">Out: X+Y — Internal+External outbound</td></tr>
 
                     <tr><td><br/></td></tr>
 
-                    <tr><td align="left"><b>Channel Types</b></td></tr>
-                    <tr><td align="left"><font color="#925de2"><b>──── </b></font> Internal (same department/directorate)</td></tr>
-                    <tr><td align="left"><font color="#ff6b5a"><b>- - - - </b></font> Cross-department</td></tr>
-                    <tr><td align="left"><font color="#b455ff"><b>- - - - </b></font> Org-level / External</td></tr>
+                    <tr><td align="left"><b>Connection Types</b></td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>──── </b></font> Internal (same department)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a"><b>- - - ◆ </b></font> Cross-department</td></tr>
+                    <tr><td align="left"><font color="#b455ff"><b>- - - ● </b></font> Cross-org / External</td></tr>
+                    <tr><td align="left"><font color="#00897b"><b>◯━━━● </b></font> Bidirectional</td></tr>
 
                     <tr><td><br/></td></tr>
+
+                    <tr><td align="left"><b>External Connection Notes</b></td></tr>
+                    <tr><td align="left"><font color="#ffc107">📋</font> External Inbound (yellow)</td></tr>
+                    <tr><td align="left"><font color="#17a2b8">📋</font> External Outbound (blue)</td></tr>
 
                 </table>
             >
         ]
     }"""
+
+    def _generate_footer(self) -> str:
+        """Generate footer with generation timestamp."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return f"""
+    /* ==========================
+       FOOTER
+    ========================== */
+    footer [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#e8e8e8"
+        color="#cccccc"
+        penwidth=1
+        fontsize=10
+        label=<<table border="0" cellborder="0" cellspacing="2" cellpadding="2">
+            <tr><td align="center"><b>MQ CMDB Topology Diagram</b></td></tr>
+            <tr><td align="center"><font point-size="9">Generated: {timestamp}</font></td></tr>
+            <tr><td align="center"><font point-size="9">Click on MQ Managers to view details</font></td></tr>
+        </table>>
+    ]"""
    
     def save_to_file(self, filepath: Path):
         """Save DOT content to file."""
