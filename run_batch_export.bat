@@ -109,16 +109,37 @@ REM call :SendEmail "MQ CMDB Export Complete" "Processing completed successfully
 exit /b %ERRORLEVEL%
 
 REM ========================================================================
-REM Email Notification Function (requires blat or similar email tool)
-REM Install blat from: https://www.blat.net/
+REM Email Notification Function (Python-based - External Utility)
+REM
+REM This calls a reusable send_email.py utility that can be placed in any
+REM common scripts directory and shared across multiple projects.
 REM ========================================================================
 :SendEmail
 REM Usage: call :SendEmail "Subject" "Body"
 REM
-REM Example configuration:
-REM set SMTP_SERVER=smtp.yourcompany.com
-REM set SMTP_FROM=mqcmdb@yourcompany.com
-REM set SMTP_TO=ops-team@yourcompany.com
-REM
-REM blat - -to %SMTP_TO% -f %SMTP_FROM% -server %SMTP_SERVER% -subject "%~1" -body "%~2"
+REM Configure these paths for your environment:
+SET EMAIL_SCRIPT=C:\Scripts\send_email.py
+SET EMAIL_CONFIG=C:\Scripts\smtp_config.ini
+SET EMAIL_TO=ops-team@yourcompany.com
+SET EMAIL_FROM=mqcmdb@yourcompany.com
+
+REM Alternative: Use environment variables instead of config file
+REM   set SMTP_SERVER=smtp.yourcompany.com
+REM   set SMTP_PORT=587
+REM   set SMTP_USER=your_username
+REM   set SMTP_PASSWORD=your_password
+REM   set SMTP_FROM=mqcmdb@yourcompany.com
+REM   set SMTP_USE_TLS=true
+
+REM Check if external script exists, fall back to local copy
+if not exist "%EMAIL_SCRIPT%" (
+    SET EMAIL_SCRIPT=%~dp0tools\send_email.py
+)
+
+REM Check if config file exists
+if exist "%EMAIL_CONFIG%" (
+    python "%EMAIL_SCRIPT%" --config "%EMAIL_CONFIG%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2"
+) else (
+    python "%EMAIL_SCRIPT%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2"
+)
 exit /b 0

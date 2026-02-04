@@ -1,0 +1,70 @@
+# SMTP Configuration for Email Notifications
+# ============================================
+# Copy this file to your preferred location (e.g., C:\Scripts\smtp_config.ini)
+# and update with your SMTP settings. Keep this file secure as it contains credentials.
+#
+# This configuration file works with send_email.py
+
+[smtp]
+# SMTP server hostname
+server = smtp.yourcompany.com
+
+# SMTP port options:
+#   25  - No encryption (not recommended)
+#   587 - STARTTLS (recommended for most servers)
+#   465 - SSL/TLS
+port = 587
+
+# Authentication credentials (leave blank if your relay doesn't require auth)
+user = your_username
+password = your_password
+
+# Default sender address (can be overridden with --from argument)
+from = notifications@yourcompany.com
+
+# Security settings
+# use_tls = STARTTLS on port 587 (upgrades plain connection to encrypted)
+# use_ssl = SSL/TLS on port 465 (connection starts encrypted)
+use_tls = true
+use_ssl = false
+
+
+# ============================================
+# Example configurations for common providers:
+# ============================================
+
+# Microsoft 365 / Office 365:
+# [smtp]
+# server = smtp.office365.com
+# port = 587
+# user = your_email@yourcompany.com
+# password = your_password
+# from = your_email@yourcompany.com
+# use_tls = true
+
+# Gmail (requires App Password - enable 2FA first):
+# [smtp]
+# server = smtp.gmail.com
+# port = 587
+# user = your_email@gmail.com
+# password = your_app_password
+# from = your_email@gmail.com
+# use_tls = true
+
+# Internal mail relay (no authentication):
+# [smtp]
+# server = mailrelay.internal.company.com
+# port = 25
+# user =
+# password =
+# from = app-notifications@yourcompany.com
+# use_tls = false
+
+# Amazon SES:
+# [smtp]
+# server = email-smtp.us-east-1.amazonaws.com
+# port = 587
+# user = YOUR_SMTP_USERNAME
+# password = YOUR_SMTP_PASSWORD
+# from = verified-sender@yourdomain.com
+# use_tls = true
