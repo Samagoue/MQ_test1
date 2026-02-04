@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+from utils.common import lighten_color, darken_color
 
 
 class ApplicationDiagramGenerator:
@@ -27,32 +28,9 @@ class ApplicationDiagramGenerator:
         # Build lookup for quick access to any MQ manager's full context
         self.mqmgr_lookup = self._build_mqmgr_lookup()
 
-    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Lighten a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
+        # Initialize external_notes list (populated during diagram generation)
+        self.external_notes = []
 
-        r = min(255, int(r + (255 - r) * factor))
-        g = min(255, int(g + (255 - g) * factor))
-        b = min(255, int(b + (255 - b) * factor))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-
-    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Darken a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = max(0, int(r * (1 - factor)))
-        g = max(0, int(g * (1 - factor)))
-        b = max(0, int(b * (1 - factor)))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-   
     def _build_mqmgr_lookup(self) -> Dict:
         """Build a lookup dict: {mqmanager_name: full_context}"""
         lookup = {}
@@ -175,7 +153,7 @@ class ApplicationDiagramGenerator:
        
         # Generate hierarchy
         all_connections = []
-        self.external_notes = []  # Track external connection note boxes
+        self.external_notes = []  # Reset for this diagram
         lines.append(self._generate_hierarchy(hierarchy_map, focus_org, focus_dept, focus_biz_ownr, app_name, all_connections))
 
         # Generate external connection note boxes (outside all clusters)
@@ -267,7 +245,7 @@ class ApplicationDiagramGenerator:
 
             # Create gradient fill for organization
             org_bg = colors["org_bg"]
-            org_bg_light = self._lighten_color(org_bg, 0.15)
+            org_bg_light = lighten_color(org_bg, 0.15)
 
             lines.extend([
                 f'    subgraph cluster_{org_id} {{',
@@ -287,7 +265,7 @@ class ApplicationDiagramGenerator:
 
                 # Create gradient fill for department
                 dept_bg = colors["dept_bg"]
-                dept_bg_light = self._lighten_color(dept_bg, 0.12)
+                dept_bg_light = lighten_color(dept_bg, 0.12)
 
                 lines.extend([
                     f'        subgraph cluster_Dep_{dept_id} {{',
@@ -306,7 +284,7 @@ class ApplicationDiagramGenerator:
 
                     # Create gradient fill for business owner
                     biz_bg = colors["biz_bg"]
-                    biz_bg_light = self._lighten_color(biz_bg, 0.10)
+                    biz_bg_light = lighten_color(biz_bg, 0.10)
 
                     lines.extend([
                         f'            subgraph cluster_BO_{biz_id} {{',
@@ -344,7 +322,7 @@ class ApplicationDiagramGenerator:
                                 penwidth = "3"
                             else:
                                 app_fillcolor = gateway_colors["gateway_bg"]
-                                app_fillcolor_light = self._lighten_color(app_fillcolor, 0.10)
+                                app_fillcolor_light = lighten_color(app_fillcolor, 0.10)
                                 app_border = gateway_colors["gateway_border"]
                                 penwidth = "2.5"
 
@@ -367,7 +345,7 @@ class ApplicationDiagramGenerator:
                                 penwidth = "3"
                             else:
                                 app_fillcolor = colors["app_bg"]
-                                app_fillcolor_light = self._lighten_color(app_fillcolor, 0.10)
+                                app_fillcolor_light = lighten_color(app_fillcolor, 0.10)
                                 app_border = colors["app_border"]
                                 penwidth = "2"
 
@@ -458,7 +436,7 @@ class ApplicationDiagramGenerator:
             bordercolor = "#ff9800"
         else:
             fillcolor = colors['qm_bg']
-            fillcolor_dark = self._darken_color(fillcolor, 0.08)
+            fillcolor_dark = darken_color(fillcolor, 0.08)
             bordercolor = colors['qm_border']
 
         # Build node output
@@ -746,6 +724,7 @@ class ApplicationDiagramGenerator:
         sanitized = re.sub(r'[^\w\s-]', '_', name)
         sanitized = re.sub(r'\s+', '_', sanitized)
         sanitized = re.sub(r'_+', '_', sanitized)
-        return sanitized.strip('_').lower()
+        result = sanitized.strip('_').lower()
+        return result if result else 'unnamed_app'
 
 

@@ -36,7 +36,15 @@ class ChangeDetector:
 
         Returns:
             Dictionary of detected changes
+
+        Raises:
+            ValueError: If current_data or baseline_data is not a dictionary
         """
+        if not isinstance(current_data, dict):
+            raise ValueError(f"current_data must be a dict, got {type(current_data).__name__}")
+        if not isinstance(baseline_data, dict):
+            raise ValueError(f"baseline_data must be a dict, got {type(baseline_data).__name__}")
+
         # Extract MQ managers from both datasets
         current_mqmgrs = self._extract_mqmanagers(current_data)
         baseline_mqmgrs = self._extract_mqmanagers(baseline_data)
