@@ -13,31 +13,7 @@ class GraphVizTopologyGenerator:
         self.config = config
         self.mqmanager_to_directorate = self._build_index()
 
-    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Lighten a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = min(255, int(r + (255 - r) * factor))
-        g = min(255, int(g + (255 - g) * factor))
-        b = min(255, int(b + (255 - b) * factor))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-
-    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Darken a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = max(0, int(r * (1 - factor)))
-        g = max(0, int(g * (1 - factor)))
-        b = max(0, int(b * (1 - factor)))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
+    # Gradient color methods removed - using solid fills
    
     def _build_index(self) -> Dict[str, str]:
         """Build MQmanager to directorate lookup."""
@@ -123,22 +99,20 @@ class GraphVizTopologyGenerator:
         return "\n".join(lines)
    
     def _generate_directorates(self) -> str:
-        """Generate all directorate clusters with gradient fills."""
+        """Generate all directorate clusters."""
         from utils.common import sanitize_id
 
         sections = []
         for dir_idx, (directorate, mqmanagers) in enumerate(sorted(self.data.items())):
             colors = self.config.DIRECTORATE_COLORS[dir_idx % len(self.config.DIRECTORATE_COLORS)]
 
-            # Create gradient fill for directorate
             dir_bg = colors["org_bg"]
-            dir_bg_light = self._lighten_color(dir_bg, 0.15)
 
             lines = [
                 f"    /* DIRECTORATE: {directorate} */",
                 f'    subgraph cluster_{sanitize_id(directorate)} {{',
                 f'        label="Directorate: {directorate}"',
-                f'        style=filled fillcolor="{dir_bg}:{dir_bg_light}" gradientangle=270',
+                f'        style=filled fillcolor="{dir_bg}"',
                 f'        color="{colors["org_border"]}"',
                 f'        penwidth=2.5 fontsize=16 fontcolor="#2c3e50" margin=30', ""
             ]
@@ -152,19 +126,16 @@ class GraphVizTopologyGenerator:
         return "\n".join(sections)
    
     def _generate_mqmanager_node(self, mqmanager: str, info: Dict, colors: Dict) -> List[str]:
-        """Generate MQ Manager node with gradient fill."""
+        """Generate MQ Manager node."""
         from utils.common import sanitize_id
 
         qm_id = sanitize_id(mqmanager)
-
-        # Create gradient fill for MQ manager node
         qm_bg = colors["qm_bg"]
-        qm_bg_dark = self._darken_color(qm_bg, 0.08)
 
         return [
             f"        {qm_id} [",
             f'            shape=cylinder style="filled"',
-            f'            fillcolor="{qm_bg}:{qm_bg_dark}" gradientangle=90',
+            f'            fillcolor="{qm_bg}"',
             f'            color="{colors["qm_border"]}"',
             f'            penwidth=1.8 fontcolor="{colors["qm_text"]}"',
             "            label=<",
@@ -183,9 +154,10 @@ class GraphVizTopologyGenerator:
         """Generate connection edges with bidirectional detection and proper formatting."""
         from utils.common import sanitize_id
 
-        # Get connection colors from config
+        # Get connection colors and arrow styles from config
         conn_colors = self.config.CONNECTION_COLORS
         conn_arrows = self.config.CONNECTION_ARROWHEADS
+        conn_tails = self.config.CONNECTION_ARROWTAILS
 
         # Collect all connections
         all_connections = []
@@ -237,6 +209,7 @@ class GraphVizTopologyGenerator:
         sections = []
 
         # Internal connections - no explicit ports for shortest path
+        # All edges: pointed arrow at destination, bullet at origin
         if internal:
             lines = [
                 "    /* ==========================",
@@ -247,7 +220,7 @@ class GraphVizTopologyGenerator:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
                     f'[label="{conn["label"]}" color="{conn_colors["same_dept"]}" penwidth=2.2 '
-                    f'arrowhead={conn_arrows["same_dept"]} fontcolor="#2c3e50" weight=3]'
+                    f'dir=both arrowhead={conn_arrows["same_dept"]} arrowtail={conn_tails["same_dept"]} fontcolor="#2c3e50" weight=3]'
                 )
             sections.append("\n".join(lines) + "\n")
 
@@ -262,7 +235,7 @@ class GraphVizTopologyGenerator:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
                     f'[label="{conn["label"]}" color="{conn_colors["cross_dept"]}" penwidth=2.2 '
-                    f'style=dashed arrowhead={conn_arrows["cross_dept"]} fontcolor="#2c3e50" weight=2]'
+                    f'style=dashed dir=both arrowhead={conn_arrows["cross_dept"]} arrowtail={conn_tails["cross_dept"]} fontcolor="#2c3e50" weight=2]'
                 )
             sections.append("\n".join(lines) + "\n")
 
@@ -277,7 +250,7 @@ class GraphVizTopologyGenerator:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
                     f'[label="{conn["label"]}" color="{conn_colors["bidirectional"]}" penwidth=2.5 '
-                    f'style=bold arrowhead={conn_arrows["bidirectional"]} dir=both arrowtail=odot fontcolor="#2c3e50" weight=1]'
+                    f'style=bold dir=both arrowhead={conn_arrows["bidirectional"]} arrowtail={conn_tails["bidirectional"]} fontcolor="#2c3e50" weight=1]'
                 )
             sections.append("\n".join(lines) + "\n")
 
@@ -331,9 +304,9 @@ class GraphVizTopologyGenerator:
                     <tr><td><br/></td></tr>
 
                     <tr><td align="left"><b>Channel Types</b></td></tr>
-                    <tr><td align="left"><font color="#1f78d1"><b>────</b></font> Internal (Same Directorate)</td></tr>
-                    <tr><td align="left"><font color="#ff6b5a"><b>- - ◆</b></font> Cross-Directorate Channel</td></tr>
-                    <tr><td align="left"><font color="#00897b"><b>◯━━━●</b></font> Bidirectional</td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>●────▶</b></font> Internal (Same Directorate, solid)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a"><b>●- - -▶</b></font> Cross-Directorate (dashed)</td></tr>
+                    <tr><td align="left"><font color="#00897b"><b>◀━━━▶</b></font> Bidirectional (bold)</td></tr>
 
                     <tr><td><br/></td></tr>
 
