@@ -3,7 +3,7 @@
 from typing import Dict
 from pathlib import Path
 from datetime import datetime
-# Gradient colors removed - using solid fills
+from utils.common import lighten_color, darken_color
 
 
 class IndividualDiagramGenerator:
@@ -49,16 +49,19 @@ class IndividualDiagramGenerator:
 """
    
     def _central_node(self, mqmanager: str, directorate: str, info: Dict, qm_id: str, colors: Dict) -> str:
-        """Generate central node."""
+        """Generate central node with gradient fill."""
         central = colors["central"]
         inbound_count = len(info.get('inbound', []))
         outbound_count = len(info.get('outbound', []))
         inbound_extra_count = len(info.get('inbound_extra', []))
         outbound_extra_count = len(info.get('outbound_extra', []))
 
+        # Create gradient fill for central node
+        fill_light = lighten_color(central['fill'], 0.2)
+
         return f"""    {qm_id} [
         shape=cylinder style="filled"
-        fillcolor="{central['fill']}"
+        fillcolor="{central['fill']}:{fill_light}" gradientangle=90
         color="{central['border']}" penwidth=3.0
         fontcolor="{central['text']}"
         label=<
@@ -77,7 +80,7 @@ class IndividualDiagramGenerator:
 """
    
     def _inbound_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
-        """Generate inbound nodes with bidirectional detection."""
+        """Generate inbound nodes with gradient fills and bidirectional detection."""
         from utils.common import sanitize_id
 
         inbound_list = info.get('inbound', [])
@@ -89,6 +92,9 @@ class IndividualDiagramGenerator:
         inbound = colors["inbound"]
         conn_colors = self.config.CONNECTION_COLORS
 
+        # Create gradient fill for inbound nodes
+        fill_light = lighten_color(inbound['fill'], 0.15)
+
         for inbound_mgr in inbound_list:
             inbound_id = sanitize_id(inbound_mgr)
             inbound_dir = self._find_directorate(inbound_mgr)
@@ -98,7 +104,7 @@ class IndividualDiagramGenerator:
             is_bidirectional = inbound_mgr in outbound_list
 
             lines.extend([
-                f"    {inbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{inbound['fill']}\"",
+                f"    {inbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{inbound['fill']}:{fill_light}\" gradientangle=90",
                 f"        color=\"{inbound['border']}\" penwidth=1.5",
                 f"        URL=\"{url_path}\" target=\"_blank\" tooltip=\"Click to view {inbound_mgr} details\"",
                 f"        label=<<b>{inbound_mgr}</b><br/><font point-size='8'>{inbound_dir}</font>>]",
@@ -114,7 +120,7 @@ class IndividualDiagramGenerator:
         return "\n".join(lines) + "\n"
    
     def _outbound_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
-        """Generate outbound nodes, skip bidirectional (handled in inbound)."""
+        """Generate outbound nodes with gradient fills, skip bidirectional (handled in inbound)."""
         from utils.common import sanitize_id
 
         outbound_list = info.get('outbound', [])
@@ -125,6 +131,9 @@ class IndividualDiagramGenerator:
         lines = ["    /* Outbound MQ Managers */"]
         outbound = colors["outbound"]
 
+        # Create gradient fill for outbound nodes
+        fill_light = lighten_color(outbound['fill'], 0.15)
+
         for outbound_mgr in outbound_list:
             # Skip if this is a bidirectional connection (already handled in inbound)
             if outbound_mgr in inbound_list:
@@ -134,7 +143,7 @@ class IndividualDiagramGenerator:
             outbound_dir = self._find_directorate(outbound_mgr)
             url_path = f"{outbound_id}.svg"
             lines.extend([
-                f"    {outbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{outbound['fill']}\"",
+                f"    {outbound_id} [shape=cylinder style=\"filled\" fillcolor=\"{outbound['fill']}:{fill_light}\" gradientangle=90",
                 f"        color=\"{outbound['border']}\" penwidth=1.5",
                 f"        URL=\"{url_path}\" target=\"_blank\" tooltip=\"Click to view {outbound_mgr} details\"",
                 f"        label=<<b>{outbound_mgr}</b><br/><font point-size='8'>{outbound_dir}</font>>]",
@@ -144,7 +153,7 @@ class IndividualDiagramGenerator:
         return "\n".join(lines) + "\n"
    
     def _external_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
-        """Generate external system nodes with proper positioning."""
+        """Generate external system nodes with gradient fills and proper positioning."""
         from utils.common import sanitize_id
 
         inbound_extra = info.get('inbound_extra', [])
@@ -156,6 +165,9 @@ class IndividualDiagramGenerator:
         lines = []
         external = colors["external"]
 
+        # Create gradient fill for external nodes
+        fill_light = lighten_color(external["fill"], 0.12)
+
         # External inbound - positioned on TOP with headport=n tailport=s
         # All edges: pointed arrow at destination, bullet at origin
         if inbound_extra:
@@ -163,7 +175,7 @@ class IndividualDiagramGenerator:
             for idx, ext in enumerate(inbound_extra):
                 ext_id = f"ext_in_{idx}_{sanitize_id(ext[:20])}"
                 lines.extend([
-                    f'    {ext_id} [shape=box style="rounded,filled,dashed" fillcolor="{external["fill"]}" color="{external["border"]}" label="{ext}" fontsize=9]',
+                    f'    {ext_id} [shape=box style="rounded,filled,dashed" fillcolor="{external["fill"]}:{fill_light}" gradientangle=270 color="{external["border"]}" label="{ext}" fontsize=9]',
                     f'    {ext_id} -> {qm_id} [color="{external["arrow"]}" style=dashed dir=both arrowhead=normal arrowtail=dot label="external" constraint=false headport=n tailport=s]'
                 ])
 
@@ -173,7 +185,7 @@ class IndividualDiagramGenerator:
             for idx, ext in enumerate(outbound_extra):
                 ext_id = f"ext_out_{idx}_{sanitize_id(ext[:20])}"
                 lines.extend([
-                    f'    {ext_id} [shape=box style="rounded,filled,dashed" fillcolor="{external["fill"]}" color="{external["border"]}" label="{ext}" fontsize=9]',
+                    f'    {ext_id} [shape=box style="rounded,filled,dashed" fillcolor="{external["fill"]}:{fill_light}" gradientangle=270 color="{external["border"]}" label="{ext}" fontsize=9]',
                     f'    {qm_id} -> {ext_id} [color="{external["arrow"]}" style=dashed dir=both arrowhead=normal arrowtail=dot label="external" constraint=false tailport=s headport=n]'
                 ])
 

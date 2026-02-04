@@ -524,9 +524,10 @@ class ApplicationDiagramGenerator:
         if not connections:
             return ""
 
-        # Get connection colors from config
+        # Get connection colors and arrow styles from config
         conn_colors = self.config.CONNECTION_COLORS
         conn_arrows = self.config.CONNECTION_ARROWHEADS
+        conn_tails = self.config.CONNECTION_ARROWTAILS
 
         # Get focus application MQ managers
         focus_mqmgrs = set()
@@ -602,23 +603,27 @@ class ApplicationDiagramGenerator:
                 to_dept = to_context.get('department', '')
 
                 # Classify connection with config colors and arrowheads
+                # All edges: pointed arrow at destination, bullet at origin
                 if from_org != to_org:
                     color = conn_colors["cross_org"]
                     style = "dashed"
                     penwidth = "2.5"
                     arrowhead = conn_arrows["cross_org"]
+                    arrowtail = conn_tails["cross_org"]
                 elif from_dept != to_dept:
                     color = conn_colors["cross_dept"]
                     style = "dashed"
                     penwidth = "2.2"
                     arrowhead = conn_arrows["cross_dept"]
+                    arrowtail = conn_tails["cross_dept"]
                 else:
                     color = conn_colors["same_dept"]
                     style = "solid"
                     penwidth = "2.0"
                     arrowhead = conn_arrows["same_dept"]
+                    arrowtail = conn_tails["same_dept"]
 
-                lines.append(f'    {from_id} -> {to_id} [color="{color}" penwidth={penwidth} style={style} arrowhead={arrowhead}]')
+                lines.append(f'    {from_id} -> {to_id} [color="{color}" penwidth={penwidth} style={style} dir=both arrowhead={arrowhead} arrowtail={arrowtail}]')
             lines.append('')
 
         # Draw bidirectional connections with teal color
@@ -627,7 +632,7 @@ class ApplicationDiagramGenerator:
             for conn in bidirectional_connections:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold arrowhead={conn_arrows["bidirectional"]} dir=both arrowtail=odot]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold dir=both arrowhead={conn_arrows["bidirectional"]} arrowtail={conn_tails["bidirectional"]}]')
             lines.append('')
 
         # Draw reverse connections (target -> focus) in green
@@ -637,8 +642,8 @@ class ApplicationDiagramGenerator:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
 
-                # Reverse connections in green - arrow points TO focus
-                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["reverse"]}" penwidth=2.0 style=dashed]')
+                # Reverse connections in green - arrow points TO focus, bullet at origin
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["reverse"]}" penwidth=2.0 style=dashed dir=both arrowhead=normal arrowtail=dot]')
             lines.append('')
 
         return '\n'.join(lines)
@@ -673,15 +678,15 @@ class ApplicationDiagramGenerator:
                     <tr><td align="left">  Out: X+Y — Internal+External outbound</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Direct Connections (from focus)</b></td></tr>
-                    <tr><td align="left"><font color="#1f78d1">──── </font> Same department</td></tr>
-                    <tr><td align="left"><font color="#ff6b5a">- - ◆ </font> Cross-department</td></tr>
-                    <tr><td align="left"><font color="#b455ff">- - ● </font> Cross-organization</td></tr>
+                    <tr><td align="left"><font color="#1f78d1">●────▶ </font> Same department (solid)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a">●- - -▶ </font> Cross-department (dashed)</td></tr>
+                    <tr><td align="left"><font color="#b455ff">●- - -▶ </font> Cross-organization (dashed)</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Bidirectional Connections</b></td></tr>
-                    <tr><td align="left"><font color="#00897b"><b>◯━━━●</b></font> Two-way communication</td></tr>
+                    <tr><td align="left"><font color="#00897b"><b>◀━━━▶</b></font> Two-way communication (bold)</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Reverse Connections (to focus)</b></td></tr>
-                    <tr><td align="left"><font color="#28a745">- - - </font> From external sources</td></tr>
+                    <tr><td align="left"><font color="#28a745">●- - -▶ </font> From external sources (dashed)</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>External Connection Notes</b></td></tr>
                     <tr><td align="left"><font color="#ffc107">📋</font> External Inbound (yellow)</td></tr>

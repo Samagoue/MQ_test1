@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
-# Gradient colors removed - using solid fills
+from utils.common import lighten_color, darken_color
 
 
 class HierarchicalGraphVizGenerator:
@@ -151,7 +151,10 @@ class HierarchicalGraphVizGenerator:
             colors = self.config.INTERNAL_ORG_COLORS[0]
             title = f"🏢 Organization: {org_name}"
 
+        # Create gradient fill for organization
         org_bg = colors["org_bg"]
+        # Lighten the color slightly for gradient end
+        org_bg_light = lighten_color(org_bg, 0.15)
 
         lines = [
             "",
@@ -161,7 +164,8 @@ class HierarchicalGraphVizGenerator:
             f"    subgraph cluster_{org_id} {{",
             f'        label=<<b>{title}</b>>',
             f'        style="filled,rounded"',
-            f'        fillcolor="{org_bg}"',
+            f'        fillcolor="{org_bg}:{org_bg_light}"',
+            f'        gradientangle=270',
             f'        color="{colors["org_border"]}"',
             f'        penwidth=3',
             f'        fontsize=22' if org_type == 'Internal' else f'        fontsize=20',
@@ -193,14 +197,17 @@ class HierarchicalGraphVizGenerator:
         """Generate department cluster."""
         dept_id = self._sanitize_id(dept_name)
 
+        # Create gradient fill for department
         dept_bg = colors["dept_bg"]
+        dept_bg_light = lighten_color(dept_bg, 0.12)
 
         lines = [
             f"        /* {'Department: ' + dept_name} */",
             f'        subgraph cluster_Dep_{dept_id} {{',
             f'            label=<<b>🏬 Department: {dept_name}</b>>',
             f'            style="filled,rounded"',
-            f'            fillcolor="{dept_bg}"',
+            f'            fillcolor="{dept_bg}:{dept_bg_light}"',
+            f'            gradientangle=270',
             f'            color="{colors["dept_border"]}"',
             f'            penwidth=3' if org_type == 'Internal' else f'            penwidth=2.5',
             f'            fontsize=20',
@@ -219,14 +226,17 @@ class HierarchicalGraphVizGenerator:
         """Generate business owner cluster."""
         biz_id = self._sanitize_id(biz_ownr)
 
+        # Create gradient fill for business owner
         biz_bg = colors["biz_bg"]
+        biz_bg_light = lighten_color(biz_bg, 0.10)
 
         lines = [
             f'            /* BIZ OWNER: {biz_ownr} */',
             f'            subgraph cluster_BO_{biz_id} {{',
             f'                label=<<b>👤 Biz_Ownr: {biz_ownr}</b>>',
             f'                style="filled,rounded"',
-            f'                fillcolor="{biz_bg}"',
+            f'                fillcolor="{biz_bg}:{biz_bg_light}"',
+            f'                gradientangle=270',
             f'                color="{colors["biz_border"]}"',
             f'                penwidth=2.5',
             f'                fontsize=18',
@@ -262,13 +272,16 @@ class HierarchicalGraphVizGenerator:
             else:
                 gateway_colors = self.config.EXTERNAL_GATEWAY_COLORS
 
+            # Create gradient fill for gateway
             gw_bg = gateway_colors["gateway_bg"]
+            gw_bg_light = lighten_color(gw_bg, 0.10)
 
             lines = [
                 f'                subgraph cluster_Gateway_{app_id} {{',
                 f'                    label=<<b>🔀 Gateway: {scope}</b>>',
                 f'                    style="filled,rounded"',
-                f'                    fillcolor="{gw_bg}"',
+                f'                    fillcolor="{gw_bg}:{gw_bg_light}"',
+                f'                    gradientangle=270',
                 f'                    color="{gateway_colors["gateway_border"]}"',
                 f'                    penwidth=2.5',
                 f'                    fontsize=16',
@@ -276,14 +289,16 @@ class HierarchicalGraphVizGenerator:
                 ""
             ]
         else:
-            # Regular application cluster
+            # Regular application cluster - create gradient fill
             app_bg = colors["app_bg"]
+            app_bg_light = lighten_color(app_bg, 0.10)
 
             lines = [
                 f'                subgraph cluster_App_{app_id} {{',
                 f'                    label=<<b>🧩 App: {app_name}</b>>',
                 f'                    style="filled,rounded"',
-                f'                    fillcolor="{app_bg}"',
+                f'                    fillcolor="{app_bg}:{app_bg_light}"',
+                f'                    gradientangle=270',
                 f'                    color="{colors["app_border"]}"',
                 f'                    penwidth=2',
                 f'                    fontsize=16',
@@ -337,13 +352,16 @@ class HierarchicalGraphVizGenerator:
         # Topology is in diagrams/topology/, individual is in diagrams/individual/
         url_path = f"../individual/{qm_id}.svg"
 
+        # Create gradient fill for MQ manager node (horizontal gradient)
         qm_bg = colors['qm_bg']
+        qm_bg_dark = darken_color(qm_bg, 0.08)
 
-        # Main MQ manager node
+        # Main MQ manager node with gradient
         node_lines.append(f"""{indent}{qm_id} [
 {indent}    shape=cylinder
 {indent}    style="filled"
-{indent}    fillcolor="{qm_bg}"
+{indent}    fillcolor="{qm_bg}:{qm_bg_dark}"
+{indent}    gradientangle=90
 {indent}    color="{colors['qm_border']}"
 {indent}    penwidth=1.8
 {indent}    fontcolor="{colors['qm_text']}"

@@ -13,7 +13,31 @@ class GraphVizTopologyGenerator:
         self.config = config
         self.mqmanager_to_directorate = self._build_index()
 
-    # Gradient color methods removed - using solid fills
+    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Lighten a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = min(255, int(r + (255 - r) * factor))
+        g = min(255, int(g + (255 - g) * factor))
+        b = min(255, int(b + (255 - b) * factor))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
+
+    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
+        """Darken a hex color by a factor for gradient effects."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        r = max(0, int(r * (1 - factor)))
+        g = max(0, int(g * (1 - factor)))
+        b = max(0, int(b * (1 - factor)))
+
+        return f'#{r:02x}{g:02x}{b:02x}'
    
     def _build_index(self) -> Dict[str, str]:
         """Build MQmanager to directorate lookup."""
@@ -99,20 +123,22 @@ class GraphVizTopologyGenerator:
         return "\n".join(lines)
    
     def _generate_directorates(self) -> str:
-        """Generate all directorate clusters."""
+        """Generate all directorate clusters with gradient fills."""
         from utils.common import sanitize_id
 
         sections = []
         for dir_idx, (directorate, mqmanagers) in enumerate(sorted(self.data.items())):
             colors = self.config.DIRECTORATE_COLORS[dir_idx % len(self.config.DIRECTORATE_COLORS)]
 
+            # Create gradient fill for directorate
             dir_bg = colors["org_bg"]
+            dir_bg_light = self._lighten_color(dir_bg, 0.15)
 
             lines = [
                 f"    /* DIRECTORATE: {directorate} */",
                 f'    subgraph cluster_{sanitize_id(directorate)} {{',
                 f'        label="Directorate: {directorate}"',
-                f'        style=filled fillcolor="{dir_bg}"',
+                f'        style=filled fillcolor="{dir_bg}:{dir_bg_light}" gradientangle=270',
                 f'        color="{colors["org_border"]}"',
                 f'        penwidth=2.5 fontsize=16 fontcolor="#2c3e50" margin=30', ""
             ]
@@ -126,16 +152,19 @@ class GraphVizTopologyGenerator:
         return "\n".join(sections)
    
     def _generate_mqmanager_node(self, mqmanager: str, info: Dict, colors: Dict) -> List[str]:
-        """Generate MQ Manager node."""
+        """Generate MQ Manager node with gradient fill."""
         from utils.common import sanitize_id
 
         qm_id = sanitize_id(mqmanager)
+
+        # Create gradient fill for MQ manager node
         qm_bg = colors["qm_bg"]
+        qm_bg_dark = self._darken_color(qm_bg, 0.08)
 
         return [
             f"        {qm_id} [",
             f'            shape=cylinder style="filled"',
-            f'            fillcolor="{qm_bg}"',
+            f'            fillcolor="{qm_bg}:{qm_bg_dark}" gradientangle=90',
             f'            color="{colors["qm_border"]}"',
             f'            penwidth=1.8 fontcolor="{colors["qm_text"]}"',
             "            label=<",
