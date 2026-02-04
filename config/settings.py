@@ -275,11 +275,20 @@ class Config:
     }
 
     # Arrowhead styles by connection type
+    # All unidirectional: pointed arrow at destination, bullet at origin
     CONNECTION_ARROWHEADS = {
-        "same_dept": "normal",         # Standard arrow
-        "cross_dept": "diamond",       # Diamond for cross-department
-        "cross_org": "dot",            # Dot for cross-organization
-        "bidirectional": "dot",        # Dot with dir=both for bidirectional
+        "same_dept": "normal",         # Pointed arrow at destination
+        "cross_dept": "normal",        # Pointed arrow at destination
+        "cross_org": "normal",         # Pointed arrow at destination
+        "bidirectional": "normal",     # Pointed arrows both directions
+    }
+
+    # Arrowtail styles (bullet at origin for unidirectional)
+    CONNECTION_ARROWTAILS = {
+        "same_dept": "dot",            # Bullet at origin
+        "cross_dept": "dot",           # Bullet at origin
+        "cross_org": "dot",            # Bullet at origin
+        "bidirectional": "dot",        # Bullet at both ends (with dir=both)
     }
    
     # ==================== FIELD MAPPINGS ====================

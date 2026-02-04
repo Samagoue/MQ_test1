@@ -136,10 +136,11 @@ class IndividualDiagramGenerator:
             ])
 
             # Use teal for bidirectional, normal color for unidirectional
+            # All edges: pointed arrow at destination, bullet at origin
             if is_bidirectional:
-                lines.append(f"    {inbound_id} -> {qm_id} [color=\"{conn_colors['bidirectional']}\" penwidth=2.5 style=bold dir=both arrowhead=dot arrowtail=odot label=\"bidirectional\"]")
+                lines.append(f"    {inbound_id} -> {qm_id} [color=\"{conn_colors['bidirectional']}\" penwidth=2.5 style=bold dir=both arrowhead=normal arrowtail=dot label=\"bidirectional\"]")
             else:
-                lines.append(f"    {inbound_id} -> {qm_id} [color=\"{inbound['arrow']}\" penwidth=2.0 label=\"sends to\"]")
+                lines.append(f"    {inbound_id} -> {qm_id} [color=\"{inbound['arrow']}\" penwidth=2.0 dir=both arrowhead=normal arrowtail=dot label=\"sends to\"]")
 
         return "\n".join(lines) + "\n"
    
@@ -171,7 +172,7 @@ class IndividualDiagramGenerator:
                 f"        color=\"{outbound['border']}\" penwidth=1.5",
                 f"        URL=\"{url_path}\" target=\"_blank\" tooltip=\"Click to view {outbound_mgr} details\"",
                 f"        label=<<b>{outbound_mgr}</b><br/><font point-size='8'>{outbound_dir}</font>>]",
-                f"    {qm_id} -> {outbound_id} [color=\"{outbound['arrow']}\" penwidth=2.0 label=\"sends to\"]"
+                f"    {qm_id} -> {outbound_id} [color=\"{outbound['arrow']}\" penwidth=2.0 dir=both arrowhead=normal arrowtail=dot label=\"sends to\"]"
             ])
 
         return "\n".join(lines) + "\n"
@@ -193,13 +194,14 @@ class IndividualDiagramGenerator:
         fill_light = self._lighten_color(external["fill"], 0.12)
 
         # External inbound - positioned on TOP with headport=n tailport=s
+        # All edges: pointed arrow at destination, bullet at origin
         if inbound_extra:
             lines.append("    /* External Inbound (top) */")
             for idx, ext in enumerate(inbound_extra):
                 ext_id = f"ext_in_{idx}_{sanitize_id(ext[:20])}"
                 lines.extend([
                     f'    {ext_id} [shape=box style="rounded,filled,dashed" fillcolor="{external["fill"]}:{fill_light}" gradientangle=270 color="{external["border"]}" label="{ext}" fontsize=9]',
-                    f'    {ext_id} -> {qm_id} [color="{external["arrow"]}" style=dashed label="external" constraint=false headport=n tailport=s]'
+                    f'    {ext_id} -> {qm_id} [color="{external["arrow"]}" style=dashed dir=both arrowhead=normal arrowtail=dot label="external" constraint=false headport=n tailport=s]'
                 ])
 
         # External outbound - positioned on BOTTOM with tailport=s headport=n
@@ -209,7 +211,7 @@ class IndividualDiagramGenerator:
                 ext_id = f"ext_out_{idx}_{sanitize_id(ext[:20])}"
                 lines.extend([
                     f'    {ext_id} [shape=box style="rounded,filled,dashed" fillcolor="{external["fill"]}:{fill_light}" gradientangle=270 color="{external["border"]}" label="{ext}" fontsize=9]',
-                    f'    {qm_id} -> {ext_id} [color="{external["arrow"]}" style=dashed label="external" constraint=false tailport=s headport=n]'
+                    f'    {qm_id} -> {ext_id} [color="{external["arrow"]}" style=dashed dir=both arrowhead=normal arrowtail=dot label="external" constraint=false tailport=s headport=n]'
                 ])
 
         return "\n".join(lines) + "\n"
@@ -229,10 +231,10 @@ class IndividualDiagramGenerator:
                     <tr><td align="left"><font color="{colors['external']['arrow']}">⬜</font> External Systems</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Connection Types</b></td></tr>
-                    <tr><td align="left"><font color="{colors['inbound']['arrow']}">────</font> Inbound</td></tr>
-                    <tr><td align="left"><font color="{colors['outbound']['arrow']}">────</font> Outbound</td></tr>
-                    <tr><td align="left"><font color="{conn_colors['bidirectional']}"><b>◯━━━●</b></font> Bidirectional</td></tr>
-                    <tr><td align="left"><font color="{colors['external']['arrow']}">- - -</font> External</td></tr>
+                    <tr><td align="left"><font color="{colors['inbound']['arrow']}">●────▶</font> Inbound (solid)</td></tr>
+                    <tr><td align="left"><font color="{colors['outbound']['arrow']}">●────▶</font> Outbound (solid)</td></tr>
+                    <tr><td align="left"><font color="{conn_colors['bidirectional']}"><b>◀━━━▶</b></font> Bidirectional (bold)</td></tr>
+                    <tr><td align="left"><font color="{colors['external']['arrow']}">●- - -▶</font> External (dashed)</td></tr>
                     <tr><td><br/></td></tr>
                     <tr><td align="left"><b>Connection Metrics</b></td></tr>
                     <tr><td align="left">  In: X+Y — Internal+External inbound</td></tr>

@@ -447,9 +447,10 @@ class HierarchicalGraphVizGenerator:
         if not self.all_connections:
             return ""
 
-        # Get connection colors from config
+        # Get connection colors and arrow styles from config
         conn_colors = self.config.CONNECTION_COLORS
         conn_arrows = self.config.CONNECTION_ARROWHEADS
+        conn_tails = self.config.CONNECTION_ARROWTAILS
 
         # Build connection pairs to detect bidirectional
         connection_pairs = {}
@@ -506,29 +507,29 @@ class HierarchicalGraphVizGenerator:
             ""
         ]
 
-        # No explicit ports on connections - let Graphviz find shortest path
+        # All edges: pointed arrow at destination, bullet at origin
         if internal_dept:
             lines.append("    /* Internal Department - solid blue */")
             for conn in internal_dept:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["same_dept"]}" penwidth=2.0 arrowhead={conn_arrows["same_dept"]} weight=3]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["same_dept"]}" penwidth=2.0 dir=both arrowhead={conn_arrows["same_dept"]} arrowtail={conn_tails["same_dept"]} weight=3]')
             lines.append("")
 
         if cross_dept:
-            lines.append("    /* Cross-Department - dashed coral, diamond arrows */")
+            lines.append("    /* Cross-Department - dashed coral */")
             for conn in cross_dept:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_dept"]}" penwidth=2.2 style=dashed arrowhead={conn_arrows["cross_dept"]} weight=2]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_dept"]}" penwidth=2.2 style=dashed dir=both arrowhead={conn_arrows["cross_dept"]} arrowtail={conn_tails["cross_dept"]} weight=2]')
             lines.append("")
 
         if cross_org_external:
-            lines.append("    /* Cross-Organization / External - dashed purple, dot arrows */")
+            lines.append("    /* Cross-Organization / External - dashed purple */")
             for conn in cross_org_external:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_org"]}" penwidth=2.2 style=dashed arrowhead={conn_arrows["cross_org"]} weight=1]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_org"]}" penwidth=2.2 style=dashed dir=both arrowhead={conn_arrows["cross_org"]} arrowtail={conn_tails["cross_org"]} weight=1]')
             lines.append("")
 
         if bidirectional:
@@ -536,7 +537,7 @@ class HierarchicalGraphVizGenerator:
             for conn in bidirectional:
                 from_id = self._sanitize_id(conn['from'])
                 to_id = self._sanitize_id(conn['to'])
-                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold arrowhead={conn_arrows["bidirectional"]} dir=both arrowtail=odot weight=1]')
+                lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold dir=both arrowhead={conn_arrows["bidirectional"]} arrowtail={conn_tails["bidirectional"]} weight=1]')
             lines.append("")
 
         return "\n".join(lines)
@@ -583,10 +584,10 @@ class HierarchicalGraphVizGenerator:
                     <tr><td><br/></td></tr>
 
                     <tr><td align="left"><b>Connection Types</b></td></tr>
-                    <tr><td align="left"><font color="#1f78d1"><b>──── </b></font> Internal (same department)</td></tr>
-                    <tr><td align="left"><font color="#ff6b5a"><b>- - - ◆ </b></font> Cross-department</td></tr>
-                    <tr><td align="left"><font color="#b455ff"><b>- - - ● </b></font> Cross-org / External</td></tr>
-                    <tr><td align="left"><font color="#00897b"><b>◯━━━● </b></font> Bidirectional</td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>●────▶ </b></font> Internal (same dept, solid)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a"><b>●- - -▶ </b></font> Cross-department (dashed)</td></tr>
+                    <tr><td align="left"><font color="#b455ff"><b>●- - -▶ </b></font> Cross-org / External (dashed)</td></tr>
+                    <tr><td align="left"><font color="#00897b"><b>◀━━━▶ </b></font> Bidirectional (bold)</td></tr>
 
                     <tr><td><br/></td></tr>
 

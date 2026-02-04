@@ -50,10 +50,9 @@ class GraphVizTopologyGenerator:
     def generate(self) -> str:
         """Generate complete DOT content."""
         from utils.common import sanitize_id
-       
+
         sections = [
             self._generate_header(),
-            self._generate_minimap(),
             self._generate_directorates(),
             self._generate_connections(),
             self._generate_legend(),
@@ -76,52 +75,7 @@ class GraphVizTopologyGenerator:
     node [fontname="Helvetica" margin="0.45,0.30" penwidth=1.2]
     edge [fontname="Helvetica" fontsize=10 color="#5d6d7e" arrowsize=0.8]
 """
-   
-    def _generate_minimap(self) -> str:
-        """Generate overview minimap (Top-Left)."""
-        from utils.common import sanitize_id
-       
-        lines = [
-            "    /* ==========================",
-            "       MINI-MAP (Top-Left)",
-            "    ========================== */",
-            "    subgraph cluster_minimap {",
-            '        label="Overview"',
-            '        style="rounded,filled"',
-            '        fillcolor="#ffffff"',
-            '        color="#d0d8e0"',
-            "        fontsize=12",
-            "        margin=18",
-            ""
-        ]
-       
-        sorted_dirs = sorted(self.data.keys())
-       
-        # Create minimap nodes with proper formatting
-        for idx, directorate in enumerate(sorted_dirs):
-            colors = self.config.DIRECTORATE_COLORS[idx % len(self.config.DIRECTORATE_COLORS)]
-            safe_name = sanitize_id(directorate).lower()
-            lines.append(f'        mini_{safe_name}   [shape=box style="rounded,filled" fillcolor="{colors["org_bg"]}" label="{directorate}" fontsize=10]')
-       
-        # Create minimap connections
-        if len(sorted_dirs) > 1:
-            lines.append("")
-            # First connection is solid blue
-            if len(sorted_dirs) >= 2:
-                from_node = sanitize_id(sorted_dirs[0]).lower()
-                to_node = sanitize_id(sorted_dirs[1]).lower()
-                lines.append(f'        mini_{from_node} -> mini_{to_node}       [color="#5dade2" arrowsize=0.5]')
-           
-            # Remaining connections are dashed red
-            for i in range(len(sorted_dirs) - 1):
-                if i > 0:  # Skip first connection, already added
-                    from_node = sanitize_id(sorted_dirs[i]).lower()
-                    to_node = sanitize_id(sorted_dirs[i + 1]).lower()
-                    lines.append(f'        mini_{from_node} -> mini_{to_node} [color="#ec7063" arrowsize=0.5 style=dashed]')
-       
-        lines.extend(["    }", ""])
-        return "\n".join(lines)
-   
+
     def _generate_directorates(self) -> str:
         """Generate all directorate clusters with gradient fills."""
         from utils.common import sanitize_id
@@ -183,9 +137,10 @@ class GraphVizTopologyGenerator:
         """Generate connection edges with bidirectional detection and proper formatting."""
         from utils.common import sanitize_id
 
-        # Get connection colors from config
+        # Get connection colors and arrow styles from config
         conn_colors = self.config.CONNECTION_COLORS
         conn_arrows = self.config.CONNECTION_ARROWHEADS
+        conn_tails = self.config.CONNECTION_ARROWTAILS
 
         # Collect all connections
         all_connections = []
@@ -236,7 +191,7 @@ class GraphVizTopologyGenerator:
 
         sections = []
 
-        # Internal connections - no explicit ports for shortest path
+        # Internal connections - bullet at origin, arrow at destination
         if internal:
             lines = [
                 "    /* ==========================",
@@ -246,8 +201,8 @@ class GraphVizTopologyGenerator:
             for conn in internal:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
-                    f'[label="{conn["label"]}" color="{conn_colors["same_dept"]}" penwidth=2.2 '
-                    f'arrowhead={conn_arrows["same_dept"]} fontcolor="#2c3e50" weight=3]'
+                    f'[color="{conn_colors["same_dept"]}" penwidth=2.0 '
+                    f'dir=both arrowhead={conn_arrows["same_dept"]} arrowtail={conn_tails["same_dept"]} weight=3]'
                 )
             sections.append("\n".join(lines) + "\n")
 
@@ -261,8 +216,8 @@ class GraphVizTopologyGenerator:
             for conn in cross:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
-                    f'[label="{conn["label"]}" color="{conn_colors["cross_dept"]}" penwidth=2.2 '
-                    f'style=dashed arrowhead={conn_arrows["cross_dept"]} fontcolor="#2c3e50" weight=2]'
+                    f'[color="{conn_colors["cross_dept"]}" penwidth=2.2 style=dashed '
+                    f'dir=both arrowhead={conn_arrows["cross_dept"]} arrowtail={conn_tails["cross_dept"]} weight=2]'
                 )
             sections.append("\n".join(lines) + "\n")
 
@@ -276,8 +231,8 @@ class GraphVizTopologyGenerator:
             for conn in bidirectional:
                 lines.append(
                     f'    {sanitize_id(conn["from"])} -> {sanitize_id(conn["to"])} '
-                    f'[label="{conn["label"]}" color="{conn_colors["bidirectional"]}" penwidth=2.5 '
-                    f'style=bold arrowhead={conn_arrows["bidirectional"]} dir=both arrowtail=odot fontcolor="#2c3e50" weight=1]'
+                    f'[color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold '
+                    f'dir=both arrowhead={conn_arrows["bidirectional"]} arrowtail={conn_tails["bidirectional"]} weight=1]'
                 )
             sections.append("\n".join(lines) + "\n")
 
@@ -293,20 +248,18 @@ class GraphVizTopologyGenerator:
                 f'                    <tr><td align="left">'
                 f'<font color="{colors["org_bg"]}"><b>■</b></font> {directorate} Directorate</td></tr>'
             )
-       
+
         return f"""    /* ==========================
-       LEGEND (Modern Cloud Card)
+       LEGEND
     ========================== */
     subgraph cluster_legend {{
-        label=<
-            <b>Legend</b>
-        >
+        label=<<b>Legend</b>>
         style="rounded,filled"
         fillcolor="#ffffff"
         color="#d0d8e0"
         penwidth=1.8
         fontsize=14
-        margin=25
+        margin=20
 
         legend_item [
             shape=box
@@ -330,10 +283,10 @@ class GraphVizTopologyGenerator:
 
                     <tr><td><br/></td></tr>
 
-                    <tr><td align="left"><b>Channel Types</b></td></tr>
-                    <tr><td align="left"><font color="#1f78d1"><b>────</b></font> Internal (Same Directorate)</td></tr>
-                    <tr><td align="left"><font color="#ff6b5a"><b>- - ◆</b></font> Cross-Directorate Channel</td></tr>
-                    <tr><td align="left"><font color="#00897b"><b>◯━━━●</b></font> Bidirectional</td></tr>
+                    <tr><td align="left"><b>Connection Types</b></td></tr>
+                    <tr><td align="left"><font color="#1f78d1"><b>●────▶</b></font> Internal (Same Directorate, solid)</td></tr>
+                    <tr><td align="left"><font color="#ff6b5a"><b>●- - -▶</b></font> Cross-Directorate (dashed)</td></tr>
+                    <tr><td align="left"><font color="#00897b"><b>◀━━━▶</b></font> Bidirectional (bold)</td></tr>
 
                     <tr><td><br/></td></tr>
 

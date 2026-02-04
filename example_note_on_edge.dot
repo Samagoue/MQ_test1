@@ -1,0 +1,83 @@
+digraph Example_Edge_Annotation {
+    rankdir=LR
+    fontname="Helvetica"
+    bgcolor="#f7f9fb"
+    splines=line
+    nodesep=1.5
+    ranksep=3.0
+
+    node [fontname="Helvetica" margin="0.3,0.2" penwidth=1.2]
+    edge [fontname="Helvetica" fontsize=10 arrowsize=0.8]
+
+    /* MQ Manager Nodes */
+    MQMGR_A [
+        shape=cylinder
+        style="filled"
+        fillcolor="#d3e7ff:#c7ddff"
+        gradientangle=90
+        color="#1f78d1"
+        penwidth=1.8
+        label=<<b>MQMGR_A</b><br/>QLocal: 15 | QRemote: 8>
+    ]
+
+    MQMGR_B [
+        shape=cylinder
+        style="filled"
+        fillcolor="#c9f2dd:#bdf0d3"
+        gradientangle=90
+        color="#1fa463"
+        penwidth=1.8
+        label=<<b>MQMGR_B</b><br/>QLocal: 12 | QRemote: 5>
+    ]
+
+    /* Invisible midpoint that sits ON the edge path */
+    midpoint [
+        shape=point
+        width=0.001
+        style=invis
+    ]
+
+    /* Annotation note - positioned separately */
+    annotation_note [
+        shape=box
+        style="rounded,filled"
+        fillcolor="#fefcf3"
+        color="#ffe082"
+        penwidth=1.0
+        label=<
+            <table border="0" cellborder="0" cellspacing="2" cellpadding="4">
+                <tr><td align="left"><font point-size="9" color="#666666"><b>Channels:</b></font></td></tr>
+                <tr><td align="left"><font point-size="8" color="#888888">• TO.MQMGR_B.CH1</font></td></tr>
+                <tr><td align="left"><font point-size="8" color="#888888">• TO.MQMGR_B.CH2</font></td></tr>
+                <tr><td align="left"><font point-size="9" color="#666666"><b>Queues:</b></font></td></tr>
+                <tr><td align="left"><font point-size="8" color="#888888">• Q.ORDERS.OUT</font></td></tr>
+                <tr><td align="left"><font point-size="8" color="#888888">• Q.PAYMENTS.OUT</font></td></tr>
+            </table>
+        >
+    ]
+
+    /* Main edge split through invisible midpoint - appears as one continuous line */
+    MQMGR_A -> midpoint [
+        color="#1f78d1"
+        penwidth=2.0
+        dir=both
+        arrowhead=none
+        arrowtail=dot
+    ]
+    midpoint -> MQMGR_B [
+        color="#1f78d1"
+        penwidth=2.0
+        arrowhead=normal
+        arrowtail=none
+    ]
+
+    /* Dotted gray leader line from annotation to the midpoint on the edge */
+    annotation_note -> midpoint [
+        style=dotted
+        color="#aaaaaa"
+        penwidth=0.8
+        arrowhead=none
+        arrowtail=none
+        constraint=false
+    ]
+}
