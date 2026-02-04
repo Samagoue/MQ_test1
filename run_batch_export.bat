@@ -96,7 +96,10 @@ echo.
 echo ✓ Complete! Check %LOG_FILE%
 echo.
 echo Latest reports generated:
-dir /b /o-d output\*.html 2>nul | findstr /i "change_report gateway_analytics" | more +0
+dir /b /o-d output\reports\*.html 2>nul | findstr /i "change_report gateway_analytics"
+echo.
+echo Latest diagrams generated:
+dir /b /o-d output\diagrams\topology\*.svg 2>nul
 echo.
 
 REM Uncomment to send success notification
