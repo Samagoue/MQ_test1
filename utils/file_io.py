@@ -123,23 +123,27 @@ def load_csv(filepath: Path, delimiter: str = ',') -> List[Dict[str, str]]:
 def save_csv(data: List[Dict[str, Any]], filepath: Path, delimiter: str = ','):
     """
     Save list of dictionaries to CSV file.
-   
+
     Args:
         data: List of dictionaries to save
         filepath: Destination file path
         delimiter: CSV delimiter (default: ',')
     """
     import csv
-   
+
     if not data:
         return
-   
+
     filepath.parent.mkdir(parents=True, exist_ok=True)
-   
-    fieldnames = list(data[0].keys())
-   
+
+    # Collect all unique fieldnames from all records to handle varying keys
+    all_keys = set()
+    for record in data:
+        all_keys.update(record.keys())
+    fieldnames = sorted(all_keys)
+
     with open(filepath, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=delimiter)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=delimiter, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(data)
 

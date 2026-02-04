@@ -23,7 +23,12 @@ class GatewayAnalyzer:
 
         Args:
             enriched_data: Enriched hierarchical MQ CMDB data
+
+        Raises:
+            ValueError: If enriched_data is not a dictionary
         """
+        if not isinstance(enriched_data, dict):
+            raise ValueError(f"enriched_data must be a dict, got {type(enriched_data).__name__}")
         self.data = enriched_data
         self.gateways = self._extract_gateways()
         self.all_mqmanagers = self._extract_all_mqmanagers()

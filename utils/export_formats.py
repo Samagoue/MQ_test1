@@ -193,7 +193,7 @@ def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'p
         print(f"  {fmt.upper()}: {success_count[fmt]}/{total} files")
 
 
-def generate_excel_inventory(enriched_data: Dict, output_file: Path):
+def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
     """
     Generate Excel inventory report with multiple sheets.
 
@@ -202,6 +202,9 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path):
     Args:
         enriched_data: Enriched MQ CMDB data
         output_file: Output Excel file path
+
+    Returns:
+        True if successful, False otherwise
     """
     try:
         from openpyxl import Workbook
