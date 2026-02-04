@@ -20,6 +20,17 @@
 #   MQCMDB_HOME          Installation directory (default: script directory)
 #   MQCMDB_PROFILE       Database profile name (default: production)
 #
+# Email Notification Variables (optional):
+#   EMAIL_ENABLED        Set to 'true' to enable email notifications
+#   EMAIL_RECIPIENTS     Comma-separated list of recipient addresses
+#   EMAIL_CONFIG_FILE    Path to email config INI file
+#   SMTP_SERVER          SMTP server hostname
+#   SMTP_PORT            SMTP server port (default: 25)
+#   SMTP_USER            SMTP username for authentication
+#   SMTP_PASSWORD        SMTP password for authentication
+#   SMTP_FROM            Sender email address
+#   SMTP_USE_TLS         Set to 'true' for STARTTLS
+#
 #===============================================================================
 
 set -euo pipefail
@@ -120,6 +131,17 @@ Environment Variables:
   MQCMDB_HOME          Installation directory (default: $MQCMDB_HOME)
   MQCMDB_PROFILE       Database profile name (default: production)
 
+Email Notification Variables (optional):
+  EMAIL_ENABLED        Set to 'true' to enable email notifications
+  EMAIL_RECIPIENTS     Comma-separated list of recipient addresses
+  EMAIL_CONFIG_FILE    Path to email config INI file (e.g., /etc/mqcmdb/email_config.ini)
+  SMTP_SERVER          SMTP server hostname
+  SMTP_PORT            SMTP server port (default: 25)
+  SMTP_USER            SMTP username for authentication
+  SMTP_PASSWORD        SMTP password for authentication
+  SMTP_FROM            Sender email address
+  SMTP_USE_TLS         Set to 'true' for STARTTLS
+
 Examples:
   # Full pipeline run
   export DB_MASTER_PASSWORD='your_password'
@@ -130,6 +152,14 @@ Examples:
 
   # Regenerate diagrams only
   ./run_pipeline.sh --diagrams-only
+
+  # With email notifications
+  export DB_MASTER_PASSWORD='your_password'
+  export EMAIL_ENABLED=true
+  export EMAIL_RECIPIENTS='ops@company.com,team@company.com'
+  export SMTP_SERVER='smtp.company.com'
+  export SMTP_FROM='mqcmdb@company.com'
+  ./run_pipeline.sh
 
 EOF
     exit 0
@@ -367,15 +397,85 @@ print_summary() {
 }
 
 send_notification() {
-    # Placeholder for email/Slack/Teams notification
-    # Uncomment and configure as needed
+    # Email notification using Python send_email.py utility
+    # Configure paths and recipients below
 
-    # Example: Send email notification
-    # if [ $EXIT_CODE -ne 0 ]; then
-    #     echo "Pipeline failed. Check $LOG_FILE" | mail -s "MQ CMDB Pipeline Failed" ops-team@company.com
-    # fi
+    # Email configuration
+    local EMAIL_SCRIPT="${MQCMDB_HOME}/tools/send_email.py"
+    local EMAIL_CONFIG="${EMAIL_CONFIG_FILE:-/etc/mqcmdb/email_config.ini}"
+    local EMAIL_TO="${EMAIL_RECIPIENTS:-ops-team@company.com}"
+    local EMAIL_FROM="${SMTP_FROM:-mqcmdb@company.com}"
 
-    :  # No-op
+    # Check if email is enabled
+    if [ "${EMAIL_ENABLED:-false}" != "true" ]; then
+        log_info "Email notifications disabled (set EMAIL_ENABLED=true to enable)"
+        return 0
+    fi
+
+    # Check if email script exists
+    if [ ! -f "$EMAIL_SCRIPT" ]; then
+        log_warn "Email script not found: $EMAIL_SCRIPT"
+        return 1
+    fi
+
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local subject=""
+    local body=""
+
+    if [ $EXIT_CODE -eq 0 ]; then
+        subject="[MQ CMDB] Pipeline Completed Successfully - $timestamp"
+        body="MQ CMDB Pipeline completed successfully.
+
+Timestamp: $timestamp
+Duration: ${1:-unknown}
+Log file: $LOG_FILE
+
+Output files:
+  - Data:     $MQCMDB_HOME/output/data/
+  - Diagrams: $MQCMDB_HOME/output/diagrams/
+  - Reports:  $MQCMDB_HOME/output/reports/
+  - Exports:  $MQCMDB_HOME/output/exports/
+
+--
+MQ CMDB Automation System"
+    else
+        subject="[MQ CMDB] Pipeline FAILED - $timestamp"
+        body="MQ CMDB Pipeline FAILED with exit code: $EXIT_CODE
+
+Timestamp: $timestamp
+Log file: $LOG_FILE
+
+Please check the log file for details:
+  tail -100 $LOG_FILE
+
+--
+MQ CMDB Automation System"
+    fi
+
+    log_info "Sending email notification to: $EMAIL_TO"
+
+    # Build command
+    local cmd="python3 \"$EMAIL_SCRIPT\" --from \"$EMAIL_FROM\" --to $EMAIL_TO --subject \"$subject\" --body \"$body\""
+
+    # Add config file if exists
+    if [ -f "$EMAIL_CONFIG" ]; then
+        cmd="python3 \"$EMAIL_SCRIPT\" --config \"$EMAIL_CONFIG\" --from \"$EMAIL_FROM\" --to $EMAIL_TO --subject \"$subject\" --body \"$body\""
+    fi
+
+    # Attach log file if it exists and is not too large (< 1MB)
+    if [ -f "$LOG_FILE" ]; then
+        local log_size=$(stat -f%z "$LOG_FILE" 2>/dev/null || stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
+        if [ "$log_size" -lt 1048576 ]; then
+            cmd="$cmd --attach \"$LOG_FILE\""
+        fi
+    fi
+
+    # Execute
+    if eval $cmd 2>&1; then
+        log_info "Email notification sent successfully"
+    else
+        log_warn "Failed to send email notification"
+    fi
 }
 
 cleanup() {
@@ -387,8 +487,16 @@ cleanup() {
     fi
 
     EXIT_CODE=$exit_code
+
+    # Calculate duration for notification
+    local end_time=$(date +%s)
+    local duration=$((end_time - START_TIME))
+    local minutes=$((duration / 60))
+    local seconds=$((duration % 60))
+    local duration_str="${minutes}m ${seconds}s"
+
     print_summary
-    send_notification
+    send_notification "$duration_str"
 }
 
 #-------------------------------------------------------------------------------

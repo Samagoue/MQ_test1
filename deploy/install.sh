@@ -206,6 +206,16 @@ setup_installation_directory() {
     cp -r "$PROJECT_DIR"/Database "$INSTALL_DIR/"
     cp -r "$PROJECT_DIR"/input/* "$INSTALL_DIR/input/" 2>/dev/null || true
     cp -r "$PROJECT_DIR"/deploy "$INSTALL_DIR/"
+    cp -r "$PROJECT_DIR"/tools "$INSTALL_DIR/" 2>/dev/null || true
+
+    # Create email config directory
+    mkdir -p /etc/mqcmdb
+
+    # Copy email config example if tools directory exists
+    if [ -f "$PROJECT_DIR/tools/email_config.ini.example" ]; then
+        cp "$PROJECT_DIR/tools/email_config.ini.example" /etc/mqcmdb/email_config.ini.example
+        log_info "Email config example copied to /etc/mqcmdb/"
+    fi
 
     # Set ownership
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
@@ -244,6 +254,28 @@ PYTHONUNBUFFERED=1
 
 # Logging
 LOG_LEVEL=INFO
+
+# ============================================
+# Email Notification Settings
+# ============================================
+# Set EMAIL_ENABLED=true to enable notifications
+
+# Enable/disable email notifications
+EMAIL_ENABLED=false
+
+# Recipients (comma-separated for multiple)
+# EMAIL_RECIPIENTS=ops-team@company.com,admin@company.com
+
+# Email configuration file (alternative to env vars below)
+# EMAIL_CONFIG_FILE=/etc/mqcmdb/email_config.ini
+
+# SMTP server settings (if not using config file)
+# SMTP_SERVER=smtp.company.com
+# SMTP_PORT=587
+# SMTP_USER=your_username
+# SMTP_PASSWORD=your_password
+# SMTP_FROM=mqcmdb@company.com
+# SMTP_USE_TLS=true
 
 # Optional: Confluence credentials for sync
 # CONFLUENCE_USER=your.email@company.com
@@ -345,13 +377,21 @@ print_summary() {
     echo "   - $INSTALL_DIR/input/app_to_qmgr.json"
     echo "   - $INSTALL_DIR/input/org_hierarchy.json"
     echo ""
-    echo "4. Test the pipeline manually:"
+    echo "4. (Optional) Configure email notifications:"
+    echo "   sudo cp /etc/mqcmdb/email_config.ini.example /etc/mqcmdb/email_config.ini"
+    echo "   sudo vi /etc/mqcmdb/email_config.ini"
+    echo "   # Then in $INSTALL_DIR/.env, set:"
+    echo "   #   EMAIL_ENABLED=true"
+    echo "   #   EMAIL_RECIPIENTS=your-team@company.com"
+    echo "   #   EMAIL_CONFIG_FILE=/etc/mqcmdb/email_config.ini"
+    echo ""
+    echo "5. Test the pipeline manually:"
     echo "   sudo -u $SERVICE_USER $INSTALL_DIR/deploy/run_pipeline.sh"
     echo ""
-    echo "5. Enable scheduled execution:"
+    echo "6. Enable scheduled execution:"
     echo "   sudo systemctl enable --now mqcmdb.timer"
     echo ""
-    echo "6. Check status:"
+    echo "7. Check status:"
     echo "   sudo systemctl status mqcmdb.timer"
     echo "   sudo systemctl list-timers mqcmdb.timer"
     echo ""
