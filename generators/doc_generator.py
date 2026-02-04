@@ -29,7 +29,12 @@ class EADocumentationGenerator:
 
         Args:
             enriched_data: Enriched hierarchical MQ CMDB data
+
+        Raises:
+            ValueError: If enriched_data is not a dictionary
         """
+        if not isinstance(enriched_data, dict):
+            raise ValueError(f"enriched_data must be a dict, got {type(enriched_data).__name__}")
         self.data = enriched_data
         self.stats = self._calculate_statistics()
         self.dependencies = self._analyze_dependencies()

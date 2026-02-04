@@ -189,18 +189,64 @@ def validate_file_exists(filepath, file_type: str = "file") -> bool:
 def ensure_directory(dirpath) -> bool:
     """
     Ensure directory exists, creating it if necessary.
-   
+
     Args:
         dirpath: Path to directory
-   
+
     Returns:
         True if successful
     """
     from pathlib import Path
-   
+
     try:
         Path(dirpath).mkdir(parents=True, exist_ok=True)
         return True
     except Exception as e:
         safe_print(f"✗ ERROR: Could not create directory {dirpath}: {e}")
         return False
+
+
+def lighten_color(hex_color: str, factor: float = 0.15) -> str:
+    """
+    Lighten a hex color by a factor for gradient effects.
+
+    Args:
+        hex_color: Hex color string (e.g., '#ff5733' or 'ff5733')
+        factor: Lightening factor between 0 and 1 (default: 0.15)
+
+    Returns:
+        Lightened hex color string (e.g., '#ff8866')
+    """
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+
+    r = min(255, int(r + (255 - r) * factor))
+    g = min(255, int(g + (255 - g) * factor))
+    b = min(255, int(b + (255 - b) * factor))
+
+    return f'#{r:02x}{g:02x}{b:02x}'
+
+
+def darken_color(hex_color: str, factor: float = 0.15) -> str:
+    """
+    Darken a hex color by a factor for gradient effects.
+
+    Args:
+        hex_color: Hex color string (e.g., '#ff5733' or 'ff5733')
+        factor: Darkening factor between 0 and 1 (default: 0.15)
+
+    Returns:
+        Darkened hex color string (e.g., '#cc4629')
+    """
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+
+    r = max(0, int(r * (1 - factor)))
+    g = max(0, int(g * (1 - factor)))
+    b = max(0, int(b * (1 - factor)))
+
+    return f'#{r:02x}{g:02x}{b:02x}'

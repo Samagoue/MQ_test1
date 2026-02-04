@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+from utils.common import lighten_color, darken_color
 
 
 class HierarchicalGraphVizGenerator:
@@ -87,32 +88,6 @@ class HierarchicalGraphVizGenerator:
             sanitized = '_' + sanitized
         return sanitized or 'node'
 
-    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Lighten a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = min(255, int(r + (255 - r) * factor))
-        g = min(255, int(g + (255 - g) * factor))
-        b = min(255, int(b + (255 - b) * factor))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-
-    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Darken a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = max(0, int(r * (1 - factor)))
-        g = max(0, int(g * (1 - factor)))
-        b = max(0, int(b * (1 - factor)))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-
     def _generate_department_color_mapping(self) -> Dict[str, Dict[str, str]]:
         """Generate unique colors for each department across all organizations."""
         from config.settings import generate_department_colors
@@ -179,7 +154,7 @@ class HierarchicalGraphVizGenerator:
         # Create gradient fill for organization
         org_bg = colors["org_bg"]
         # Lighten the color slightly for gradient end
-        org_bg_light = self._lighten_color(org_bg, 0.15)
+        org_bg_light = lighten_color(org_bg, 0.15)
 
         lines = [
             "",
@@ -224,7 +199,7 @@ class HierarchicalGraphVizGenerator:
 
         # Create gradient fill for department
         dept_bg = colors["dept_bg"]
-        dept_bg_light = self._lighten_color(dept_bg, 0.12)
+        dept_bg_light = lighten_color(dept_bg, 0.12)
 
         lines = [
             f"        /* {'Department: ' + dept_name} */",
@@ -253,7 +228,7 @@ class HierarchicalGraphVizGenerator:
 
         # Create gradient fill for business owner
         biz_bg = colors["biz_bg"]
-        biz_bg_light = self._lighten_color(biz_bg, 0.10)
+        biz_bg_light = lighten_color(biz_bg, 0.10)
 
         lines = [
             f'            /* BIZ OWNER: {biz_ownr} */',
@@ -299,7 +274,7 @@ class HierarchicalGraphVizGenerator:
 
             # Create gradient fill for gateway
             gw_bg = gateway_colors["gateway_bg"]
-            gw_bg_light = self._lighten_color(gw_bg, 0.10)
+            gw_bg_light = lighten_color(gw_bg, 0.10)
 
             lines = [
                 f'                subgraph cluster_Gateway_{app_id} {{',
@@ -316,7 +291,7 @@ class HierarchicalGraphVizGenerator:
         else:
             # Regular application cluster - create gradient fill
             app_bg = colors["app_bg"]
-            app_bg_light = self._lighten_color(app_bg, 0.10)
+            app_bg_light = lighten_color(app_bg, 0.10)
 
             lines = [
                 f'                subgraph cluster_App_{app_id} {{',
@@ -379,7 +354,7 @@ class HierarchicalGraphVizGenerator:
 
         # Create gradient fill for MQ manager node (horizontal gradient)
         qm_bg = colors['qm_bg']
-        qm_bg_dark = self._darken_color(qm_bg, 0.08)
+        qm_bg_dark = darken_color(qm_bg, 0.08)
 
         # Main MQ manager node with gradient
         node_lines.append(f"""{indent}{qm_id} [

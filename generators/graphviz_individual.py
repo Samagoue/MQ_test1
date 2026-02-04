@@ -3,6 +3,7 @@
 from typing import Dict
 from pathlib import Path
 from datetime import datetime
+from utils.common import lighten_color, darken_color
 
 
 class IndividualDiagramGenerator:
@@ -12,32 +13,6 @@ class IndividualDiagramGenerator:
         self.data = data
         self.config = config
 
-    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Lighten a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = min(255, int(r + (255 - r) * factor))
-        g = min(255, int(g + (255 - g) * factor))
-        b = min(255, int(b + (255 - b) * factor))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-
-    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Darken a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = max(0, int(r * (1 - factor)))
-        g = max(0, int(g * (1 - factor)))
-        b = max(0, int(b * (1 - factor)))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-   
     def generate_diagram(self, mqmanager: str, directorate: str, info: Dict) -> str:
         """Generate diagram for single MQ Manager."""
         from utils.common import sanitize_id
@@ -82,7 +57,7 @@ class IndividualDiagramGenerator:
         outbound_extra_count = len(info.get('outbound_extra', []))
 
         # Create gradient fill for central node
-        fill_light = self._lighten_color(central['fill'], 0.2)
+        fill_light = lighten_color(central['fill'], 0.2)
 
         return f"""    {qm_id} [
         shape=cylinder style="filled"
@@ -118,7 +93,7 @@ class IndividualDiagramGenerator:
         conn_colors = self.config.CONNECTION_COLORS
 
         # Create gradient fill for inbound nodes
-        fill_light = self._lighten_color(inbound['fill'], 0.15)
+        fill_light = lighten_color(inbound['fill'], 0.15)
 
         for inbound_mgr in inbound_list:
             inbound_id = sanitize_id(inbound_mgr)
@@ -157,7 +132,7 @@ class IndividualDiagramGenerator:
         outbound = colors["outbound"]
 
         # Create gradient fill for outbound nodes
-        fill_light = self._lighten_color(outbound['fill'], 0.15)
+        fill_light = lighten_color(outbound['fill'], 0.15)
 
         for outbound_mgr in outbound_list:
             # Skip if this is a bidirectional connection (already handled in inbound)
@@ -191,7 +166,7 @@ class IndividualDiagramGenerator:
         external = colors["external"]
 
         # Create gradient fill for external nodes
-        fill_light = self._lighten_color(external["fill"], 0.12)
+        fill_light = lighten_color(external["fill"], 0.12)
 
         # External inbound - positioned on TOP with headport=n tailport=s
         # All edges: pointed arrow at destination, bullet at origin
@@ -272,21 +247,21 @@ class IndividualDiagramGenerator:
    
     def generate_all(self, output_dir: Path) -> int:
         """Generate all individual diagrams."""
+        from utils.common import sanitize_id
+        from generators.graphviz_topology import GraphVizTopologyGenerator
+
         output_dir.mkdir(parents=True, exist_ok=True)
         count = 0
-       
+
         for directorate, mqmanagers in self.data.items():
             for mqmanager, info in mqmanagers.items():
-                from utils.common import sanitize_id
-                from generators.graphviz_topology import GraphVizTopologyGenerator
-               
                 dot_content = self.generate_diagram(mqmanager, directorate, info)
                 safe_name = sanitize_id(mqmanager)
                 dot_file = output_dir / f"{safe_name}.dot"
                 pdf_file = output_dir / f"{safe_name}.pdf"
-               
+
                 dot_file.write_text(dot_content, encoding='utf-8')
                 GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)
                 count += 1
-       
+
         return count
