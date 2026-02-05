@@ -67,8 +67,7 @@ REM Check result
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Database export failed with code %ERRORLEVEL% >> %LOG_FILE%
     echo ERROR: Database export failed with code %ERRORLEVEL%
-    REM Uncomment to send email notification on failure
-    REM call :SendEmail "MQ CMDB Export Failed" "Database export failed. Check %LOG_FILE%"
+    call :SendEmail "MQ CMDB Export Failed" "Database export failed. Check attached log file for details." "%LOG_FILE%"
     goto :END
 )
 
@@ -81,8 +80,7 @@ REM Check pipeline result
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Pipeline failed with code %ERRORLEVEL% >> %LOG_FILE%
     echo ERROR: Pipeline failed with code %ERRORLEVEL%
-    REM Uncomment to send email notification on failure
-    REM call :SendEmail "MQ CMDB Pipeline Failed" "Pipeline processing failed. Check %LOG_FILE%"
+    call :SendEmail "MQ CMDB Pipeline Failed" "Pipeline processing failed. Check attached log file for details." "%LOG_FILE%"
     goto :END
 )
 
@@ -102,8 +100,8 @@ echo Latest diagrams generated:
 dir /b /o-d output\diagrams\topology\*.svg 2>nul
 echo.
 
-REM Uncomment to send success notification
-REM call :SendEmail "MQ CMDB Export Complete" "Processing completed successfully. Check %LOG_FILE%"
+REM Send success notification with log attached
+call :SendEmail "MQ CMDB Export Complete" "Processing completed successfully. See attached log file for details." "%LOG_FILE%"
 
 :END
 exit /b %ERRORLEVEL%
@@ -115,7 +113,7 @@ REM This calls a reusable send_email.py utility that can be placed in any
 REM common scripts directory and shared across multiple projects.
 REM ========================================================================
 :SendEmail
-REM Usage: call :SendEmail "Subject" "Body"
+REM Usage: call :SendEmail "Subject" "Body" "AttachmentPath"
 REM
 REM Configure these paths for your environment:
 SET EMAIL_SCRIPT=C:\Scripts\send_email.py
@@ -136,10 +134,21 @@ if not exist "%EMAIL_SCRIPT%" (
     SET EMAIL_SCRIPT=%~dp0tools\send_email.py
 )
 
-REM Check if config file exists
+REM Get the attachment path (3rd parameter)
+SET ATTACHMENT_PATH=%~3
+
+REM Check if config file exists and send email with attachment
 if exist "%EMAIL_CONFIG%" (
-    python "%EMAIL_SCRIPT%" --config "%EMAIL_CONFIG%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2"
+    if defined ATTACHMENT_PATH (
+        python "%EMAIL_SCRIPT%" --config "%EMAIL_CONFIG%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2" --attach "%ATTACHMENT_PATH%"
+    ) else (
+        python "%EMAIL_SCRIPT%" --config "%EMAIL_CONFIG%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2"
+    )
 ) else (
-    python "%EMAIL_SCRIPT%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2"
+    if defined ATTACHMENT_PATH (
+        python "%EMAIL_SCRIPT%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2" --attach "%ATTACHMENT_PATH%"
+    ) else (
+        python "%EMAIL_SCRIPT%" --from %EMAIL_FROM% --to %EMAIL_TO% --subject "%~1" --body "%~2"
+    )
 )
 exit /b 0
