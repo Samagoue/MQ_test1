@@ -47,43 +47,33 @@ def print_usage():
     """Print usage information."""
     usage = """
 USAGE:
-    python main.py                    # Run full pipeline
+    python main.py                    # Run full pipeline (processing only)
     python main.py --help             # Show this help message
 
+    # For database export (run first):
+    python db_export.py --batch --profile production
+
 REQUIRED INPUT FILES:
-    output/all_MQCMDB_assets.json    # MQ CMDB export data
+    output/all_MQCMDB_assets.json     # MQ CMDB export data (from db_export.py)
     input/org_hierarchy.json          # Organizational hierarchy
     input/app_to_qmgr.json            # Application to MQ manager mapping
 
-OUTPUT FILES:
-    output/mq_cmdb_processed.json        # Enriched data with hierarchy
-    output/mq_topology.dot               # GraphViz DOT file (hierarchical)
-    output/mq_topology.pdf               # Hierarchical topology diagram
-    output/application_diagrams/*.pdf    # Application-focused diagrams
-    output/individual_diagrams/*.pdf     # Individual MQ manager diagrams
+OUTPUT DIRECTORIES:
+    output/data/                      # JSON data files (processed, baseline, changes)
+    output/diagrams/topology/         # Main topology diagrams (DOT, SVG, PDF)
+    output/diagrams/applications/     # Application-focused diagrams
+    output/diagrams/individual/       # Per-MQ-manager diagrams
+    output/diagrams/filtered/         # Filtered view diagrams
+    output/reports/                   # HTML reports (change, gateway analytics)
+    output/exports/                   # Excel exports and EA documentation
 
-DIRECTORY STRUCTURE:
-    project_root/
-    ├── main.py                       # This file
-    ├── orchestrator.py               # Main orchestrator
-    ├── config/
-    │   └── settings.py               # Configuration
-    ├── processors/
-    │   ├── mqmanager_processor.py    # MQ relationship processing
-    │   └── hierarchy_mashup.py       # Hierarchy enrichment
-    ├── generators/
-    │   ├── graphviz_hierarchical.py  # Hierarchical diagram generator
-    │   └── graphviz_individual.py    # Individual diagram generator
-    ├── utils/
-    │   ├── common.py                 # Common utilities
-    │   └── file_io.py                # File I/O utilities
-    ├── input/                        # Input data files
-    ├── output/                       # Generated outputs
-    └── logs/                         # Processing logs
+BATCH EXECUTION:
+    Windows:  run_batch_export.bat    # Runs db_export + orchestrator
+    Linux:    deploy/run_pipeline.sh  # Runs db_export + orchestrator
 
 REQUIREMENTS:
     • Python 3.7+
-    • GraphViz (dot and sfdp commands)
+    • GraphViz (dot and sfdp commands) - optional for PDF generation
 
 For more information, see README.md
     """

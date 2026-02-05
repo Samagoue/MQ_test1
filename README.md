@@ -30,14 +30,19 @@ MQCMDB_Scripts/
 │   ├── export_formats.py        # Multi-format export (SVG, PNG, Excel)
 │   ├── confluence_sync.py       # Confluence table sync
 │   ├── smart_filter.py          # Filtered view generation
+│   ├── email_notifier.py        # Email notification module
 │   └── logger.py                # Logging utilities
+├── tools/
+│   ├── send_email.py            # Standalone email utility (CLI)
+│   └── email_config.ini.example # Email configuration template
 ├── input/
 │   ├── gateways.json            # Gateway definitions
 │   ├── app_to_qmgr.json         # Application to Queue Manager mapping
 │   ├── org_hierarchy.json       # Organizational hierarchy
 │   └── confluence_config_sample.json  # Confluence sync config template
-├── main.py                      # Database export entry point
-├── orchestrator.py              # Main pipeline coordinator (13-step process)
+├── db_export.py                 # Database export script (SQL to JSON)
+├── main.py                      # Pipeline runner entry point
+├── orchestrator.py              # Main pipeline coordinator (14-step process)
 ├── Database/                    # SQL query files (*.sql)
 ├── output/                      # Generated files
 └── logs/                        # Log files
@@ -196,7 +201,7 @@ Edit `config/settings.py` to customize:
 
 ## Pipeline Steps
 
-The orchestrator runs a 13-step pipeline:
+The orchestrator runs a 14-step pipeline:
 
 1. **Output Cleanup** - Remove old files (if enabled)
 2. **Load Data** - Read `all_MQCMDB_assets.json`
@@ -211,6 +216,7 @@ The orchestrator runs a 13-step pipeline:
 11. **Gateway Analytics** - Analyze gateway usage, generate HTML report
 12. **Multi-Format Export** - Export to SVG, PNG, Excel
 13. **EA Documentation** - Generate Confluence markup documentation
+14. **Email Notification** - Send completion notification with log attachment
 
 ## RHEL/Linux Deployment
 
@@ -356,6 +362,58 @@ OnCalendar=Mon-Fri *-*-* 07:00:00
 | `MQCMDB_PROFILE` | Database credential profile | No (default: production) |
 | `CONFLUENCE_USER` | Confluence username for sync | No |
 | `CONFLUENCE_TOKEN` | Confluence API token | No |
+
+### Email Notification Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `EMAIL_ENABLED` | Enable email notifications | `false` |
+| `EMAIL_RECIPIENTS` | Comma-separated list of recipients | - |
+| `EMAIL_RECIPIENTS_SUCCESS` | Recipients for success notifications only | - |
+| `EMAIL_RECIPIENTS_FAILURE` | Recipients for failure notifications only | - |
+| `SMTP_SERVER` | SMTP server hostname | `localhost` |
+| `SMTP_PORT` | SMTP server port | `25` |
+| `SMTP_USER` | SMTP username for authentication | - |
+| `SMTP_PASSWORD` | SMTP password for authentication | - |
+| `SMTP_FROM` | Sender email address | `mqcmdb@localhost` |
+| `SMTP_USE_TLS` | Use STARTTLS encryption | `false` |
+| `SMTP_USE_SSL` | Use SSL/TLS encryption | `false` |
+| `EMAIL_CONFIG_FILE` | Path to email config INI file | - |
+
+#### Email Configuration Example
+
+```bash
+# Enable email notifications
+export EMAIL_ENABLED=true
+export EMAIL_RECIPIENTS='ops-team@company.com,alerts@company.com'
+export SMTP_SERVER='smtp.company.com'
+export SMTP_PORT=587
+export SMTP_FROM='mqcmdb@company.com'
+export SMTP_USE_TLS=true
+
+# Optional: SMTP authentication
+export SMTP_USER='smtp_username'
+export SMTP_PASSWORD='smtp_password'
+```
+
+Alternatively, use a config file (`email_config.ini`):
+
+```ini
+[smtp]
+server = smtp.company.com
+port = 587
+user = smtp_username
+password = smtp_password
+from = mqcmdb@company.com
+use_tls = true
+
+[notifications]
+enabled = true
+recipients = ops-team@company.com
+recipients_failure = alerts@company.com
+```
+
+The pipeline automatically attaches the log file to email notifications.
 
 ### Troubleshooting
 
