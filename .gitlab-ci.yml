@@ -47,7 +47,7 @@ validate:syntax:
     - python -m py_compile utils/file_io.py
     - python -m py_compile utils/common.py
     - python -m py_compile tools/send_email.py
-    - echo "✓ Syntax validation passed!"
+    - echo "Syntax validation passed"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -58,14 +58,8 @@ validate:json:
   image: python:${PYTHON_VERSION}
   script:
     - echo "Validating JSON input files..."
-    - |
-      for file in input/*.json; do
-        if [ -f "$file" ]; then
-          echo "Checking $file..."
-          python -c "import json; json.load(open('$file'))" && echo "  ✓ Valid" || echo "  ✗ Invalid"
-        fi
-      done
-    - echo "JSON validation complete!"
+    - python -c "import json, glob; [print('Checking ' + f) or json.load(open(f)) and print('  Valid') for f in glob.glob('input/*.json')]"
+    - echo "JSON validation complete"
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -77,16 +71,7 @@ validate:unlockkey:
   image: python:${PYTHON_VERSION}
   script:
     - echo "Checking UnlockKey variable..."
-    - |
-      if [ -z "${UnlockKey}" ]; then
-        echo "⚠ WARNING: UnlockKey variable is not set!"
-        echo "  Go to Settings > CI/CD > Variables and add UnlockKey"
-        echo "  (This is required for database operations)"
-      else
-        echo "✓ UnlockKey is configured (masked)"
-        export DB_MASTER_PASSWORD="${UnlockKey}"
-        echo "✓ DB_MASTER_PASSWORD set from UnlockKey"
-      fi
+    - if [ -z "${UnlockKey}" ]; then echo "WARNING - UnlockKey variable is not set"; echo "Go to Settings > CI/CD > Variables and add UnlockKey"; else echo "UnlockKey is configured (masked)"; fi
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -105,15 +90,15 @@ test:imports:
     - pip install -r requirements.txt
   script:
     - echo "Testing module imports..."
-    - python -c "from config.settings import Config; print('✓ Config')"
-    - python -c "from processors.mqmanager_processor import MQManagerProcessor; print('✓ MQManagerProcessor')"
-    - python -c "from processors.hierarchy_mashup import HierarchyMashup; print('✓ HierarchyMashup')"
-    - python -c "from processors.change_detector import ChangeDetector; print('✓ ChangeDetector')"
-    - python -c "from analytics.gateway_analyzer import GatewayAnalyzer; print('✓ GatewayAnalyzer')"
-    - python -c "from utils.email_notifier import EmailNotifier; print('✓ EmailNotifier')"
-    - python -c "from utils.file_io import load_json, save_json; print('✓ file_io')"
-    - python -c "from orchestrator import MQCMDBOrchestrator; print('✓ Orchestrator')"
-    - echo "All imports successful!"
+    - python -c "from config.settings import Config; print('Config OK')"
+    - python -c "from processors.mqmanager_processor import MQManagerProcessor; print('MQManagerProcessor OK')"
+    - python -c "from processors.hierarchy_mashup import HierarchyMashup; print('HierarchyMashup OK')"
+    - python -c "from processors.change_detector import ChangeDetector; print('ChangeDetector OK')"
+    - python -c "from analytics.gateway_analyzer import GatewayAnalyzer; print('GatewayAnalyzer OK')"
+    - python -c "from utils.email_notifier import EmailNotifier; print('EmailNotifier OK')"
+    - python -c "from utils.file_io import load_json, save_json; print('file_io OK')"
+    - python -c "from orchestrator import MQCMDBOrchestrator; print('Orchestrator OK')"
+    - echo "All imports successful"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -129,35 +114,9 @@ test:config:
     - pip install -r requirements.txt
   script:
     - echo "Testing configuration and directory setup..."
-    - |
-      python << 'EOF'
-      from config.settings import Config
-      import os
-
-      print("Testing Config paths...")
-      print(f"  BASE_DIR: {Config.BASE_DIR}")
-      print(f"  INPUT_DIR: {Config.INPUT_DIR}")
-      print(f"  OUTPUT_DIR: {Config.OUTPUT_DIR}")
-      print(f"  LOGS_DIR: {Config.LOGS_DIR}")
-
-      print("\nCreating directories...")
-      Config.ensure_directories()
-      print("✓ Directories created successfully")
-
-      print("\nChecking input files...")
-      input_files = [
-          ('gateways.json', Config.GATEWAYS_JSON),
-          ('app_to_qmgr.json', Config.APP_TO_QMGR_JSON),
-          ('org_hierarchy.json', Config.ORG_HIERARCHY_JSON),
-          ('mqmanager_aliases.json', Config.MQMANAGER_ALIASES_JSON),
-          ('external_apps.json', Config.EXTERNAL_APPS_JSON),
-      ]
-      for name, path in input_files:
-          status = "✓" if path.exists() else "✗ (missing)"
-          print(f"  {name}: {status}")
-
-      print("\n✓ Configuration test passed!")
-      EOF
+    - python -c "from config.settings import Config; print('BASE_DIR:', Config.BASE_DIR); print('INPUT_DIR:', Config.INPUT_DIR); print('OUTPUT_DIR:', Config.OUTPUT_DIR); Config.ensure_directories(); print('Directories created successfully')"
+    - python -c "from config.settings import Config; files = [('gateways.json', Config.GATEWAYS_JSON), ('app_to_qmgr.json', Config.APP_TO_QMGR_JSON), ('org_hierarchy.json', Config.ORG_HIERARCHY_JSON)]; [print(n + ' exists=' + str(p.exists())) for n,p in files]"
+    - echo "Configuration test passed"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -173,44 +132,7 @@ test:processor:
     - pip install -r requirements.txt
   script:
     - echo "Testing MQ Manager Processor with sample data..."
-    - |
-      python << 'EOF'
-      from processors.mqmanager_processor import MQManagerProcessor
-      from config.settings import Config
-
-      # Sample test data
-      sample_data = [
-          {
-              "MQmanager": "QM_TEST_01",
-              "asset": "QM_TEST_01.QM_TEST_02.QUEUE",
-              "asset_type": "Queue Remote",
-              "directorate": "IT_DEPT",
-              "Kalala_Comments1": "SENDER"
-          },
-          {
-              "MQmanager": "QM_TEST_02",
-              "asset": "QM_TEST_02.QM_TEST_01.QUEUE",
-              "asset_type": "Queue Local",
-              "directorate": "IT_DEPT",
-              "Kalala_Comments1": "RECEIVER"
-          }
-      ]
-
-      print("Testing with sample data...")
-      processor = MQManagerProcessor(
-          sample_data,
-          Config.FIELD_MAPPINGS,
-          aliases_file=Config.MQMANAGER_ALIASES_JSON,
-          app_to_qmgr_file=Config.APP_TO_QMGR_JSON,
-          external_apps_file=Config.EXTERNAL_APPS_JSON
-      )
-
-      result = processor.process_assets()
-      json_result = processor.convert_to_json(result)
-      processor.print_stats()
-
-      print("\n✓ Processor test passed!")
-      EOF
+    - python tests/test_processor.py
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -226,24 +148,8 @@ test:email:
     - pip install -r requirements.txt
   script:
     - echo "Testing email notifier configuration..."
-    - |
-      python << 'EOF'
-      from utils.email_notifier import EmailNotifier, EmailConfig
-      import os
-
-      print("Testing EmailConfig from environment...")
-      config = EmailConfig.from_env()
-      print(f"  SMTP Server: {config.smtp_server}")
-      print(f"  SMTP Port: {config.smtp_port}")
-      print(f"  From Address: {config.from_address}")
-      print(f"  Enabled: {config.enabled}")
-
-      print("\nTesting EmailNotifier initialization...")
-      notifier = EmailNotifier()
-      print(f"  Notifier enabled: {notifier.is_enabled}")
-
-      print("\n✓ Email notifier test passed!")
-      EOF
+    - python -c "from utils.email_notifier import EmailNotifier, EmailConfig; c = EmailConfig.from_env(); print('SMTP Server:', c.smtp_server); print('Enabled:', c.enabled); n = EmailNotifier(); print('Notifier enabled:', n.is_enabled)"
+    - echo "Email notifier test passed"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -258,22 +164,9 @@ package:archive:
   script:
     - echo "Creating deployment package..."
     - mkdir -p dist
-    - |
-      tar -czvf dist/mqcmdb-${CI_COMMIT_SHORT_SHA}.tar.gz \
-        --exclude='.git' \
-        --exclude='dist' \
-        --exclude='venv' \
-        --exclude='.cache' \
-        --exclude='*.pyc' \
-        --exclude='__pycache__' \
-        --exclude='output/*' \
-        --exclude='logs/*' \
-        --exclude='credentials/*' \
-        --exclude='*.enc' \
-        --exclude='*.salt' \
-        .
+    - tar -czvf dist/mqcmdb-${CI_COMMIT_SHORT_SHA}.tar.gz --exclude='.git' --exclude='dist' --exclude='venv' --exclude='.cache' --exclude='*.pyc' --exclude='__pycache__' --exclude='output/*' --exclude='logs/*' --exclude='credentials/*' --exclude='*.enc' --exclude='*.salt' .
     - ls -la dist/
-    - echo "✓ Package created: dist/mqcmdb-${CI_COMMIT_SHORT_SHA}.tar.gz"
+    - echo "Package created - dist/mqcmdb-${CI_COMMIT_SHORT_SHA}.tar.gz"
   artifacts:
     paths:
       - dist/
@@ -295,36 +188,11 @@ deploy:prepare:
     - pip install -r requirements.txt
   script:
     - echo "Preparing deployment..."
-    - echo "Setting environment variables..."
-    - |
-      # Set DB_MASTER_PASSWORD from UnlockKey
-      if [ -n "${UnlockKey}" ]; then
-        export DB_MASTER_PASSWORD="${UnlockKey}"
-        echo "✓ DB_MASTER_PASSWORD set from UnlockKey"
-      else
-        echo "✗ ERROR: UnlockKey not set!"
-        exit 1
-      fi
-    - echo "Creating directory structure..."
+    - if [ -z "${UnlockKey}" ]; then echo "ERROR - UnlockKey not set"; exit 1; fi
+    - export DB_MASTER_PASSWORD="${UnlockKey}"
+    - echo "DB_MASTER_PASSWORD set from UnlockKey"
     - mkdir -p output/data output/diagrams output/reports output/exports logs
-    - echo "Verifying configuration..."
-    - |
-      python << 'EOF'
-      from config.settings import Config
-      import os
-
-      # Verify DB_MASTER_PASSWORD is set
-      password = os.environ.get('DB_MASTER_PASSWORD')
-      if password:
-          print("✓ DB_MASTER_PASSWORD is configured")
-      else:
-          print("✗ DB_MASTER_PASSWORD is NOT configured")
-          exit(1)
-
-      Config.ensure_directories()
-      print("✓ All directories created")
-      print("✓ Ready for deployment!")
-      EOF
+    - python -c "from config.settings import Config; import os; print('DB_MASTER_PASSWORD configured:', bool(os.environ.get('DB_MASTER_PASSWORD'))); Config.ensure_directories(); print('Ready for deployment')"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
@@ -343,40 +211,10 @@ manual:test-orchestrator:
     - pip install -r requirements.txt
   script:
     - echo "Testing orchestrator initialization..."
-    - |
-      # Set environment
-      export DB_MASTER_PASSWORD="${UnlockKey:-test_password}"
-      export PYTHONIOENCODING=utf-8
-
-      # Create directories
-      mkdir -p output/data output/diagrams/topology output/diagrams/individual
-      mkdir -p output/diagrams/applications output/diagrams/filtered
-      mkdir -p output/reports output/exports logs
-
-      # Test orchestrator initialization (not full run - no data)
-      python << 'EOF'
-      from config.settings import Config
-      from orchestrator import MQCMDBOrchestrator
-      import sys
-
-      print("Testing orchestrator initialization...")
-      Config.ensure_directories()
-
-      try:
-          # This will fail because no input data exists
-          # but it tests that all imports and config work
-          orchestrator = MQCMDBOrchestrator()
-          print("✓ Orchestrator initialized successfully")
-          print("Note: Full pipeline requires input data file")
-      except FileNotFoundError as e:
-          print(f"⚠ Expected: {e}")
-          print("✓ Orchestrator imports and config work correctly")
-      except Exception as e:
-          print(f"✗ Unexpected error: {e}")
-          sys.exit(1)
-
-      print("\n✓ Orchestrator test complete!")
-      EOF
+    - export DB_MASTER_PASSWORD="${UnlockKey:-test_password}"
+    - export PYTHONIOENCODING=utf-8
+    - mkdir -p output/data output/diagrams/topology output/diagrams/individual output/diagrams/applications output/diagrams/filtered output/reports output/exports logs
+    - python tests/test_orchestrator.py
   artifacts:
     paths:
       - logs/
@@ -400,33 +238,13 @@ scheduled:full-pipeline:
     - pip install -r requirements.txt
   script:
     - echo "Running scheduled pipeline..."
-    - |
-      # Set environment from CI variables
-      export DB_MASTER_PASSWORD="${UnlockKey}"
-      export PYTHONIOENCODING=utf-8
-      export EMAIL_ENABLED="${EMAIL_ENABLED:-false}"
-      export EMAIL_RECIPIENTS="${EMAIL_RECIPIENTS:-}"
-      export SMTP_SERVER="${SMTP_SERVER:-localhost}"
-      export SMTP_PORT="${SMTP_PORT:-25}"
-      export SMTP_FROM="${SMTP_FROM:-mqcmdb@localhost}"
-      export SMTP_USE_TLS="${SMTP_USE_TLS:-false}"
-
-      # Create directories
-      mkdir -p output/data output/diagrams output/reports output/exports logs
-
-      echo "Environment configured:"
-      echo "  DB_MASTER_PASSWORD: [MASKED]"
-      echo "  EMAIL_ENABLED: ${EMAIL_ENABLED}"
-      echo "  EMAIL_RECIPIENTS: ${EMAIL_RECIPIENTS:-not set}"
-
-      # Note: This requires the input data file to exist
-      # For now, just verify the setup
-      python -c "
-      from config.settings import Config
-      Config.ensure_directories()
-      print('✓ Ready for scheduled execution')
-      print('Note: Full run requires output/all_MQCMDB_assets.json')
-      "
+    - export DB_MASTER_PASSWORD="${UnlockKey}"
+    - export PYTHONIOENCODING=utf-8
+    - export EMAIL_ENABLED="${EMAIL_ENABLED:-false}"
+    - mkdir -p output/data output/diagrams output/reports output/exports logs
+    - echo "Environment configured"
+    - echo "EMAIL_ENABLED - ${EMAIL_ENABLED}"
+    - python -c "from config.settings import Config; Config.ensure_directories(); print('Ready for scheduled execution')"
   artifacts:
     paths:
       - output/
