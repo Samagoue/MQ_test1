@@ -186,6 +186,10 @@ class HierarchyMashup:
                         'outbound': mq_data.get('outbound', []),
                         'inbound_extra': mq_data.get('inbound_extra', []),
                         'outbound_extra': mq_data.get('outbound_extra', []),
+                        'inbound_apps': mq_data.get('inbound_apps', []),
+                        'outbound_apps': mq_data.get('outbound_apps', []),
+                        'inbound_apps_external': mq_data.get('inbound_apps_external', []),
+                        'outbound_apps_external': mq_data.get('outbound_apps_external', []),
                         'IsGateway': True,
                         'GatewayScope': gateway_scope,
                         'GatewayDescription': gateway_info.get('Description', '')
@@ -213,6 +217,10 @@ class HierarchyMashup:
                         'outbound': mq_data.get('outbound', []),
                         'inbound_extra': mq_data.get('inbound_extra', []),
                         'outbound_extra': mq_data.get('outbound_extra', []),
+                        'inbound_apps': mq_data.get('inbound_apps', []),
+                        'outbound_apps': mq_data.get('outbound_apps', []),
+                        'inbound_apps_external': mq_data.get('inbound_apps_external', []),
+                        'outbound_apps_external': mq_data.get('outbound_apps_external', []),
                         'IsGateway': False
                     }
        

@@ -10,9 +10,10 @@
 # Options:
 #   --install-dir DIR    Installation directory (default: /opt/mqcmdb)
 #   --user USER          Service user (default: mqcmdb)
-#   --skip-graphviz      Skip GraphViz installation
 #   --skip-python        Skip Python installation (use existing)
 #   --help               Show this help message
+#
+# Note: GraphViz is assumed to be pre-installed on the system
 #===============================================================================
 
 set -e
@@ -27,7 +28,6 @@ NC='\033[0m' # No Color
 # Default configuration
 INSTALL_DIR="/opt/mqcmdb"
 SERVICE_USER="mqcmdb"
-SKIP_GRAPHVIZ=false
 SKIP_PYTHON=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -94,10 +94,6 @@ parse_args() {
                 SERVICE_USER="$2"
                 shift 2
                 ;;
-            --skip-graphviz)
-                SKIP_GRAPHVIZ=true
-                shift
-                ;;
             --skip-python)
                 SKIP_PYTHON=true
                 shift
@@ -108,9 +104,10 @@ parse_args() {
                 echo "Options:"
                 echo "  --install-dir DIR    Installation directory (default: /opt/mqcmdb)"
                 echo "  --user USER          Service user (default: mqcmdb)"
-                echo "  --skip-graphviz      Skip GraphViz installation"
                 echo "  --skip-python        Skip Python installation (use existing)"
                 echo "  --help               Show this help message"
+                echo ""
+                echo "Note: GraphViz is assumed to be pre-installed on the system"
                 exit 0
                 ;;
             *)
@@ -418,7 +415,8 @@ main() {
     log_info "Service user: $SERVICE_USER"
 
     install_system_packages
-    install_graphviz
+    # GraphViz installation removed - assumed to be pre-installed
+    # install_graphviz
     create_service_user
     setup_installation_directory
     install_python_dependencies

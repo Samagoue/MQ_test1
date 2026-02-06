@@ -16,7 +16,8 @@
 #   --help             Show this help message
 #
 # Environment Variables:
-#   DB_MASTER_PASSWORD   Master password for encrypted credentials (required)
+#   UnlockKey            Master password for encrypted credentials (CI/CD variable)
+#   DB_MASTER_PASSWORD   Alternative to UnlockKey (for local use)
 #   MQCMDB_HOME          Installation directory (default: script directory)
 #   MQCMDB_PROFILE       Database profile name (default: production)
 #
@@ -143,7 +144,11 @@ Email Notification Variables (optional):
   SMTP_USE_TLS         Set to 'true' for STARTTLS
 
 Examples:
-  # Full pipeline run
+  # Full pipeline run (using UnlockKey - recommended for CI/CD)
+  export UnlockKey='your_password'
+  ./run_pipeline.sh
+
+  # Alternative: using DB_MASTER_PASSWORD directly
   export DB_MASTER_PASSWORD='your_password'
   ./run_pipeline.sh
 
@@ -154,7 +159,7 @@ Examples:
   ./run_pipeline.sh --diagrams-only
 
   # With email notifications
-  export DB_MASTER_PASSWORD='your_password'
+  export UnlockKey='your_password'
   export EMAIL_ENABLED=true
   export EMAIL_RECIPIENTS='ops@company.com,team@company.com'
   export SMTP_SERVER='smtp.company.com'
@@ -232,10 +237,19 @@ check_prerequisites() {
         exit 1
     fi
 
+    # Check for password (UnlockKey or DB_MASTER_PASSWORD)
+    # UnlockKey is the preferred CI/CD variable name
+    if [ -n "${UnlockKey:-}" ]; then
+        export DB_MASTER_PASSWORD="${UnlockKey}"
+        log_info "Using UnlockKey from environment"
+    fi
+
     # Check DB_MASTER_PASSWORD (required for database export)
     if [ "$SKIP_EXPORT" = false ] && [ -z "${DB_MASTER_PASSWORD:-}" ]; then
-        log_error "DB_MASTER_PASSWORD environment variable is not set"
-        log_error "Set it with: export DB_MASTER_PASSWORD='your_password'"
+        log_error "No password configured!"
+        log_error "Set UnlockKey (recommended) or DB_MASTER_PASSWORD:"
+        log_error "  export UnlockKey='your_password'"
+        log_error "  export DB_MASTER_PASSWORD='your_password'"
         exit 1
     fi
 

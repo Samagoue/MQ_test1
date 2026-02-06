@@ -137,6 +137,8 @@ class Config:
     ORG_HIERARCHY_JSON = INPUT_DIR / "org_hierarchy.json"
     APP_TO_QMGR_JSON = INPUT_DIR / "app_to_qmgr.json"
     GATEWAYS_JSON = INPUT_DIR / "gateways.json"
+    MQMANAGER_ALIASES_JSON = INPUT_DIR / "mqmanager_aliases.json"
+    EXTERNAL_APPS_JSON = INPUT_DIR / "external_apps.json"
    
     # ==================== DATABASE ====================
     DEFAULT_PROFILE = "production"

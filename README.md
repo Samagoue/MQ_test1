@@ -135,8 +135,10 @@ export CONFLUENCE_TOKEN="your-api-token"
 | File | Description |
 |------|-------------|
 | `input/gateways.json` | Defines which Queue Managers are gateways (Internal/External) |
-| `input/app_to_qmgr.json` | Maps Queue Managers to their owning Applications |
+| `input/app_to_qmgr.json` | Maps Queue Managers to their owning Applications (Internal) |
 | `input/org_hierarchy.json` | Organizational hierarchy (Biz_Ownr → Department → Organization) |
+| `input/mqmanager_aliases.json` | MQ Manager aliases (e.g., QM1 = XX_QM1, QM1_PROD) |
+| `input/external_apps.json` | External application definitions for connection tracking |
 
 ## Features
 

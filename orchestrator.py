@@ -72,7 +72,13 @@ class MQCMDBOrchestrator:
 
             # Process relationships
             safe_print("\n[2/14] Processing MQ Manager relationships...")
-            processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
+            processor = MQManagerProcessor(
+                raw_data,
+                Config.FIELD_MAPPINGS,
+                aliases_file=Config.MQMANAGER_ALIASES_JSON,
+                app_to_qmgr_file=Config.APP_TO_QMGR_JSON,
+                external_apps_file=Config.EXTERNAL_APPS_JSON
+            )
             directorate_data = processor.process_assets()
             processor.print_stats()
 

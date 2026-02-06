@@ -4,9 +4,30 @@ setlocal EnableDelayedExpansion
 
 echo.
 
+REM ========================================================================
+REM Database Master Password Configuration
+REM ========================================================================
+REM Option 1: Set UnlockKey as environment variable (recommended for CI/CD)
+REM Option 2: Set DB_MASTER_PASSWORD directly below (for local testing only)
+REM ========================================================================
 
-REM Set master password (KEEP SECURE!)
-SET DB_MASTER_PASSWORD=mypsswd
+REM Check if UnlockKey is set (CI/CD variable)
+if defined UnlockKey (
+    SET DB_MASTER_PASSWORD=%UnlockKey%
+    echo Using UnlockKey from environment variable
+) else (
+    REM Fallback: Set password here for local testing (NOT recommended for production)
+    REM SET DB_MASTER_PASSWORD=your_password_here
+    echo.
+    echo WARNING: UnlockKey environment variable not set!
+    echo Please set the UnlockKey variable before running:
+    echo   set UnlockKey=your_master_password
+    echo.
+    if not defined DB_MASTER_PASSWORD (
+        echo ERROR: No password configured. Exiting.
+        exit /b 1
+    )
+)
 
 REM Navigate to script directory
 cd /d "%~dp0"

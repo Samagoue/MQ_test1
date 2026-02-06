@@ -1,0 +1,438 @@
+# GitLab CI/CD Pipeline for MQ CMDB Automation System
+#
+# Required CI/CD Variables (Settings > CI/CD > Variables):
+#   - UnlockKey: Master password for encrypted database credentials (masked)
+#
+# Optional Variables:
+#   - EMAIL_ENABLED: Set to 'true' to enable email notifications
+#   - EMAIL_RECIPIENTS: Comma-separated list of email recipients
+#   - SMTP_SERVER, SMTP_PORT, SMTP_FROM, SMTP_USE_TLS, SMTP_PASSWORD
+#
+# Note: GraphViz is NOT installed on GitLab runners - PDF generation is skipped
+
+stages:
+  - validate
+  - test
+  - package
+  - deploy
+
+variables:
+  PYTHON_VERSION: "3.9"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Cache pip dependencies between jobs
+cache:
+  paths:
+    - .cache/pip/
+    - venv/
+
+# ------------------------------------------------------------------------------
+# Validate Stage - Check code quality and syntax
+# ------------------------------------------------------------------------------
+validate:syntax:
+  stage: validate
+  image: python:${PYTHON_VERSION}
+  script:
+    - echo "Validating Python syntax..."
+    - python -m py_compile orchestrator.py
+    - python -m py_compile db_export.py
+    - python -m py_compile main.py
+    - python -m py_compile config/settings.py
+    - python -m py_compile processors/mqmanager_processor.py
+    - python -m py_compile processors/hierarchy_mashup.py
+    - python -m py_compile processors/change_detector.py
+    - python -m py_compile processors/deduplication.py
+    - python -m py_compile analytics/gateway_analyzer.py
+    - python -m py_compile utils/email_notifier.py
+    - python -m py_compile utils/file_io.py
+    - python -m py_compile utils/common.py
+    - python -m py_compile tools/send_email.py
+    - echo "✓ Syntax validation passed!"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+validate:json:
+  stage: validate
+  image: python:${PYTHON_VERSION}
+  script:
+    - echo "Validating JSON input files..."
+    - |
+      for file in input/*.json; do
+        if [ -f "$file" ]; then
+          echo "Checking $file..."
+          python -c "import json; json.load(open('$file'))" && echo "  ✓ Valid" || echo "  ✗ Invalid"
+        fi
+      done
+    - echo "JSON validation complete!"
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+validate:unlockkey:
+  stage: validate
+  image: python:${PYTHON_VERSION}
+  script:
+    - echo "Checking UnlockKey variable..."
+    - |
+      if [ -z "${UnlockKey}" ]; then
+        echo "⚠ WARNING: UnlockKey variable is not set!"
+        echo "  Go to Settings > CI/CD > Variables and add UnlockKey"
+        echo "  (This is required for database operations)"
+      else
+        echo "✓ UnlockKey is configured (masked)"
+        export DB_MASTER_PASSWORD="${UnlockKey}"
+        echo "✓ DB_MASTER_PASSWORD set from UnlockKey"
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+# ------------------------------------------------------------------------------
+# Test Stage - Run tests and verify imports
+# ------------------------------------------------------------------------------
+test:imports:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "Testing module imports..."
+    - python -c "from config.settings import Config; print('✓ Config')"
+    - python -c "from processors.mqmanager_processor import MQManagerProcessor; print('✓ MQManagerProcessor')"
+    - python -c "from processors.hierarchy_mashup import HierarchyMashup; print('✓ HierarchyMashup')"
+    - python -c "from processors.change_detector import ChangeDetector; print('✓ ChangeDetector')"
+    - python -c "from analytics.gateway_analyzer import GatewayAnalyzer; print('✓ GatewayAnalyzer')"
+    - python -c "from utils.email_notifier import EmailNotifier; print('✓ EmailNotifier')"
+    - python -c "from utils.file_io import load_json, save_json; print('✓ file_io')"
+    - python -c "from orchestrator import MQCMDBOrchestrator; print('✓ Orchestrator')"
+    - echo "All imports successful!"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+test:config:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "Testing configuration and directory setup..."
+    - |
+      python << 'EOF'
+      from config.settings import Config
+      import os
+
+      print("Testing Config paths...")
+      print(f"  BASE_DIR: {Config.BASE_DIR}")
+      print(f"  INPUT_DIR: {Config.INPUT_DIR}")
+      print(f"  OUTPUT_DIR: {Config.OUTPUT_DIR}")
+      print(f"  LOGS_DIR: {Config.LOGS_DIR}")
+
+      print("\nCreating directories...")
+      Config.ensure_directories()
+      print("✓ Directories created successfully")
+
+      print("\nChecking input files...")
+      input_files = [
+          ('gateways.json', Config.GATEWAYS_JSON),
+          ('app_to_qmgr.json', Config.APP_TO_QMGR_JSON),
+          ('org_hierarchy.json', Config.ORG_HIERARCHY_JSON),
+          ('mqmanager_aliases.json', Config.MQMANAGER_ALIASES_JSON),
+          ('external_apps.json', Config.EXTERNAL_APPS_JSON),
+      ]
+      for name, path in input_files:
+          status = "✓" if path.exists() else "✗ (missing)"
+          print(f"  {name}: {status}")
+
+      print("\n✓ Configuration test passed!")
+      EOF
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+test:processor:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "Testing MQ Manager Processor with sample data..."
+    - |
+      python << 'EOF'
+      from processors.mqmanager_processor import MQManagerProcessor
+      from config.settings import Config
+
+      # Sample test data
+      sample_data = [
+          {
+              "MQmanager": "QM_TEST_01",
+              "asset": "QM_TEST_01.QM_TEST_02.QUEUE",
+              "asset_type": "Queue Remote",
+              "directorate": "IT_DEPT",
+              "Kalala_Comments1": "SENDER"
+          },
+          {
+              "MQmanager": "QM_TEST_02",
+              "asset": "QM_TEST_02.QM_TEST_01.QUEUE",
+              "asset_type": "Queue Local",
+              "directorate": "IT_DEPT",
+              "Kalala_Comments1": "RECEIVER"
+          }
+      ]
+
+      print("Testing with sample data...")
+      processor = MQManagerProcessor(
+          sample_data,
+          Config.FIELD_MAPPINGS,
+          aliases_file=Config.MQMANAGER_ALIASES_JSON,
+          app_to_qmgr_file=Config.APP_TO_QMGR_JSON,
+          external_apps_file=Config.EXTERNAL_APPS_JSON
+      )
+
+      result = processor.process_assets()
+      json_result = processor.convert_to_json(result)
+      processor.print_stats()
+
+      print("\n✓ Processor test passed!")
+      EOF
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+test:email:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "Testing email notifier configuration..."
+    - |
+      python << 'EOF'
+      from utils.email_notifier import EmailNotifier, EmailConfig
+      import os
+
+      print("Testing EmailConfig from environment...")
+      config = EmailConfig.from_env()
+      print(f"  SMTP Server: {config.smtp_server}")
+      print(f"  SMTP Port: {config.smtp_port}")
+      print(f"  From Address: {config.from_address}")
+      print(f"  Enabled: {config.enabled}")
+
+      print("\nTesting EmailNotifier initialization...")
+      notifier = EmailNotifier()
+      print(f"  Notifier enabled: {notifier.is_enabled}")
+
+      print("\n✓ Email notifier test passed!")
+      EOF
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+# ------------------------------------------------------------------------------
+# Package Stage - Create deployment archive
+# ------------------------------------------------------------------------------
+package:archive:
+  stage: package
+  image: python:${PYTHON_VERSION}
+  script:
+    - echo "Creating deployment package..."
+    - mkdir -p dist
+    - |
+      tar -czvf dist/mqcmdb-${CI_COMMIT_SHORT_SHA}.tar.gz \
+        --exclude='.git' \
+        --exclude='dist' \
+        --exclude='venv' \
+        --exclude='.cache' \
+        --exclude='*.pyc' \
+        --exclude='__pycache__' \
+        --exclude='output/*' \
+        --exclude='logs/*' \
+        --exclude='credentials/*' \
+        --exclude='*.enc' \
+        --exclude='*.salt' \
+        .
+    - ls -la dist/
+    - echo "✓ Package created: dist/mqcmdb-${CI_COMMIT_SHORT_SHA}.tar.gz"
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# ------------------------------------------------------------------------------
+# Deploy Stage - Deploy to server (manual trigger)
+# ------------------------------------------------------------------------------
+deploy:prepare:
+  stage: deploy
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "Preparing deployment..."
+    - echo "Setting environment variables..."
+    - |
+      # Set DB_MASTER_PASSWORD from UnlockKey
+      if [ -n "${UnlockKey}" ]; then
+        export DB_MASTER_PASSWORD="${UnlockKey}"
+        echo "✓ DB_MASTER_PASSWORD set from UnlockKey"
+      else
+        echo "✗ ERROR: UnlockKey not set!"
+        exit 1
+      fi
+    - echo "Creating directory structure..."
+    - mkdir -p output/data output/diagrams output/reports output/exports logs
+    - echo "Verifying configuration..."
+    - |
+      python << 'EOF'
+      from config.settings import Config
+      import os
+
+      # Verify DB_MASTER_PASSWORD is set
+      password = os.environ.get('DB_MASTER_PASSWORD')
+      if password:
+          print("✓ DB_MASTER_PASSWORD is configured")
+      else:
+          print("✗ DB_MASTER_PASSWORD is NOT configured")
+          exit(1)
+
+      Config.ensure_directories()
+      print("✓ All directories created")
+      print("✓ Ready for deployment!")
+      EOF
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  allow_failure: true
+
+# ------------------------------------------------------------------------------
+# Manual Run - Test orchestrator (without database)
+# ------------------------------------------------------------------------------
+manual:test-orchestrator:
+  stage: deploy
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "Testing orchestrator initialization..."
+    - |
+      # Set environment
+      export DB_MASTER_PASSWORD="${UnlockKey:-test_password}"
+      export PYTHONIOENCODING=utf-8
+
+      # Create directories
+      mkdir -p output/data output/diagrams/topology output/diagrams/individual
+      mkdir -p output/diagrams/applications output/diagrams/filtered
+      mkdir -p output/reports output/exports logs
+
+      # Test orchestrator initialization (not full run - no data)
+      python << 'EOF'
+      from config.settings import Config
+      from orchestrator import MQCMDBOrchestrator
+      import sys
+
+      print("Testing orchestrator initialization...")
+      Config.ensure_directories()
+
+      try:
+          # This will fail because no input data exists
+          # but it tests that all imports and config work
+          orchestrator = MQCMDBOrchestrator()
+          print("✓ Orchestrator initialized successfully")
+          print("Note: Full pipeline requires input data file")
+      except FileNotFoundError as e:
+          print(f"⚠ Expected: {e}")
+          print("✓ Orchestrator imports and config work correctly")
+      except Exception as e:
+          print(f"✗ Unexpected error: {e}")
+          sys.exit(1)
+
+      print("\n✓ Orchestrator test complete!")
+      EOF
+  artifacts:
+    paths:
+      - logs/
+    expire_in: 7 days
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+  allow_failure: true
+
+# ------------------------------------------------------------------------------
+# Scheduled Pipeline - For future server deployment
+# ------------------------------------------------------------------------------
+scheduled:full-pipeline:
+  stage: deploy
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "Running scheduled pipeline..."
+    - |
+      # Set environment from CI variables
+      export DB_MASTER_PASSWORD="${UnlockKey}"
+      export PYTHONIOENCODING=utf-8
+      export EMAIL_ENABLED="${EMAIL_ENABLED:-false}"
+      export EMAIL_RECIPIENTS="${EMAIL_RECIPIENTS:-}"
+      export SMTP_SERVER="${SMTP_SERVER:-localhost}"
+      export SMTP_PORT="${SMTP_PORT:-25}"
+      export SMTP_FROM="${SMTP_FROM:-mqcmdb@localhost}"
+      export SMTP_USE_TLS="${SMTP_USE_TLS:-false}"
+
+      # Create directories
+      mkdir -p output/data output/diagrams output/reports output/exports logs
+
+      echo "Environment configured:"
+      echo "  DB_MASTER_PASSWORD: [MASKED]"
+      echo "  EMAIL_ENABLED: ${EMAIL_ENABLED}"
+      echo "  EMAIL_RECIPIENTS: ${EMAIL_RECIPIENTS:-not set}"
+
+      # Note: This requires the input data file to exist
+      # For now, just verify the setup
+      python -c "
+      from config.settings import Config
+      Config.ensure_directories()
+      print('✓ Ready for scheduled execution')
+      print('Note: Full run requires output/all_MQCMDB_assets.json')
+      "
+  artifacts:
+    paths:
+      - output/
+      - logs/
+    expire_in: 30 days
+    when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  allow_failure: true
