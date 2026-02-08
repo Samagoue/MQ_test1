@@ -35,7 +35,7 @@ SELECT DISTINCT MQ_host,
                 ELSE 'Unknown'
             END
         ELSE ''
-    END AS Kalala_Comments1,
+    END AS Role,
     impact,
     APPGroup,
     maillist,

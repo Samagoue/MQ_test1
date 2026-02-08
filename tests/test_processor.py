@@ -24,14 +24,14 @@ def test_processor():
             "asset": "QM_TEST_01.QM_TEST_02.QUEUE",
             "asset_type": "Queue Remote",
             "directorate": "IT_DEPT",
-            "Kalala_Comments1": "SENDER"
+            "Role": "SENDER"
         },
         {
             "MQmanager": "QM_TEST_02",
             "asset": "QM_TEST_02.QM_TEST_01.QUEUE",
             "asset_type": "Queue Local",
             "directorate": "IT_DEPT",
-            "Kalala_Comments1": "RECEIVER"
+            "Role": "RECEIVER"
         }
     ]
 

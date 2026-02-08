@@ -3,6 +3,9 @@
 import time
 import mysql.connector
 from typing import Tuple, List, Optional
+from utils.logging_config import get_logger
+
+logger = get_logger("core.database")
 
 class DatabaseConnection:
     """Manage MariaDB database connections."""
@@ -36,14 +39,14 @@ class DatabaseConnection:
                     port=self.port,
                     connection_timeout=self.CONNECTION_TIMEOUT
                 )
-                print(f"✓ Connected to {self.database} on {self.host}")
+                logger.info(f"✓ Connected to {self.database} on {self.host}")
                 return True
             except mysql.connector.Error as e:
                 if attempt < retries - 1:
-                    print(f"⚠ Connection attempt {attempt + 1} failed: {e}. Retrying in {self.RETRY_DELAY}s...")
+                    logger.warning(f"Connection attempt {attempt + 1} failed: {e}. Retrying in {self.RETRY_DELAY}s...")
                     time.sleep(self.RETRY_DELAY)
                 else:
-                    print(f"✗ Database connection error after {retries} attempts: {e}")
+                    logger.error(f"Database connection error after {retries} attempts: {e}")
                     return False
         return False
 
@@ -60,7 +63,7 @@ class DatabaseConnection:
             rows = cursor.fetchall()
             return columns, rows
         except mysql.connector.Error as e:
-            print(f"✗ Query execution error: {e}")
+            logger.error(f"Query execution error: {e}")
             return None, None
         finally:
             # Always close cursor to prevent resource leak
@@ -75,8 +78,8 @@ class DatabaseConnection:
         if self.conn:
             try:
                 self.conn.close()
-                print("✓ Database connection closed")
+                logger.info("✓ Database connection closed")
             except Exception as e:
-                print(f"⚠ Warning during connection close: {e}")
+                logger.warning(f"Warning during connection close: {e}")
             finally:
                 self.conn = None

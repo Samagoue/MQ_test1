@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
 from utils.common import lighten_color, darken_color
+from utils.logging_config import get_logger
+
+logger = get_logger("generator.hierarchical")
 
 
 class HierarchicalGraphVizGenerator:
@@ -602,21 +605,21 @@ class HierarchicalGraphVizGenerator:
         content = self.generate()
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_text(content, encoding='utf-8')
-        print(f"✓ Hierarchical DOT saved: {filepath}")
+        logger.info(f"✓ Hierarchical DOT saved: {filepath}")
    
     @staticmethod
     def generate_pdf(dot_file: Path, pdf_file: Path) -> bool:
         """Generate PDF using dot."""
         if not shutil.which('dot'):
-            print("⚠ GraphViz not found - PDF generation skipped")
-            print(f"  → Install GraphViz, then run: dot -Tpdf {dot_file} -o {pdf_file}")
+            logger.warning("GraphViz not found - PDF generation skipped")
+            logger.info(f"  → Install GraphViz, then run: dot -Tpdf {dot_file} -o {pdf_file}")
             return False
        
         try:
             subprocess.run(['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)],
                          check=True, capture_output=True)
-            print(f"✓ PDF generated: {pdf_file}")
+            logger.info(f"✓ PDF generated: {pdf_file}")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"✗ PDF generation failed: {e}")
+            logger.error(f"PDF generation failed: {e}")
             return False

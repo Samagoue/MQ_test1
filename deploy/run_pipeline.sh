@@ -345,9 +345,9 @@ run_database_export() {
 run_orchestrator() {
     log_step "Running processing pipeline..."
 
-    local cmd="python3 orchestrator.py"
+    local cmd="python3 cli.py run"
     if [ "$DIAGRAMS_ONLY" = true ]; then
-        cmd="$cmd --mode diagrams-only"
+        cmd="python3 cli.py diagrams"
     fi
 
     if [ "$DRY_RUN" = true ]; then

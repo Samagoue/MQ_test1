@@ -13,6 +13,10 @@ import re
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+from utils.logging_config import get_logger
+from utils.parallel import DiagramTask, run_parallel
+
+logger = get_logger("export_formats")
 
 
 def _select_layout_engine(dot_file: Path, layout_engine: str = None) -> str:
@@ -54,7 +58,7 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str 
 
     # Check if dot command exists
     if not shutil.which('dot') and not shutil.which('sfdp'):
-        print("⚠ GraphViz not found - cannot generate SVG")
+        logger.warning("GraphViz not found - cannot generate SVG")
         return False
 
     try:
@@ -71,13 +75,13 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str 
         # Post-process SVG to remove underlines from hyperlinks
         _remove_svg_link_underlines(svg_file)
 
-        print(f"✓ SVG generated: {svg_file}")
+        logger.info(f"✓ SVG generated: {svg_file}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ SVG generation failed: {e.stderr}")
+        logger.error(f"SVG generation failed: {e.stderr}")
         return False
     except Exception as e:
-        print(f"✗ SVG generation failed: {e}")
+        logger.error(f"SVG generation failed: {e}")
         return False
 
 
@@ -114,7 +118,7 @@ a text { text-decoration: none !important; }
             svg_file.write_text(content, encoding='utf-8')
     except Exception as e:
         # Non-fatal - SVG still works, just with underlines
-        print(f"  ⚠ Could not remove link underlines: {e}")
+        logger.warning(f"Could not remove link underlines: {e}")
 
 
 def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, layout_engine: str = None) -> bool:
@@ -135,7 +139,7 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, lay
 
     # Check if dot command exists
     if not shutil.which('dot') and not shutil.which('sfdp'):
-        print("⚠ GraphViz not found - cannot generate PNG")
+        logger.warning("GraphViz not found - cannot generate PNG")
         return False
 
     try:
@@ -148,17 +152,28 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, lay
             capture_output=True,
             text=True
         )
-        print(f"✓ PNG generated: {png_file}")
+        logger.info(f"✓ PNG generated: {png_file}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ PNG generation failed: {e.stderr}")
+        logger.error(f"PNG generation failed: {e.stderr}")
         return False
     except Exception as e:
-        print(f"✗ PNG generation failed: {e}")
+        logger.error(f"PNG generation failed: {e}")
         return False
 
 
-def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'png'], dpi: int = 150):
+def _export_single_dot(dot_file: Path, formats: List[str], dpi: int) -> Dict[str, bool]:
+    """Export a single DOT file to the requested formats. Returns {fmt: success}."""
+    results = {}
+    for fmt in formats:
+        if fmt == 'svg':
+            results['svg'] = export_dot_to_svg(dot_file)
+        elif fmt == 'png':
+            results['png'] = export_dot_to_png(dot_file, dpi=dpi)
+    return results
+
+
+def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'png'], dpi: int = 150, max_workers: int = None):
     """
     Export all DOT files in a directory to multiple formats.
 
@@ -166,31 +181,34 @@ def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'p
         directory: Directory containing DOT files
         formats: List of formats to export to ('svg', 'png')
         dpi: Resolution for PNG exports (default: 150)
+        max_workers: Number of parallel workers (None = default)
     """
     if not directory.exists():
-        print(f"⚠ Directory not found: {directory}")
+        logger.warning(f"Directory not found: {directory}")
         return
 
     dot_files = list(directory.glob('*.dot'))
     if not dot_files:
-        print(f"⚠ No DOT files found in {directory}")
+        logger.warning(f"No DOT files found in {directory}")
         return
 
-    success_count = {fmt: 0 for fmt in formats}
     total = len(dot_files)
 
-    for dot_file in dot_files:
-        for fmt in formats:
-            if fmt == 'svg':
-                if export_dot_to_svg(dot_file):
-                    success_count['svg'] += 1
-            elif fmt == 'png':
-                if export_dot_to_png(dot_file, dpi=dpi):
-                    success_count['png'] += 1
+    # Build parallel tasks - one per DOT file
+    tasks = [
+        DiagramTask(
+            f"export:{dot_file.stem}",
+            _export_single_dot,
+            dot_file, formats, dpi
+        )
+        for dot_file in dot_files
+    ]
 
-    print(f"\n✓ Export Summary:")
-    for fmt in formats:
-        print(f"  {fmt.upper()}: {success_count[fmt]}/{total} files")
+    result = run_parallel(tasks, max_workers=max_workers)
+
+    logger.info(f"✓ Export complete: {result.success_count}/{total} files exported")
+    if result.failure_count:
+        logger.warning(f"  {result.failure_count} file(s) failed")
 
 
 def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
@@ -211,8 +229,8 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
         from openpyxl.styles import Font, PatternFill, Alignment
         from openpyxl.utils import get_column_letter
     except ImportError:
-        print("⚠ openpyxl not installed - Excel export not available")
-        print("  Install with: pip install openpyxl")
+        logger.warning("openpyxl not installed - Excel export not available")
+        logger.warning("Install with: pip install openpyxl")
         return False
 
     wb = Workbook()
@@ -398,5 +416,5 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
 
     # Save workbook
     wb.save(output_file)
-    print(f"✓ Excel inventory generated: {output_file}")
+    logger.info(f"✓ Excel inventory generated: {output_file}")
     return True

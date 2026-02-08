@@ -18,7 +18,10 @@ sys.path.insert(0, str(project_root))
 from config.settings import Config
 from core.credentials import CredentialsManager
 from core.database import DatabaseConnection
-from utils.common import safe_print, setup_utf8_output
+from utils.common import setup_utf8_output
+from utils.logging_config import setup_logging, get_logger
+
+logger = get_logger("db_export")
 
 
 def process_batch_queries(db_conn: DatabaseConnection, args):
@@ -28,22 +31,22 @@ def process_batch_queries(db_conn: DatabaseConnection, args):
 
     # Check if query directory exists
     if not query_dir.exists():
-        safe_print(f"Error: Query directory '{query_dir}' does not exist.")
+        logger.error(f"Error: Query directory '{query_dir}' does not exist.")
         return False
 
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
-    safe_print(f"Output directory: {output_dir}")
+    logger.info(f"Output directory: {output_dir}")
 
     # Find all SQL files
     sql_files = list(query_dir.glob('*.sql'))
 
     if not sql_files:
-        safe_print(f"No SQL files found in '{query_dir}'")
+        logger.info(f"No SQL files found in '{query_dir}'")
         return False
 
-    safe_print(f"\nFound {len(sql_files)} SQL file(s) to process")
-    safe_print("=" * 70)
+    logger.info(f"\nFound {len(sql_files)} SQL file(s) to process")
+    logger.info("=" * 70)
 
     # Process each SQL file
     success_count = 0
@@ -57,8 +60,8 @@ def process_batch_queries(db_conn: DatabaseConnection, args):
             # Determine output filename
             output_file = output_dir / f"{query_name}.json"
 
-            safe_print(f"\nProcessing: {query_name}")
-            safe_print("-" * 70)
+            logger.info(f"\nProcessing: {query_name}")
+            logger.info("-" * 70)
 
             # Read query from file
             with open(sql_file, 'r', encoding='utf-8') as f:
@@ -69,22 +72,22 @@ def process_batch_queries(db_conn: DatabaseConnection, args):
 
             if result:
                 success_count += 1
-                safe_print(f"[SUCCESS] Saved to: {output_file}")
+                logger.info(f"[SUCCESS] Saved to: {output_file}")
             else:
                 fail_count += 1
-                safe_print(f"[FAILED] Could not process: {query_name}")
+                logger.warning(f"[FAILED] Could not process: {query_name}")
 
         except Exception as e:
             fail_count += 1
-            safe_print(f"[ERROR] Processing {sql_file}: {str(e)}")
+            logger.error(f"[ERROR] Processing {sql_file}: {str(e)}")
 
     # Summary
-    safe_print("\n" + "=" * 70)
-    safe_print(f"BATCH PROCESSING COMPLETE")
-    safe_print(f"Successful: {success_count}")
-    safe_print(f"Failed: {fail_count}")
-    safe_print(f"Total: {len(sql_files)}")
-    safe_print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info(f"BATCH PROCESSING COMPLETE")
+    logger.info(f"Successful: {success_count}")
+    logger.info(f"Failed: {fail_count}")
+    logger.info(f"Total: {len(sql_files)}")
+    logger.info("=" * 70)
 
     return success_count > 0
 
@@ -94,13 +97,13 @@ def execute_and_save_query(db_conn: DatabaseConnection, query: str,
     """Execute query and save to JSON file."""
     try:
         # Fetch data
-        safe_print(f"Executing query...")
+        logger.info(f"Executing query...")
         columns, rows = db_conn.execute_query(query)
 
         if columns is None or rows is None:
             return False
 
-        safe_print(f"Fetched {len(rows)} rows with {len(columns)} columns")
+        logger.info(f"Fetched {len(rows)} rows with {len(columns)} columns")
 
         # Convert to list of dictionaries
         data = []
@@ -121,9 +124,9 @@ def execute_and_save_query(db_conn: DatabaseConnection, query: str,
             data = deduplicate_assets(data)
             dedup_count = original_count - len(data)
             if dedup_count > 0:
-                safe_print(f"Removed {dedup_count} duplicate record(s)")
+                logger.info(f"Removed {dedup_count} duplicate record(s)")
 
-        safe_print(f"Final dataset: {len(data)} rows")
+        logger.info(f"Final dataset: {len(data)} rows")
 
         # Save to JSON
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -132,9 +135,7 @@ def execute_and_save_query(db_conn: DatabaseConnection, query: str,
         return True
 
     except Exception as e:
-        safe_print(f"Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception(f"Query execution failed: {e}")
         return False
 
 
@@ -151,11 +152,11 @@ def process_single_query(db_conn: DatabaseConnection, args):
         # Only allow alphanumeric characters and underscores
         import re
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', args.table):
-            safe_print(f"Error: Invalid table name '{args.table}'. Table names must contain only letters, numbers, and underscores.")
+            logger.error(f"Error: Invalid table name '{args.table}'. Table names must contain only letters, numbers, and underscores.")
             return False
         query = f"SELECT * FROM {args.table}"
     else:
-        safe_print("Error: No query, query file, or table specified")
+        logger.error("Error: No query, query file, or table specified")
         return False
 
     # Execute and save
@@ -177,6 +178,7 @@ def load_credentials(profile: str) -> Optional[dict]:
 def main():
     """Main entry point."""
     setup_utf8_output()
+    setup_logging()
 
     parser = argparse.ArgumentParser(
         description='Export MariaDB data to JSON',
@@ -220,12 +222,12 @@ Examples:
     # Load credentials
     creds = load_credentials(args.profile)
     if not creds:
-        safe_print(f"No credentials found for profile '{args.profile}'.")
-        safe_print("Run with --setup to configure credentials first.")
+        logger.info(f"No credentials found for profile '{args.profile}'.")
+        logger.info("Run with --setup to configure credentials first.")
         return 1
 
     # Connect to database
-    safe_print(f"\nConnecting to database...")
+    logger.info(f"\nConnecting to database...")
     db_conn = DatabaseConnection(
         host=creds['host'],
         user=creds['user'],
@@ -243,7 +245,7 @@ Examples:
             success = process_batch_queries(db_conn, args)
         else:
             if not args.output:
-                safe_print("Error: --output is required for single query mode")
+                logger.error("Error: --output is required for single query mode")
                 return 1
             success = process_single_query(db_conn, args)
 

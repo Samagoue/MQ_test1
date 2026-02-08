@@ -161,6 +161,9 @@ class Config:
         "exports/EA_Documentation_*.txt"
     ]
 
+    # Parallel Processing
+    PARALLEL_WORKERS = None  # None = auto (min(4, cpu_count)); override with --workers or MQCMDB_WORKERS env var
+
     # Multi-Format Export Settings
     EXPORT_SVG = True  # Export diagrams to SVG format
     EXPORT_PNG = True  # Export diagrams to PNG format
@@ -299,7 +302,7 @@ class Config:
         "asset": "asset",
         "asset_type": "asset_type",
         "directorate": "directorate",
-        "kalala_comments": "Kalala_Comments1",
+        "role": "Role",
         "mq_host": "MQ_host",
         "extrainfo": "extrainfo",
         "impact": "impact",
@@ -311,7 +314,7 @@ class Config:
     ASSET_TYPE_REMOTE = "remote"
     ASSET_TYPE_ALIAS = "alias"
    
-    # Kalala comments values
+    # Role field values
     COMMENT_SENDER = "SENDER"
     COMMENT_RECEIVER = "RECEIVER"
    

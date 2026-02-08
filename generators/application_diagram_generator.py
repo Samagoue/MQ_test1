@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
 from utils.common import lighten_color, darken_color
+from utils.logging_config import get_logger
+from utils.parallel import DiagramTask, run_parallel
+
+logger = get_logger("generator.application")
 
 
 class ApplicationDiagramGenerator:
@@ -27,9 +31,6 @@ class ApplicationDiagramGenerator:
 
         # Build lookup for quick access to any MQ manager's full context
         self.mqmgr_lookup = self._build_mqmgr_lookup()
-
-        # Initialize external_notes list (populated during diagram generation)
-        self.external_notes = []
 
     def _build_mqmgr_lookup(self) -> Dict:
         """Build a lookup dict: {mqmanager_name: full_context}"""
@@ -54,45 +55,69 @@ class ApplicationDiagramGenerator:
        
         return lookup
    
-    def generate_all(self, output_dir: Path) -> int:
-        """Generate diagrams for all applications."""
+    def generate_all(self, output_dir: Path, max_workers=None) -> int:
+        """Generate diagrams for all applications.
+
+        Args:
+            output_dir: Directory to write diagram files.
+            max_workers: Number of parallel workers. None uses the default.
+
+        Returns:
+            Number of successfully generated diagrams.
+        """
         output_dir.mkdir(parents=True, exist_ok=True)
-       
+
         # Collect all applications
         applications = self._collect_applications()
-       
-        print(f"\nGenerating {len(applications)} application diagrams with full hierarchy...")
-       
-        count = 0
-        for app_info in applications:
-            app_name = app_info['application']
-            safe_name = self._sanitize_filename(app_name)
-           
-            dot_file = output_dir / f"{safe_name}.dot"
-            pdf_file = output_dir / f"{safe_name}.pdf"
-           
-            # Generate DOT content
-            dot_content = self._generate_application_diagram(app_info)
-           
-            # Save DOT file
-            dot_file.write_text(dot_content, encoding='utf-8')
-            print(f"  ✓ Generated: {safe_name}.dot")
-           
-            # Generate PDF if GraphViz available
-            if shutil.which('dot'):
-                try:
-                    subprocess.run(
-                        ['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)],
-                        check=True,
-                        capture_output=True
-                    )
-                    print(f"  ✓ Generated: {safe_name}.pdf")
-                except subprocess.CalledProcessError:
-                    print(f"  ⚠ PDF generation failed for {safe_name}")
-           
-            count += 1
-       
-        return count
+
+        if not applications:
+            return 0
+
+        logger.info(f"\nGenerating {len(applications)} application diagrams with full hierarchy...")
+
+        tasks = [
+            DiagramTask(
+                app_info['application'],
+                self._generate_single_app,
+                app_info,
+                output_dir,
+            )
+            for app_info in applications
+        ]
+
+        result = run_parallel(tasks, max_workers=max_workers)
+        return result.success_count
+
+    def _generate_single_app(self, app_info, output_dir):
+        """Generate DOT (and optionally PDF) for a single application.
+
+        Thread-safe: only reads from self.enriched_data/mqmgr_lookup (immutable
+        after __init__) and writes to a unique file path.
+        """
+        app_name = app_info['application']
+        safe_name = self._sanitize_filename(app_name)
+
+        dot_file = output_dir / f"{safe_name}.dot"
+        pdf_file = output_dir / f"{safe_name}.pdf"
+
+        # Generate DOT content
+        dot_content = self._generate_application_diagram(app_info)
+
+        # Save DOT file
+        dot_file.write_text(dot_content, encoding='utf-8')
+        logger.debug(f"  ✓ Generated: {safe_name}.dot")
+
+        # Generate PDF if GraphViz available
+        if shutil.which('dot'):
+            try:
+                subprocess.run(
+                    ['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)],
+                    check=True,
+                    capture_output=True
+                )
+                logger.debug(f"  ✓ Generated: {safe_name}.pdf")
+            except subprocess.CalledProcessError:
+                logger.warning(f"PDF generation failed for {safe_name}")
    
     def _collect_applications(self) -> List[Dict]:
         """Collect all applications from enriched data."""
@@ -150,16 +175,16 @@ class ApplicationDiagramGenerator:
        
         # Group contexts by organization -> department -> biz_ownr -> application
         hierarchy_map = self._organize_contexts_hierarchically(connected_contexts, focus_org, focus_dept, focus_biz_ownr, app_name)
-       
-        # Generate hierarchy
+
+        # Generate hierarchy (external_notes is a local list for thread safety)
         all_connections = []
-        self.external_notes = []  # Reset for this diagram
-        lines.append(self._generate_hierarchy(hierarchy_map, focus_org, focus_dept, focus_biz_ownr, app_name, all_connections))
+        external_notes = []
+        lines.append(self._generate_hierarchy(hierarchy_map, focus_org, focus_dept, focus_biz_ownr, app_name, all_connections, external_notes))
 
         # Generate external connection note boxes (outside all clusters)
-        if self.external_notes:
+        if external_notes:
             lines.append("\n    /* External Connection Notes */")
-            for note in self.external_notes:
+            for note in external_notes:
                 lines.append(note['box_def'])
                 lines.append(note['connection'])
 
@@ -227,8 +252,11 @@ class ApplicationDiagramGenerator:
         return hierarchy
    
     def _generate_hierarchy(self, hierarchy_map: Dict, focus_org: str, focus_dept: str,
-                           focus_biz_ownr: str, focus_app: str, all_connections: List) -> str:
+                           focus_biz_ownr: str, focus_app: str, all_connections: List,
+                           external_notes: List = None) -> str:
         """Generate the hierarchical structure."""
+        if external_notes is None:
+            external_notes = []
         lines = []
        
         for org_name, org_data in sorted(hierarchy_map.items()):
@@ -365,7 +393,7 @@ class ApplicationDiagramGenerator:
                         for mqmgr_name, mq_data in sorted(mqmanagers.items()):
                             lines.append(self._generate_mqmanager_node(
                                 mqmgr_name, mq_data, node_colors, is_focus_app,
-                                "                    ", all_connections
+                                "                    ", all_connections, external_notes
                             ))
 
                         lines.extend(['                }', ''])
@@ -379,8 +407,11 @@ class ApplicationDiagramGenerator:
         return '\n'.join(lines)
    
     def _generate_mqmanager_node(self, mqmgr_name: str, mq_data: Dict, colors: Dict,
-                                 is_focus: bool, indent: str, all_connections: List) -> str:
+                                 is_focus: bool, indent: str, all_connections: List,
+                                 external_notes: List = None) -> str:
         """Generate MQ manager node."""
+        if external_notes is None:
+            external_notes = []
         qm_id = self._sanitize_id(mqmgr_name)
        
         qlocal = mq_data.get('qlocal_count', 0)
@@ -484,7 +515,7 @@ class ApplicationDiagramGenerator:
             # Connection FROM note box TO the MQ manager (top position)
             connection = f"    {note_id} -> {qm_id} [style=dashed color=\"#ffc107\" penwidth=2 constraint=false headport=n tailport=s]"
 
-            self.external_notes.append({'box_def': box_def, 'connection': connection})
+            external_notes.append({'box_def': box_def, 'connection': connection})
 
         # Outbound note positioned on BOTTOM with tailport=s headport=n
         if is_focus and outbound_extra:
@@ -507,7 +538,7 @@ class ApplicationDiagramGenerator:
             # Connection FROM the MQ manager TO note box (bottom position)
             connection = f"    {qm_id} -> {note_id} [style=dashed color=\"#17a2b8\" penwidth=2 constraint=false tailport=s headport=n]"
 
-            self.external_notes.append({'box_def': box_def, 'connection': connection})
+            external_notes.append({'box_def': box_def, 'connection': connection})
 
         return ''.join(node_lines)
    

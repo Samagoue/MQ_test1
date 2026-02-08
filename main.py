@@ -14,7 +14,9 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from orchestrator import MQCMDBOrchestrator
-from utils.common import safe_print
+from utils.logging_config import setup_logging, get_logger
+
+logger = get_logger("main")
 
 
 def print_banner():
@@ -40,7 +42,7 @@ def print_banner():
     ║                                                                    ║
     ╚════════════════════════════════════════════════════════════════════╝
     """
-    safe_print(banner)
+    logger.info(banner)
 
 
 def print_usage():
@@ -77,47 +79,47 @@ REQUIREMENTS:
 
 For more information, see README.md
     """
-    safe_print(usage)
+    logger.info(usage)
 
 
 def check_prerequisites():
     """Check if prerequisites are met."""
     import shutil
     from config.settings import Config
-   
+
     issues = []
     warnings = []
-   
+
     # Check GraphViz (warning only, not blocking)
     if not shutil.which('dot') and not shutil.which('sfdp'):
         warnings.append("GraphViz not found - DOT files will be created but PDFs will be skipped")
         warnings.append("  Install from: https://graphviz.org/download/")
-   
+
     # Check required input files
     if not Config.INPUT_JSON.exists():
         issues.append(f"Required file not found: {Config.INPUT_JSON}")
-   
+
     if not Config.ORG_HIERARCHY_JSON.exists():
         issues.append(f"Required file not found: {Config.ORG_HIERARCHY_JSON}")
-   
+
     if not Config.APP_TO_QMGR_JSON.exists():
         issues.append(f"Required file not found: {Config.APP_TO_QMGR_JSON}")
-   
+
     # Display warnings
     if warnings:
-        safe_print("\n⚠ WARNINGS:\n")
+        logger.warning("\nWARNINGS:\n")
         for warning in warnings:
-            safe_print(f"  ! {warning}")
-        safe_print("")
-   
+            logger.warning(f"  ! {warning}")
+        logger.info("")
+
     # Display blocking issues
     if issues:
-        safe_print("\n⚠ PREREQUISITES NOT MET:\n")
+        logger.error("\nPREREQUISITES NOT MET:\n")
         for issue in issues:
-            safe_print(f"  ✗ {issue}")
-        safe_print("\nPlease resolve these issues before running the pipeline.\n")
+            logger.error(f"  ✗ {issue}")
+        logger.info("\nPlease resolve these issues before running the pipeline.\n")
         return False
-   
+
     return True
 
 
@@ -125,33 +127,37 @@ def main():
     """Main entry point."""
     # Handle help argument
     if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h', 'help']:
+        setup_logging()
         print_usage()
         return 0
-   
+
+    # Initialize logging
+    verbose = '--verbose' in sys.argv or '-v' in sys.argv
+    setup_logging(verbose=verbose)
+
     # Print banner
     print_banner()
-   
+
     # Check prerequisites
-    safe_print("Checking prerequisites...")
+    logger.info("Checking prerequisites...")
     if not check_prerequisites():
         return 1
-   
-    safe_print("✓ All prerequisites met\n")
-   
+
+    logger.info("✓ All prerequisites met\n")
+
     # Run pipeline
     try:
         orchestrator = MQCMDBOrchestrator()
         orchestrator.run_full_pipeline()
         return 0
-   
+
     except KeyboardInterrupt:
-        safe_print("\n\n⚠ Pipeline interrupted by user")
+        logger.warning("\n\nPipeline interrupted by user")
         return 130
-   
+
     except Exception as e:
-        safe_print(f"\n✗ FATAL ERROR: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"\nFATAL ERROR: {e}")
+        logger.exception("Fatal pipeline error")
         return 1
 
 

@@ -12,6 +12,9 @@ from typing import Dict, List, Optional, Set
 from collections import defaultdict
 from pathlib import Path
 import json
+from utils.logging_config import get_logger
+
+logger = get_logger("processor.mqmanager")
 
 
 class MQManagerProcessor:
@@ -76,11 +79,11 @@ class MQManagerProcessor:
         if external_apps_file and external_apps_file.exists():
             self._load_external_apps(external_apps_file)
 
-        print(f"✓ Initialized with {len(self.raw_data)} records")
+        logger.info(f"✓ Initialized with {len(self.raw_data)} records")
         if self.alias_to_canonical:
-            print(f"✓ Loaded {len(self.alias_to_canonical)} MQ Manager aliases")
+            logger.info(f"✓ Loaded {len(self.alias_to_canonical)} MQ Manager aliases")
         if self.known_apps:
-            print(f"✓ Loaded {len(self.known_apps)} known applications")
+            logger.info(f"✓ Loaded {len(self.known_apps)} known applications")
 
     def _load_aliases(self, aliases_file: Path):
         """Load MQ Manager aliases from JSON file."""
@@ -102,7 +105,7 @@ class MQManagerProcessor:
                             self.alias_to_canonical[alias_upper] = canonical
                             self.canonical_to_aliases[canonical].add(alias_upper)
         except Exception as e:
-            print(f"⚠ Warning: Could not load aliases file: {e}")
+            logger.warning(f"Warning: Could not load aliases file: {e}")
 
     def _load_internal_apps(self, app_file: Path):
         """Load internal applications from app_to_qmgr.json."""
@@ -117,7 +120,7 @@ class MQManagerProcessor:
                     self.known_apps[app_upper] = 'Internal'
                     self.app_name_set.add(app_upper)
         except Exception as e:
-            print(f"⚠ Warning: Could not load app_to_qmgr file: {e}")
+            logger.warning(f"Warning: Could not load app_to_qmgr file: {e}")
 
     def _load_external_apps(self, external_file: Path):
         """Load external applications from external_apps.json."""
@@ -133,7 +136,7 @@ class MQManagerProcessor:
                     self.known_apps[app_upper] = app_type
                     self.app_name_set.add(app_upper)
         except Exception as e:
-            print(f"⚠ Warning: Could not load external_apps file: {e}")
+            logger.warning(f"Warning: Could not load external_apps file: {e}")
 
     def _resolve_alias(self, mqmanager: str) -> str:
         """Resolve an MQ Manager name to its canonical form."""
@@ -247,7 +250,7 @@ class MQManagerProcessor:
    
     def _build_index(self):
         """First pass: collect all valid MQmanager names and their aliases."""
-        print("Building MQ Manager index...")
+        logger.info("Building MQ Manager index...")
 
         for record in self.raw_data:
             if not isinstance(record, dict):
@@ -282,7 +285,7 @@ class MQManagerProcessor:
         for alias in self.alias_to_canonical.keys():
             self.valid_mqmanagers.add(alias)
 
-        print(f"✓ Found {len(self.valid_mqmanagers)} unique MQ Managers (including aliases)")
+        logger.info(f"✓ Found {len(self.valid_mqmanagers)} unique MQ Managers (including aliases)")
    
     def process_assets(self) -> Dict:
         """
@@ -294,7 +297,7 @@ class MQManagerProcessor:
         - Application detection (inbound_apps, outbound_apps)
         - Internal vs External application classification
         """
-        print("\nProcessing MQ CMDB assets...")
+        logger.info("Processing MQ CMDB assets...")
 
         # Build index first
         self._build_index()
@@ -320,7 +323,7 @@ class MQManagerProcessor:
         asset_field = self.field_mappings.get('asset', 'asset')
         asset_type_field = self.field_mappings.get('asset_type', 'asset_type')
         directorate_field = self.field_mappings.get('directorate', 'directorate')
-        kalala_field = self.field_mappings.get('kalala_comments', 'Kalala_Comments1')
+        role_field = self.field_mappings.get('role', 'Role')
        
         # Second pass: process each record
         for record in self.raw_data:
@@ -331,7 +334,7 @@ class MQManagerProcessor:
             asset = self._normalize_value(record.get(asset_field, ''))
             asset_type = self._normalize_value(record.get(asset_type_field, '')).lower()
             directorate = self._normalize_value(record.get(directorate_field, ''))
-            kalala_comments = self._normalize_value(record.get(kalala_field, '')).upper()
+            role = self._normalize_value(record.get(role_field, '')).upper()
            
             if not mqmanager:
                 continue
@@ -355,7 +358,7 @@ class MQManagerProcessor:
             # SENDER means: this MQmanager SENDS to the target (outbound connection)
             # RECEIVER means: this MQmanager RECEIVES from the source (inbound connection)
 
-            if 'SENDER' in kalala_comments and asset:
+            if 'SENDER' in role and asset:
                 self.stats['processed_sender'] += 1
 
                 # Extract remaining string after removing MQmanager
@@ -393,7 +396,7 @@ class MQManagerProcessor:
                             directorate_data[directorate][mqmanager]['outbound_extra'].add(remaining)
                             self.stats['outbound_extra_found'] += 1
 
-            elif 'RECEIVER' in kalala_comments and asset:
+            elif 'RECEIVER' in role and asset:
                 self.stats['processed_receiver'] += 1
 
                 # Extract remaining string after removing MQmanager
@@ -465,19 +468,19 @@ class MQManagerProcessor:
    
     def print_stats(self):
         """Print processing statistics."""
-        print("\n" + "=" * 70)
-        print("PROCESSING STATISTICS")
-        print("=" * 70)
-        print(f"Total records:           {self.stats['total_records']}")
-        print(f"Sender records:          {self.stats['processed_sender']}")
-        print(f"Receiver records:        {self.stats['processed_receiver']}")
-        print("-" * 70)
-        print(f"Inbound connections:     {self.stats['inbound_found']}")
-        print(f"Outbound connections:    {self.stats['outbound_found']}")
-        print(f"Inbound_Extra:           {self.stats['inbound_extra_found']}")
-        print(f"Outbound_Extra:          {self.stats['outbound_extra_found']}")
-        print("-" * 70)
-        print(f"Inbound Apps found:      {self.stats['inbound_apps_found']}")
-        print(f"Outbound Apps found:     {self.stats['outbound_apps_found']}")
-        print(f"Aliases resolved:        {self.stats['aliases_resolved']}")
-        print("=" * 70)
+        logger.info("=" * 70)
+        logger.info("PROCESSING STATISTICS")
+        logger.info("=" * 70)
+        logger.info(f"Total records:           {self.stats['total_records']}")
+        logger.info(f"Sender records:          {self.stats['processed_sender']}")
+        logger.info(f"Receiver records:        {self.stats['processed_receiver']}")
+        logger.info("-" * 70)
+        logger.info(f"Inbound connections:     {self.stats['inbound_found']}")
+        logger.info(f"Outbound connections:    {self.stats['outbound_found']}")
+        logger.info(f"Inbound_Extra:           {self.stats['inbound_extra_found']}")
+        logger.info(f"Outbound_Extra:          {self.stats['outbound_extra_found']}")
+        logger.info("-" * 70)
+        logger.info(f"Inbound Apps found:      {self.stats['inbound_apps_found']}")
+        logger.info(f"Outbound Apps found:     {self.stats['outbound_apps_found']}")
+        logger.info(f"Aliases resolved:        {self.stats['aliases_resolved']}")
+        logger.info("=" * 70)

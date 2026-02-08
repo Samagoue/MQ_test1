@@ -4,6 +4,10 @@ from typing import Dict
 from pathlib import Path
 from datetime import datetime
 from utils.common import lighten_color, darken_color
+from utils.logging_config import get_logger
+from utils.parallel import DiagramTask, run_parallel
+
+logger = get_logger("generator.individual")
 
 
 class IndividualDiagramGenerator:
@@ -245,23 +249,43 @@ class IndividualDiagramGenerator:
                 return directorate
         return "Unknown"
    
-    def generate_all(self, output_dir: Path) -> int:
-        """Generate all individual diagrams."""
+    def generate_all(self, output_dir: Path, max_workers=None) -> int:
+        """Generate all individual diagrams.
+
+        Args:
+            output_dir: Directory to write diagram files.
+            max_workers: Number of parallel workers. None uses the default.
+
+        Returns:
+            Number of successfully generated diagrams.
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        tasks = []
+        for directorate, mqmanagers in self.data.items():
+            for mqmanager, info in mqmanagers.items():
+                tasks.append(DiagramTask(
+                    mqmanager,
+                    self._generate_single,
+                    mqmanager, directorate, info, output_dir,
+                ))
+
+        if not tasks:
+            return 0
+
+        logger.info(f"Generating {len(tasks)} individual MQ manager diagrams...")
+        result = run_parallel(tasks, max_workers=max_workers)
+        return result.success_count
+
+    def _generate_single(self, mqmanager, directorate, info, output_dir):
+        """Generate DOT and PDF for a single MQ manager. Thread-safe."""
         from utils.common import sanitize_id
         from generators.graphviz_topology import GraphVizTopologyGenerator
 
-        output_dir.mkdir(parents=True, exist_ok=True)
-        count = 0
+        dot_content = self.generate_diagram(mqmanager, directorate, info)
+        safe_name = sanitize_id(mqmanager)
+        dot_file = output_dir / f"{safe_name}.dot"
+        pdf_file = output_dir / f"{safe_name}.pdf"
 
-        for directorate, mqmanagers in self.data.items():
-            for mqmanager, info in mqmanagers.items():
-                dot_content = self.generate_diagram(mqmanager, directorate, info)
-                safe_name = sanitize_id(mqmanager)
-                dot_file = output_dir / f"{safe_name}.dot"
-                pdf_file = output_dir / f"{safe_name}.pdf"
-
-                dot_file.write_text(dot_content, encoding='utf-8')
-                GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)
-                count += 1
-
-        return count
+        dot_file.write_text(dot_content, encoding='utf-8')
+        GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)

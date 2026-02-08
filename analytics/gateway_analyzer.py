@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from collections import defaultdict
 from datetime import datetime
+from utils.logging_config import get_logger
+
+logger = get_logger("analytics.gateway")
 
 
 class GatewayAnalyzer:
@@ -618,4 +621,4 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
 
-    print(f"✓ Gateway analytics report generated: {output_file}")
+    logger.info(f"✓ Gateway analytics report generated: {output_file}")

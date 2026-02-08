@@ -4,6 +4,9 @@ import subprocess
 import shutil
 from typing import Dict, List
 from pathlib import Path
+from utils.logging_config import get_logger
+
+logger = get_logger("generator.topology")
 
 class GraphVizTopologyGenerator:
     """Generate complete MQ topology diagrams."""
@@ -352,19 +355,19 @@ class GraphVizTopologyGenerator:
         content = self.generate()
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_text(content, encoding='utf-8')
-        print(f"✓ DOT file saved: {filepath}")
+        logger.info(f"✓ DOT file saved: {filepath}")
    
     @staticmethod
     def generate_pdf(dot_file: Path, pdf_file: Path) -> bool:
         """Generate PDF from DOT file."""
         if not shutil.which('dot'):
-            print("⚠ Graphviz 'dot' not found. Install from: https://graphviz.org/download/")
+            logger.warning("Graphviz 'dot' not found. Install from: https://graphviz.org/download/")
             return False
        
         try:
             subprocess.run(['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)], check=True, capture_output=True)
-            print(f"✓ PDF generated: {pdf_file}")
+            logger.info(f"✓ PDF generated: {pdf_file}")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"✗ PDF generation failed: {e}")
+            logger.error(f"PDF generation failed: {e}")
             return False

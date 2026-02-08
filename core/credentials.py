@@ -8,6 +8,9 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from utils.logging_config import get_logger
+
+logger = get_logger("core.credentials")
 
 class CredentialsManager:
     """Manage encrypted database credentials."""
@@ -42,8 +45,8 @@ class CredentialsManager:
                 all_profiles = json.loads(decrypted)
             except (json.JSONDecodeError, Exception) as e:
                 # Log the error but continue - we'll create a new file
-                print(f"⚠ Warning: Could not decrypt existing credentials (wrong password or corrupted file): {e}")
-                print("  Existing profiles will be overwritten.")
+                logger.warning(f"Could not decrypt existing credentials (wrong password or corrupted file): {e}")
+                logger.warning("Existing profiles will be overwritten.")
                 all_profiles = {}
        
         # Add/update profile
@@ -52,7 +55,7 @@ class CredentialsManager:
         # Encrypt and save
         encrypted = fernet.encrypt(json.dumps(all_profiles).encode())
         self.credentials_file.write_bytes(encrypted)
-        print(f"✓ Credentials saved for profile '{profile}'")
+        logger.info(f"✓ Credentials saved for profile '{profile}'")
    
     def load_credentials(self, profile: str) -> dict:
         """Load and decrypt credentials."""
@@ -66,7 +69,7 @@ class CredentialsManager:
                 # Check if running in interactive mode (stdin is a terminal)
                 import sys
                 if not sys.stdin.isatty():
-                    print("✗ Error: DB_MASTER_PASSWORD environment variable not set and running in non-interactive mode")
+                    logger.error("DB_MASTER_PASSWORD environment variable not set and running in non-interactive mode")
                     return None
                 password = getpass.getpass("Enter master password: ")
            
@@ -76,17 +79,17 @@ class CredentialsManager:
             all_profiles = json.loads(decrypted)
            
             if profile not in all_profiles:
-                print(f"✗ Profile '{profile}' not found")
+                logger.error(f"Profile '{profile}' not found")
                 return None
            
             return all_profiles[profile]
         except Exception as e:
-            print(f"✗ Error loading credentials: {e}")
+            logger.error(f"Error loading credentials: {e}")
             return None
    
     def setup_interactive(self, profile: str):
         """Interactive credentials setup."""
-        print(f"\n=== Setup credentials for '{profile}' ===\n")
+        logger.info(f"=== Setup credentials for '{profile}' ===")
        
         host = input("Database host: ")
         port = input("Database port (default 3306): ") or "3306"
@@ -102,13 +105,13 @@ class CredentialsManager:
             'password': password
         }
        
-        print("\nSet a master password to encrypt these credentials:")
+        logger.info("Set a master password to encrypt these credentials:")
         master_password = getpass.getpass("Master password: ")
         confirm_password = getpass.getpass("Confirm master password: ")
        
         if master_password != confirm_password:
-            print("✗ Passwords don't match")
+            logger.error("Passwords don't match")
             return
        
         self.save_credentials(profile, credentials, master_password)
-        print("\n✓ Setup complete!")
+        logger.info("✓ Setup complete!")

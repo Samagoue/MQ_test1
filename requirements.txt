@@ -13,6 +13,9 @@ openpyxl>=3.0.0
 # Confluence API integration (optional - for confluence_sync)
 requests>=2.25.0
 
+# Modern CLI interface
+click>=8.0.0
+
 # Note: GraphViz must be installed separately via system package manager:
 #   - macOS: brew install graphviz
 #   - Ubuntu/Debian: sudo apt-get install graphviz

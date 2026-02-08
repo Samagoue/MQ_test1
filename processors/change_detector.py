@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from datetime import datetime
 from utils.file_io import load_json, save_json
+from utils.logging_config import get_logger
+
+logger = get_logger("processor.change")
 
 
 class ChangeDetector:
@@ -718,4 +721,4 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
 
-    print(f"✓ Change report generated: {output_file}")
+    logger.info(f"✓ Change report generated: {output_file}")

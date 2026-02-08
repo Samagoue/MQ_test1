@@ -18,6 +18,9 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from datetime import datetime
 from collections import defaultdict
+from utils.logging_config import get_logger
+
+logger = get_logger("generator.doc")
 
 
 class EADocumentationGenerator:
@@ -441,7 +444,7 @@ class EADocumentationGenerator:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write('\n'.join(doc))
 
-        print(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
+        logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
         return True
 
     def _generate_document_header(self) -> List[str]:

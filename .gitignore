@@ -12,9 +12,33 @@ venv/
 env/
 .venv/
 
-# Output and logs
-output/
-logs/
+# Logs - ignore contents, keep structure
+logs/*
+!logs/.gitkeep
+
+# Output data - ignore contents, keep structure
+output/data/*
+!output/data/.gitkeep
+
+# Output diagrams - ignore contents, keep structure
+output/diagrams/applications/*
+!output/diagrams/applications/.gitkeep
+output/diagrams/filtered/*
+!output/diagrams/filtered/.gitkeep
+output/diagrams/individual/*
+!output/diagrams/individual/.gitkeep
+output/diagrams/topology/*
+!output/diagrams/topology/.gitkeep
+
+# Output reports - ignore contents, keep structure
+output/reports/*
+!output/reports/.gitkeep
+
+# Output exports - ignore contents, keep structure
+output/exports/*
+!output/exports/.gitkeep
+
+# Log files anywhere
 *.log
 
 # Credentials and sensitive data

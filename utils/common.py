@@ -3,6 +3,10 @@
 import sys
 import re
 import hashlib
+import logging
+from utils.logging_config import get_logger
+
+_logger = get_logger("common")
 
 
 def setup_utf8_output():
@@ -16,16 +20,22 @@ def setup_utf8_output():
 def safe_print(text: str):
     """
     Safely print text, handling encoding issues gracefully.
-   
+
+    Delegates to the mqcmdb logger when logging has been initialized.
+    Falls back to print() otherwise.
+
     Args:
         text: String to print
     """
-    try:
-        print(text)
-    except UnicodeEncodeError:
-        # Fallback: replace problematic characters
-        safe_text = text.encode('ascii', 'replace').decode('ascii')
-        print(safe_text)
+    logger = logging.getLogger("mqcmdb")
+    if logger.handlers:
+        logger.info(text)
+    else:
+        try:
+            print(text)
+        except UnicodeEncodeError:
+            safe_text = text.encode('ascii', 'replace').decode('ascii')
+            print(safe_text)
 
 
 def sanitize_id(name: str) -> str:
@@ -181,7 +191,7 @@ def validate_file_exists(filepath, file_type: str = "file") -> bool:
    
     path = Path(filepath)
     if not path.exists():
-        safe_print(f"✗ ERROR: {file_type} not found: {filepath}")
+        _logger.error(f"ERROR: {file_type} not found: {filepath}")
         return False
     return True
 
@@ -202,7 +212,7 @@ def ensure_directory(dirpath) -> bool:
         Path(dirpath).mkdir(parents=True, exist_ok=True)
         return True
     except Exception as e:
-        safe_print(f"✗ ERROR: Could not create directory {dirpath}: {e}")
+        _logger.error(f"ERROR: Could not create directory {dirpath}: {e}")
         return False
 
 
