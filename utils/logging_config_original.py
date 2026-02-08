@@ -2,6 +2,8 @@
 
 Provides dual-output logging: user-friendly console output (preserving emoji indicators)
 and structured file output with timestamps, levels, and rotation.
+
+Includes a built-in ASCII art text generator and customizable startup banner.
 """
 
 import logging
@@ -10,33 +12,460 @@ import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Dict, List, Optional
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Built-in ASCII Art Font  (6 rows per character, variable width)
+# ──────────────────────────────────────────────────────────────────────────────
+# Each character maps to a list of 6 strings (one per row).
+# Uses Unicode block characters: █ ▀ ▄ ░
+#
+_FONT = {
+    "A": [
+        " ██████╗ ",
+        "██╔══██╗",
+        "███████║",
+        "██╔══██║",
+        "██║  ██║",
+        "╚═╝  ╚═╝",
+    ],
+    "B": [
+        "██████╗ ",
+        "██╔══██╗",
+        "██████╔╝",
+        "██╔══██╗",
+        "██████╔╝",
+        "╚═════╝ ",
+    ],
+    "C": [
+        " ██████╗",
+        "██╔════╝",
+        "██║     ",
+        "██║     ",
+        "╚██████╗",
+        " ╚═════╝",
+    ],
+    "D": [
+        "██████╗ ",
+        "██╔══██╗",
+        "██║  ██║",
+        "██║  ██║",
+        "██████╔╝",
+        "╚═════╝ ",
+    ],
+    "E": [
+        "███████╗",
+        "██╔════╝",
+        "█████╗  ",
+        "██╔══╝  ",
+        "███████╗",
+        "╚══════╝",
+    ],
+    "F": [
+        "███████╗",
+        "██╔════╝",
+        "█████╗  ",
+        "██╔══╝  ",
+        "██║     ",
+        "╚═╝     ",
+    ],
+    "G": [
+        " ██████╗ ",
+        "██╔════╝ ",
+        "██║  ███╗",
+        "██║   ██║",
+        "╚██████╔╝",
+        " ╚═════╝ ",
+    ],
+    "H": [
+        "██╗  ██╗",
+        "██║  ██║",
+        "███████║",
+        "██╔══██║",
+        "██║  ██║",
+        "╚═╝  ╚═╝",
+    ],
+    "I": [
+        "██╗",
+        "██║",
+        "██║",
+        "██║",
+        "██║",
+        "╚═╝",
+    ],
+    "J": [
+        "     ██╗",
+        "     ██║",
+        "     ██║",
+        "██   ██║",
+        "╚█████╔╝",
+        " ╚════╝ ",
+    ],
+    "K": [
+        "██╗  ██╗",
+        "██║ ██╔╝",
+        "█████╔╝ ",
+        "██╔═██╗ ",
+        "██║  ██╗",
+        "╚═╝  ╚═╝",
+    ],
+    "L": [
+        "██╗     ",
+        "██║     ",
+        "██║     ",
+        "██║     ",
+        "███████╗",
+        "╚══════╝",
+    ],
+    "M": [
+        "███╗   ███╗",
+        "████╗ ████║",
+        "██╔████╔██║",
+        "██║╚██╔╝██║",
+        "██║ ╚═╝ ██║",
+        "╚═╝     ╚═╝",
+    ],
+    "N": [
+        "███╗   ██╗",
+        "████╗  ██║",
+        "██╔██╗ ██║",
+        "██║╚██╗██║",
+        "██║ ╚████║",
+        "╚═╝  ╚═══╝",
+    ],
+    "O": [
+        " ██████╗ ",
+        "██╔═══██╗",
+        "██║   ██║",
+        "██║   ██║",
+        "╚██████╔╝",
+        " ╚═════╝ ",
+    ],
+    "P": [
+        "██████╗ ",
+        "██╔══██╗",
+        "██████╔╝",
+        "██╔═══╝ ",
+        "██║     ",
+        "╚═╝     ",
+    ],
+    "Q": [
+        " ██████╗ ",
+        "██╔═══██╗",
+        "██║   ██║",
+        "██║▄▄ ██║",
+        "╚██████╔╝",
+        " ╚══▀▀═╝ ",
+    ],
+    "R": [
+        "██████╗ ",
+        "██╔══██╗",
+        "██████╔╝",
+        "██╔══██╗",
+        "██║  ██║",
+        "╚═╝  ╚═╝",
+    ],
+    "S": [
+        "███████╗",
+        "██╔════╝",
+        "███████╗",
+        "╚════██║",
+        "███████║",
+        "╚══════╝",
+    ],
+    "T": [
+        "████████╗",
+        "╚══██╔══╝",
+        "   ██║   ",
+        "   ██║   ",
+        "   ██║   ",
+        "   ╚═╝   ",
+    ],
+    "U": [
+        "██╗   ██╗",
+        "██║   ██║",
+        "██║   ██║",
+        "██║   ██║",
+        "╚██████╔╝",
+        " ╚═════╝ ",
+    ],
+    "V": [
+        "██╗   ██╗",
+        "██║   ██║",
+        "██║   ██║",
+        "╚██╗ ██╔╝",
+        " ╚████╔╝ ",
+        "  ╚═══╝  ",
+    ],
+    "W": [
+        "██╗    ██╗",
+        "██║    ██║",
+        "██║ █╗ ██║",
+        "██║███╗██║",
+        "╚███╔███╔╝",
+        " ╚══╝╚══╝ ",
+    ],
+    "X": [
+        "██╗  ██╗",
+        "╚██╗██╔╝",
+        " ╚███╔╝ ",
+        " ██╔██╗ ",
+        "██╔╝ ██╗",
+        "╚═╝  ╚═╝",
+    ],
+    "Y": [
+        "██╗   ██╗",
+        "╚██╗ ██╔╝",
+        " ╚████╔╝ ",
+        "  ╚██╔╝  ",
+        "   ██║   ",
+        "   ╚═╝   ",
+    ],
+    "Z": [
+        "███████╗",
+        "╚══███╔╝",
+        "  ███╔╝ ",
+        " ███╔╝  ",
+        "███████╗",
+        "╚══════╝",
+    ],
+    "0": [
+        " ██████╗ ",
+        "██╔═████╗",
+        "██║██╔██║",
+        "████╔╝██║",
+        "╚██████╔╝",
+        " ╚═════╝ ",
+    ],
+    "1": [
+        " ██╗",
+        "███║",
+        "╚██║",
+        " ██║",
+        " ██║",
+        " ╚═╝",
+    ],
+    "2": [
+        "██████╗ ",
+        "╚════██╗",
+        " █████╔╝",
+        "██╔═══╝ ",
+        "███████╗",
+        "╚══════╝",
+    ],
+    "3": [
+        "██████╗ ",
+        "╚════██╗",
+        " █████╔╝",
+        " ╚═══██╗",
+        "██████╔╝",
+        "╚═════╝ ",
+    ],
+    "4": [
+        "██╗  ██╗",
+        "██║  ██║",
+        "███████║",
+        "╚════██║",
+        "     ██║",
+        "     ╚═╝",
+    ],
+    "5": [
+        "███████╗",
+        "██╔════╝",
+        "███████╗",
+        "╚════██║",
+        "███████║",
+        "╚══════╝",
+    ],
+    "6": [
+        " ██████╗",
+        "██╔════╝",
+        "██████╗ ",
+        "██╔══██╗",
+        "╚█████╔╝",
+        " ╚════╝ ",
+    ],
+    "7": [
+        "███████╗",
+        "╚════██║",
+        "    ██╔╝",
+        "   ██╔╝ ",
+        "   ██║  ",
+        "   ╚═╝  ",
+    ],
+    "8": [
+        " █████╗ ",
+        "██╔══██╗",
+        "╚█████╔╝",
+        "██╔══██╗",
+        "╚█████╔╝",
+        " ╚════╝ ",
+    ],
+    "9": [
+        " █████╗ ",
+        "██╔══██╗",
+        "╚██████║",
+        " ╚═══██║",
+        " █████╔╝",
+        " ╚════╝ ",
+    ],
+    " ": [
+        "   ",
+        "   ",
+        "   ",
+        "   ",
+        "   ",
+        "   ",
+    ],
+    "-": [
+        "      ",
+        "      ",
+        "█████╗",
+        "╚════╝",
+        "      ",
+        "      ",
+    ],
+    ".": [
+        "   ",
+        "   ",
+        "   ",
+        "   ",
+        "██╗",
+        "╚═╝",
+    ],
+    "_": [
+        "        ",
+        "        ",
+        "        ",
+        "        ",
+        "████████",
+        "╚═══════",
+    ],
+}
+
+# Number of rows in the font
+_FONT_ROWS = 6
+
+
+def generate_ascii_art(text: str) -> List[str]:
+    """
+    Generate ASCII art from a text string using the built-in block font.
+
+    Supported characters: A-Z, 0-9, space, dash, period, underscore.
+    Unsupported characters are silently skipped.
+
+    Args:
+        text: The text to render (case-insensitive).
+
+    Returns:
+        A list of strings, one per row of the rendered text.
+
+    Example:
+        >>> lines = generate_ascii_art("MQ")
+        >>> for line in lines:
+        ...     print(line)
+    """
+    text = text.upper()
+    rows = [""] * _FONT_ROWS
+    for ch in text:
+        glyph = _FONT.get(ch)
+        if glyph is None:
+            continue
+        for i in range(_FONT_ROWS):
+            rows[i] += glyph[i]
+    return rows
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Default ASCII Banner Configuration
+# ──────────────────────────────────────────────────────────────────────────────
+# Override any of these keys when calling setup_logging(banner_config={...})
+#
+# Two ways to specify the art:
+#   1. "art": [list of pre-made art lines]    - use your own ASCII art
+#   2. "art_text": "MY TEXT"                  - auto-generate from built-in font
+#
+# If both are provided, "art_text" takes priority.
+#
+DEFAULT_BANNER_CONFIG = {
+    "enabled": True,
+    "art_text": "LOG",
+    "art": [],
+    "title": "",
+    "version": "",
+    "subtitle": "",
+    "border_char": "=",
+    "border_width": 70,
+    "show_timestamp": True,
+    "show_log_path": True,
+}
 
 
 class EmojiFormatter(logging.Formatter):
     """Console formatter that preserves emoji-rich output style."""
 
     def format(self, record):
-        # For INFO, print message as-is (preserves existing emoji output)
         if record.levelno == logging.INFO:
             return record.getMessage()
-        # For WARNING, prefix with warning symbol if not already present
         msg = record.getMessage()
         if record.levelno == logging.WARNING:
             if not msg.startswith(('\u26a0', '!')):
                 msg = f"\u26a0 {msg}"
             return msg
-        # For ERROR/CRITICAL, prefix with cross mark if not already present
         if record.levelno >= logging.ERROR:
             if not msg.startswith(('\u2717', '\u2718', '\u2716')):
                 msg = f"\u2717 {msg}"
             return msg
-        # For DEBUG, prefix with dim indicator
         if record.levelno == logging.DEBUG:
             return f"  [DEBUG] {msg}"
         return msg
 
 
-def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb"):
+def _build_banner(config: Dict, log_file_path: Optional[str] = None) -> str:
+    """
+    Build the ASCII banner string from a config dict.
+
+    If config["art_text"] is provided, the art is auto-generated.
+    Otherwise config["art"] (a list of pre-made lines) is used.
+    """
+    border = config["border_char"] * config["border_width"]
+    lines = ["", border, ""]
+
+    # ASCII art - auto-generate from text or use provided lines
+    if config.get("art_text"):
+        art_lines = generate_ascii_art(config["art_text"])
+        for art_line in art_lines:
+            lines.append(f"  {art_line}")
+    elif config.get("art"):
+        for art_line in config["art"]:
+            lines.append(art_line)
+
+    lines.append("")
+
+    if config.get("title"):
+        lines.append(f"  {config['title']}")
+
+    if config.get("version"):
+        lines.append(f"  Version {config['version']}")
+
+    if config.get("subtitle"):
+        lines.append(f"  {config['subtitle']}")
+
+    lines.append("")
+
+    if config.get("show_timestamp"):
+        lines.append(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    if config.get("show_log_path") and log_file_path:
+        lines.append(f"  Log:     {log_file_path}")
+
+    lines.extend(["", border, ""])
+    return "\n".join(lines)
+
+
+def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
+                  banner_config: Optional[Dict] = None):
     """
     Initialize the dual-output logging system.
 
@@ -44,13 +473,16 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb"):
         verbose: If True, set console handler to DEBUG level.
         log_dir: Directory for log files. Defaults to Config.LOGS_DIR.
         log_prefix: Prefix for log filenames.
+        banner_config: Dict to override banner defaults. Examples:
+            {"art_text": "MY APP"}          - auto-generate art from text
+            {"art": [lines], "title": "X"}  - use pre-made art
+            {"enabled": False}              - suppress the banner
 
     Returns:
         The configured root logger for the application.
     """
     logger = logging.getLogger("mqcmdb")
 
-    # Avoid adding duplicate handlers if called multiple times
     if logger.handlers:
         return logger
 
@@ -64,7 +496,6 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb"):
 
     # --- File handler ---
     if log_dir is None:
-        # Import here to avoid circular imports
         from config.settings import Config
         log_dir = Config.LOGS_DIR
 
@@ -87,6 +518,15 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb"):
     )
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
+
+    # --- Banner ---
+    cfg = dict(DEFAULT_BANNER_CONFIG)
+    if banner_config:
+        cfg.update(banner_config)
+
+    if cfg["enabled"]:
+        banner = _build_banner(cfg, log_file_path=str(log_file))
+        logger.info(banner)
 
     return logger
 

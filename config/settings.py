@@ -148,6 +148,13 @@ class Config:
     DEFAULT_FORMAT = "json"
     LOG_RETENTION_DAYS = 7
 
+    # ==================== BANNER ====================
+    BANNER_CONFIG = {
+        "art_text": "MQ CMDB",
+        "title": "MQ CMDB HIERARCHICAL AUTOMATION SYSTEM",
+        "version": "1.0",
+    }
+
     # Output Cleanup Settings
     ENABLE_OUTPUT_CLEANUP = True       # Enable automatic cleanup of old output files
     OUTPUT_RETENTION_DAYS = 30         # Delete output files older than this many days

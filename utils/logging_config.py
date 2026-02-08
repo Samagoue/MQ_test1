@@ -15,7 +15,7 @@ if _SHARED_SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SHARED_SCRIPTS_DIR)
 
 try:
-    from logging_config import setup_logging, get_logger, cleanup_old_logs, EmojiFormatter  # noqa: F401
+    from logging_config import setup_logging, get_logger, cleanup_old_logs, EmojiFormatter, DEFAULT_BANNER_CONFIG, generate_ascii_art  # noqa: F401
 except ImportError:
     # Fallback to local copy when shared path is not available
-    from utils.logging_config_original import setup_logging, get_logger, cleanup_old_logs, EmojiFormatter  # noqa: F401
+    from utils.logging_config_original import setup_logging, get_logger, cleanup_old_logs, EmojiFormatter, DEFAULT_BANNER_CONFIG, generate_ascii_art  # noqa: F401

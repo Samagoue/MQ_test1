@@ -178,7 +178,8 @@ def load_credentials(profile: str) -> Optional[dict]:
 def main():
     """Main entry point."""
     setup_utf8_output()
-    setup_logging()
+    from config.settings import Config
+    setup_logging(banner_config=Config.BANNER_CONFIG)
 
     parser = argparse.ArgumentParser(
         description='Export MariaDB data to JSON',

@@ -38,7 +38,8 @@ def cli(ctx, verbose, dry_run):
     ctx.obj['dry_run'] = dry_run
 
     setup_utf8_output()
-    setup_logging(verbose=verbose)
+    from config.settings import Config
+    setup_logging(verbose=verbose, banner_config=Config.BANNER_CONFIG)
 
 
 @cli.command()

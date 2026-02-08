@@ -127,13 +127,14 @@ def main():
     """Main entry point."""
     # Handle help argument
     if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h', 'help']:
-        setup_logging()
+        setup_logging(banner_config={"enabled": False})
         print_usage()
         return 0
 
     # Initialize logging
+    from config.settings import Config
     verbose = '--verbose' in sys.argv or '-v' in sys.argv
-    setup_logging(verbose=verbose)
+    setup_logging(verbose=verbose, banner_config=Config.BANNER_CONFIG)
 
     # Print banner
     print_banner()

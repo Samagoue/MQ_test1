@@ -55,31 +55,9 @@ SET LOG_FILE=%LOG_FILE: =0%
 REM Set UTF-8 encoding
 SET PYTHONIOENCODING=utf-8
 
-REM Log start with banner
+REM Log start (banner is handled by Python setup_logging)
 echo. > %LOG_FILE%
-echo. >> %LOG_FILE%
-echo     ╔════════════════════════════════════════════════════════════════════╗ >> %LOG_FILE%
-echo     ║                                                                    ║ >> %LOG_FILE%
-echo     ║       ███╗   ███╗ ██████╗      ██████╗███╗   ███╗██████╗ ██████╗   ║ >> %LOG_FILE%
-echo     ║       ████╗ ████║██╔═══██╗    ██╔════╝████╗ ████║██╔══██╗██╔══██╗  ║ >> %LOG_FILE%
-echo     ║       ██╔████╔██║██║   ██║    ██║     ██╔████╔██║██████╔╝██████╔╝  ║ >> %LOG_FILE%
-echo     ║       ██║╚██╔╝██║██║   ██║    ██║     ██║╚██╔╝██║██╔══██╗██╔══██╗  ║ >> %LOG_FILE%
-echo     ║       ██║ ╚═╝ ██║╚██████╔╝    ╚██████╗██║ ╚═╝ ██║██████╔╝██║  ██║  ║ >> %LOG_FILE%
-echo     ║       ╚═╝     ╚═╝ ╚═════╝      ╚═════╝╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝  ║ >> %LOG_FILE%
-echo     ║        MQ CMDB HIERARCHICAL AUTOMATION SYSTEM                      ║ >> %LOG_FILE%
-echo     ║        Version 1.0                                                 ║ >> %LOG_FILE%
-echo     ║                                                                    ║ >> %LOG_FILE%
-echo     ║        Processes IBM MQ CMDB data and generates:                   ║ >> %LOG_FILE%
-echo     ║        • Hierarchical organization topology diagrams               ║ >> %LOG_FILE%
-echo     ║        • Application-focused connection diagrams                   ║ >> %LOG_FILE%
-echo     ║        • Individual MQ manager connection diagrams                 ║ >> %LOG_FILE%
-echo     ║        • JSON data with full organizational enrichment             ║ >> %LOG_FILE%
-echo     ║                                                                    ║ >> %LOG_FILE%
-echo     ╚════════════════════════════════════════════════════════════════════╝ >> %LOG_FILE%
-echo. >> %LOG_FILE%
-echo ======================================================================== >> %LOG_FILE%
 echo Export started at %date% %time% >> %LOG_FILE%
-echo ======================================================================== >> %LOG_FILE%
 
 REM Run database export
 python db_export.py --profile production --batch 2>&1 >> %LOG_FILE%
