@@ -1,0 +1,40 @@
+# Local testing files (may contain passwords)
+run_batch_export_local.bat
+run_pipeline_local.sh
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# Output and logs
+output/
+logs/
+*.log
+
+# Credentials and sensitive data
+credentials/
+*.enc
+*.salt
+.env
+*.ini
+!email_config.ini.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Distribution
+dist/
+*.tar.gz
+
+# Cache
+.cache/
+.pytest_cache/
