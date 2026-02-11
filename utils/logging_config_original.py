@@ -422,12 +422,21 @@ class EmojiFormatter(logging.Formatter):
         return msg
 
 
+def _add_text_lines(content_lines: list, text: str, indent: str = "        "):
+    """Split a string on newlines, expand tabs, and append each line."""
+    for line in text.split('\n'):
+        line = line.expandtabs(8)
+        content_lines.append(f"{indent}{line}")
+
+
 def _build_banner(config: Dict, log_file_path: Optional[str] = None) -> str:
     """
     Build the ASCII banner string with a Unicode box border.
 
     If config["art_text"] is provided, the art is auto-generated.
     Otherwise config["art"] (a list of pre-made lines) is used.
+
+    Subtitle and title may contain newlines to produce multi-line sections.
 
     Uses box-drawing characters: ╔ ═ ╗ ║ ╚ ╝
     """
@@ -446,13 +455,13 @@ def _build_banner(config: Dict, log_file_path: Optional[str] = None) -> str:
     content_lines.append("")
 
     if config.get("title"):
-        content_lines.append(f"        {config['title']}")
+        _add_text_lines(content_lines, config["title"])
 
     if config.get("version"):
         content_lines.append(f"        Version {config['version']}")
 
     if config.get("subtitle"):
-        content_lines.append(f"        {config['subtitle']}")
+        _add_text_lines(content_lines, config["subtitle"])
 
     content_lines.append("")
 
