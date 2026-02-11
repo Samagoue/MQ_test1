@@ -424,43 +424,63 @@ class EmojiFormatter(logging.Formatter):
 
 def _build_banner(config: Dict, log_file_path: Optional[str] = None) -> str:
     """
-    Build the ASCII banner string from a config dict.
+    Build the ASCII banner string with a Unicode box border.
 
     If config["art_text"] is provided, the art is auto-generated.
     Otherwise config["art"] (a list of pre-made lines) is used.
+
+    Uses box-drawing characters: ╔ ═ ╗ ║ ╚ ╝
     """
-    border = config["border_char"] * config["border_width"]
-    lines = ["", border, ""]
+    # Collect all content lines first
+    content_lines = []
 
     # ASCII art - auto-generate from text or use provided lines
     if config.get("art_text"):
         art_lines = generate_ascii_art(config["art_text"])
         for art_line in art_lines:
-            lines.append(f"  {art_line}")
+            content_lines.append(f"       {art_line}")
     elif config.get("art"):
         for art_line in config["art"]:
-            lines.append(art_line)
+            content_lines.append(f"  {art_line}")
 
-    lines.append("")
+    content_lines.append("")
 
     if config.get("title"):
-        lines.append(f"  {config['title']}")
+        content_lines.append(f"        {config['title']}")
 
     if config.get("version"):
-        lines.append(f"  Version {config['version']}")
+        content_lines.append(f"        Version {config['version']}")
 
     if config.get("subtitle"):
-        lines.append(f"  {config['subtitle']}")
+        content_lines.append(f"        {config['subtitle']}")
 
-    lines.append("")
+    content_lines.append("")
 
     if config.get("show_timestamp"):
-        lines.append(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        content_lines.append(f"        Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     if config.get("show_log_path") and log_file_path:
-        lines.append(f"  Log:     {log_file_path}")
+        content_lines.append(f"        Log:     {log_file_path}")
 
-    lines.extend(["", border, ""])
+    # Calculate inner width: use config width or expand to fit longest line
+    max_content = max((len(line) for line in content_lines), default=0)
+    inner_width = max(config["border_width"], max_content + 4)
+
+    # Build the box
+    top_border    = f"    ╔{'═' * inner_width}╗"
+    bottom_border = f"    ╚{'═' * inner_width}╝"
+    empty_line    = f"    ║{' ' * inner_width}║"
+
+    def box_line(text):
+        return f"    ║{text.ljust(inner_width)}║"
+
+    lines = ["", top_border, empty_line]
+    for content in content_lines:
+        if content == "":
+            lines.append(empty_line)
+        else:
+            lines.append(box_line(content))
+    lines.extend([empty_line, bottom_border, ""])
     return "\n".join(lines)
 
 

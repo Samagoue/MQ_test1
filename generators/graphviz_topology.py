@@ -33,7 +33,6 @@ class GraphVizTopologyGenerator:
      
         sections = [
             self._generate_header(),
-            self._generate_minimap(),
             self._generate_directorates(),
             self._generate_connections(),
             self._generate_legend(),
@@ -56,51 +55,6 @@ class GraphVizTopologyGenerator:
     node [fontname="Helvetica" margin="0.45,0.30" penwidth=1.2]
     edge [fontname="Helvetica" fontsize=10 color="#5d6d7e" arrowsize=0.8]
 """
- 
-    def _generate_minimap(self) -> str:
-        """Generate overview minimap (Top-Left)."""
-        from utils.common import sanitize_id
-     
-        lines = [
-            "    /* ==========================",
-            "       MINI-MAP (Top-Left)",
-            "    ========================== */",
-            "    subgraph cluster_minimap {",
-            '        label="Overview"',
-            '        style="rounded,filled"',
-            '        fillcolor="#ffffff"',
-            '        color="#d0d8e0"',
-            "        fontsize=12",
-            "        margin=18",
-            ""
-        ]
-     
-        sorted_dirs = sorted(self.data.keys())
-     
-        # Create minimap nodes with proper formatting
-        for idx, directorate in enumerate(sorted_dirs):
-            colors = self.config.DIRECTORATE_COLORS[idx % len(self.config.DIRECTORATE_COLORS)]
-            safe_name = sanitize_id(directorate).lower()
-            lines.append(f'        mini_{safe_name}   [shape=box style="rounded,filled" fillcolor="{colors["org_bg"]}" label="{directorate}" fontsize=10]')
-     
-        # Create minimap connections
-        if len(sorted_dirs) > 1:
-            lines.append("")
-            # First connection is solid blue
-            if len(sorted_dirs) >= 2:
-                from_node = sanitize_id(sorted_dirs[0]).lower()
-                to_node = sanitize_id(sorted_dirs[1]).lower()
-                lines.append(f'        mini_{from_node} -> mini_{to_node}       [color="#5dade2" arrowsize=0.5]')
-         
-            # Remaining connections are dashed red
-            for i in range(len(sorted_dirs) - 1):
-                if i > 0:  # Skip first connection, already added
-                    from_node = sanitize_id(sorted_dirs[i]).lower()
-                    to_node = sanitize_id(sorted_dirs[i + 1]).lower()
-                    lines.append(f'        mini_{from_node} -> mini_{to_node} [color="#ec7063" arrowsize=0.5 style=dashed]')
-     
-        lines.extend(["    }", ""])
-        return "\n".join(lines)
  
     def _generate_directorates(self) -> str:
         """Generate all directorate clusters with gradient fills."""
