@@ -35,11 +35,9 @@ def _select_layout_engine(dot_file: Path, layout_engine: str = None) -> str:
     if layout_engine:
         return layout_engine
 
-    # Use sfdp for large hierarchical layouts (topology files)
-    # Use dot for everything else (better for smaller, structured graphs)
-    stem_lower = dot_file.stem.lower()
-    if 'topology' in stem_lower or 'hierarchical' in stem_lower:
-        return 'sfdp'
+    # Always use 'dot' engine — it is the only engine that fully supports
+    # subgraph clusters (the nested Org > Dept > BizOwner > App hierarchy).
+    # sfdp/neato/fdp silently drop cluster borders.
     return 'dot'
 
 

@@ -40,26 +40,32 @@ class ApplicationDiagramGenerator:
         # during parallel diagram generation
 
     def _build_mqmgr_lookup(self) -> Dict:
-        """Build a lookup dict: {mqmanager_name: full_context}"""
+        """Build a lookup dict: {UPPER_NAME: full_context}
+
+        Keys are uppercased for case-insensitive matching since
+        outbound/inbound lists may use different casing than the
+        canonical MQ manager name.
+        """
         lookup = {}
-     
+
         for org_name, org_data in self.enriched_data.items():
             org_type = org_data.get('_org_type', 'Internal')
             departments = org_data.get('_departments', {})
-         
+
             for dept_name, biz_owners in departments.items():
                 for biz_ownr, applications in biz_owners.items():
                     for app_name, mqmanagers in applications.items():
                         for mqmgr_name, mq_data in mqmanagers.items():
-                            lookup[mqmgr_name] = {
+                            lookup[mqmgr_name.upper()] = {
                                 'organization': org_name,
                                 'org_type': org_type,
                                 'department': dept_name,
                                 'biz_ownr': biz_ownr,
                                 'application': app_name,
-                                'data': mq_data
+                                'data': mq_data,
+                                'canonical_name': mqmgr_name
                             }
-     
+
         return lookup
  
     def generate_all(self, output_dir: Path, workers: int = None) -> int:
@@ -217,53 +223,62 @@ class ApplicationDiagramGenerator:
         return '\n'.join(lines)
  
     def _collect_connected_contexts(self, mqmanagers: Dict) -> Dict:
-        """Collect all MQ managers connected to this application's MQ managers."""
+        """Collect all MQ managers connected to this application's MQ managers.
+
+        Uses case-insensitive matching since outbound/inbound names may
+        differ in casing from canonical names in the lookup.
+        """
         connected = {}
-     
+
         for mqmgr_name, mq_data in mqmanagers.items():
             # Add this MQ manager itself
-            if mqmgr_name not in connected:
-                connected[mqmgr_name] = self.mqmgr_lookup.get(mqmgr_name, {})
-         
-            # Add all connected MQ managers
+            key = mqmgr_name.upper()
+            if key not in connected:
+                connected[key] = self.mqmgr_lookup.get(key, {})
+
+            # Add all connected MQ managers (case-insensitive)
             for target in mq_data.get('outbound', []):
-                if target not in connected and target in self.mqmgr_lookup:
-                    connected[target] = self.mqmgr_lookup[target]
-         
+                tkey = target.upper()
+                if tkey not in connected and tkey in self.mqmgr_lookup:
+                    connected[tkey] = self.mqmgr_lookup[tkey]
+
             for source in mq_data.get('inbound', []):
-                if source not in connected and source in self.mqmgr_lookup:
-                    connected[source] = self.mqmgr_lookup[source]
-     
+                skey = source.upper()
+                if skey not in connected and skey in self.mqmgr_lookup:
+                    connected[skey] = self.mqmgr_lookup[skey]
+
         return connected
  
     def _organize_contexts_hierarchically(self, contexts: Dict, focus_org: str, focus_dept: str,
                                          focus_biz_ownr: str, focus_app: str) -> Dict:
         """Organize contexts into hierarchical structure."""
         hierarchy = {}
-     
-        for mqmgr_name, context in contexts.items():
+
+        for upper_key, context in contexts.items():
+            # Use canonical name (original casing) for display
+            mqmgr_name = context.get('canonical_name', upper_key)
             org = context.get('organization', 'Unknown')
             dept = context.get('department', 'Unknown')
             biz_ownr = context.get('biz_ownr', 'Unknown')
             app = context.get('application', 'No Application')
-         
+
             if org not in hierarchy:
                 hierarchy[org] = {
                     'org_type': context.get('org_type', 'Internal'),
                     'departments': {}
                 }
-         
+
             if dept not in hierarchy[org]['departments']:
                 hierarchy[org]['departments'][dept] = {}
-         
+
             if biz_ownr not in hierarchy[org]['departments'][dept]:
                 hierarchy[org]['departments'][dept][biz_ownr] = {}
-         
+
             if app not in hierarchy[org]['departments'][dept][biz_ownr]:
                 hierarchy[org]['departments'][dept][biz_ownr][app] = {}
-         
+
             hierarchy[org]['departments'][dept][biz_ownr][app][mqmgr_name] = context.get('data', {})
-     
+
         return hierarchy
  
     def _generate_hierarchy(self, hierarchy_map: Dict, focus_org: str, focus_dept: str,
@@ -638,8 +653,8 @@ class ApplicationDiagramGenerator:
                 from_id = sanitize_id(conn['from'])
                 to_id = sanitize_id(conn['to'])
 
-                from_context = self.mqmgr_lookup.get(conn['from'], {})
-                to_context = self.mqmgr_lookup.get(conn['to'], {})
+                from_context = self.mqmgr_lookup.get(conn['from'].upper(), {})
+                to_context = self.mqmgr_lookup.get(conn['to'].upper(), {})
 
                 from_org = from_context.get('organization', '')
                 from_dept = from_context.get('department', '')
