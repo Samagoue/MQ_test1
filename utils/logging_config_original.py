@@ -515,6 +515,7 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="app",
         The configured root logger for the application.
     """
     global _ROOT_LOGGER_NAME
+    previous_root = _ROOT_LOGGER_NAME
     _ROOT_LOGGER_NAME = log_prefix
     logger = logging.getLogger(log_prefix)
 
@@ -562,6 +563,16 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="app",
     if cfg["enabled"]:
         banner = _build_banner(cfg, log_file_path=str(log_file))
         logger.info(banner)
+
+    # --- Bridge ---
+    # Module-level get_logger() calls that ran before setup_logging()
+    # created loggers under the old default root (e.g. "app.orchestrator").
+    # Give that old root the same handlers so those loggers still work.
+    if previous_root != log_prefix:
+        bridge = logging.getLogger(previous_root)
+        bridge.setLevel(logger.level)
+        for handler in logger.handlers:
+            bridge.addHandler(handler)
 
     return logger
 
