@@ -46,6 +46,7 @@ class GraphVizTopologyGenerator:
         return f"""digraph MQ_Topology {{
     rankdir={cfg.GRAPHVIZ_RANKDIR}
     compound=true
+    newrank=true
     fontname="Helvetica"
     bgcolor="{cfg.GRAPHVIZ_BGCOLOR}"
     splines=curved
