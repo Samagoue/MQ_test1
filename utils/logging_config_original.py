@@ -1,4 +1,4 @@
-"""Logging configuration for the MQ CMDB system.
+"""Logging configuration for all projects.
 
 Provides dual-output logging: user-friendly console output (preserving emoji indicators)
 and structured file output with timestamps, levels, and rotation.
@@ -14,6 +14,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Root logger name — set by setup_logging(log_prefix=...) so that
+# get_logger() returns children under the correct namespace.
+# Before setup_logging() is called, defaults to "app".
+_ROOT_LOGGER_NAME = "app"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Built-in ASCII Art Font  (6 rows per character, variable width)
@@ -493,7 +497,7 @@ def _build_banner(config: Dict, log_file_path: Optional[str] = None) -> str:
     return "\n".join(lines)
 
 
-def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
+def setup_logging(verbose=False, log_dir=None, log_prefix="app",
                   banner_config: Optional[Dict] = None):
     """
     Initialize the dual-output logging system.
@@ -501,7 +505,7 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
     Args:
         verbose: If True, set console handler to DEBUG level.
         log_dir: Directory for log files. Defaults to Config.LOGS_DIR.
-        log_prefix: Prefix for log filenames.
+        log_prefix: Prefix for log filenames and root logger name.
         banner_config: Dict to override banner defaults. Examples:
             {"art_text": "MY APP"}          - auto-generate art from text
             {"art": [lines], "title": "X"}  - use pre-made art
@@ -510,7 +514,9 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
     Returns:
         The configured root logger for the application.
     """
-    logger = logging.getLogger("mqcmdb")
+    global _ROOT_LOGGER_NAME
+    _ROOT_LOGGER_NAME = log_prefix
+    logger = logging.getLogger(log_prefix)
 
     if logger.handlers:
         return logger
@@ -562,7 +568,7 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
 
 def get_logger(name):
     """
-    Get a child logger under the mqcmdb hierarchy.
+    Get a child logger under the application hierarchy.
 
     Args:
         name: Module name (e.g., "orchestrator", "generator.application").
@@ -570,7 +576,7 @@ def get_logger(name):
     Returns:
         A logging.Logger instance.
     """
-    return logging.getLogger(f"mqcmdb.{name}")
+    return logging.getLogger(f"{_ROOT_LOGGER_NAME}.{name}")
 
 
 def cleanup_old_logs(log_dir=None, retention_days=None):

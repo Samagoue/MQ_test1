@@ -39,7 +39,7 @@ def cli(ctx, verbose, dry_run):
 
     setup_utf8_output()
     from config.settings import Config
-    setup_logging(verbose=verbose, banner_config=Config.BANNER_CONFIG)
+    setup_logging(verbose=verbose, log_prefix="mqcmdb", banner_config=Config.BANNER_CONFIG)
 
 
 @cli.command()
