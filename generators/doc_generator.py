@@ -1,3 +1,4 @@
+
 """
 Enterprise Architecture Documentation Generator - TOGAF Aligned
 
@@ -20,7 +21,7 @@ from datetime import datetime
 from collections import defaultdict
 from utils.logging_config import get_logger
 
-logger = get_logger("generator.doc")
+logger = get_logger("generators.doc_generator")
 
 
 class EADocumentationGenerator:
@@ -1096,3 +1097,4 @@ class EADocumentationGenerator:
             "*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* Internal",
             "{panel}"
         ]
+

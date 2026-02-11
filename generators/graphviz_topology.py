@@ -1,12 +1,15 @@
-"""Full MQ topology diagram generator."""
+
+"""Full MQ topology diagram generator with directorate-level clustering."""
 
 import subprocess
 import shutil
 from typing import Dict, List
 from pathlib import Path
+from utils.common import lighten_color, darken_color
 from utils.logging_config import get_logger
 
-logger = get_logger("generator.topology")
+logger = get_logger("generators.graphviz_topology")
+
 
 class GraphVizTopologyGenerator:
     """Generate complete MQ topology diagrams."""
@@ -16,32 +19,6 @@ class GraphVizTopologyGenerator:
         self.config = config
         self.mqmanager_to_directorate = self._build_index()
 
-    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Lighten a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = min(255, int(r + (255 - r) * factor))
-        g = min(255, int(g + (255 - g) * factor))
-        b = min(255, int(b + (255 - b) * factor))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-
-    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Darken a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = max(0, int(r * (1 - factor)))
-        g = max(0, int(g * (1 - factor)))
-        b = max(0, int(b * (1 - factor)))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-   
     def _build_index(self) -> Dict[str, str]:
         """Build MQmanager to directorate lookup."""
         index = {}
@@ -49,11 +26,11 @@ class GraphVizTopologyGenerator:
             for mqmanager in mqmanagers.keys():
                 index[mqmanager] = directorate
         return index
-   
+ 
     def generate(self) -> str:
         """Generate complete DOT content."""
         from utils.common import sanitize_id
-       
+     
         sections = [
             self._generate_header(),
             self._generate_minimap(),
@@ -63,7 +40,7 @@ class GraphVizTopologyGenerator:
             "}"
         ]
         return "\n".join(sections)
-   
+ 
     def _generate_header(self) -> str:
         """Generate DOT header."""
         cfg = self.config
@@ -79,11 +56,11 @@ class GraphVizTopologyGenerator:
     node [fontname="Helvetica" margin="0.45,0.30" penwidth=1.2]
     edge [fontname="Helvetica" fontsize=10 color="#5d6d7e" arrowsize=0.8]
 """
-   
+ 
     def _generate_minimap(self) -> str:
         """Generate overview minimap (Top-Left)."""
         from utils.common import sanitize_id
-       
+     
         lines = [
             "    /* ==========================",
             "       MINI-MAP (Top-Left)",
@@ -97,15 +74,15 @@ class GraphVizTopologyGenerator:
             "        margin=18",
             ""
         ]
-       
+     
         sorted_dirs = sorted(self.data.keys())
-       
+     
         # Create minimap nodes with proper formatting
         for idx, directorate in enumerate(sorted_dirs):
             colors = self.config.DIRECTORATE_COLORS[idx % len(self.config.DIRECTORATE_COLORS)]
             safe_name = sanitize_id(directorate).lower()
             lines.append(f'        mini_{safe_name}   [shape=box style="rounded,filled" fillcolor="{colors["org_bg"]}" label="{directorate}" fontsize=10]')
-       
+     
         # Create minimap connections
         if len(sorted_dirs) > 1:
             lines.append("")
@@ -114,17 +91,17 @@ class GraphVizTopologyGenerator:
                 from_node = sanitize_id(sorted_dirs[0]).lower()
                 to_node = sanitize_id(sorted_dirs[1]).lower()
                 lines.append(f'        mini_{from_node} -> mini_{to_node}       [color="#5dade2" arrowsize=0.5]')
-           
+         
             # Remaining connections are dashed red
             for i in range(len(sorted_dirs) - 1):
                 if i > 0:  # Skip first connection, already added
                     from_node = sanitize_id(sorted_dirs[i]).lower()
                     to_node = sanitize_id(sorted_dirs[i + 1]).lower()
                     lines.append(f'        mini_{from_node} -> mini_{to_node} [color="#ec7063" arrowsize=0.5 style=dashed]')
-       
+     
         lines.extend(["    }", ""])
         return "\n".join(lines)
-   
+ 
     def _generate_directorates(self) -> str:
         """Generate all directorate clusters with gradient fills."""
         from utils.common import sanitize_id
@@ -135,7 +112,7 @@ class GraphVizTopologyGenerator:
 
             # Create gradient fill for directorate
             dir_bg = colors["org_bg"]
-            dir_bg_light = self._lighten_color(dir_bg, 0.15)
+            dir_bg_light = lighten_color(dir_bg, 0.15)
 
             lines = [
                 f"    /* DIRECTORATE: {directorate} */",
@@ -153,7 +130,7 @@ class GraphVizTopologyGenerator:
             sections.append("\n".join(lines))
 
         return "\n".join(sections)
-   
+ 
     def _generate_mqmanager_node(self, mqmanager: str, info: Dict, colors: Dict) -> List[str]:
         """Generate MQ Manager node with gradient fill."""
         from utils.common import sanitize_id
@@ -162,7 +139,7 @@ class GraphVizTopologyGenerator:
 
         # Create gradient fill for MQ manager node
         qm_bg = colors["qm_bg"]
-        qm_bg_dark = self._darken_color(qm_bg, 0.08)
+        qm_bg_dark = darken_color(qm_bg, 0.08)
 
         return [
             f"        {qm_id} [",
@@ -181,7 +158,7 @@ class GraphVizTopologyGenerator:
             "            >",
             "        ]", ""
         ]
-   
+ 
     def _generate_connections(self) -> str:
         """Generate connection edges with bidirectional detection and proper formatting."""
         from utils.common import sanitize_id
@@ -287,7 +264,7 @@ class GraphVizTopologyGenerator:
             sections.append("\n".join(lines) + "\n")
 
         return "\n".join(sections)
-   
+ 
     def _generate_legend(self) -> str:
         """Generate legend matching the exact format."""
         sorted_dirs = sorted(self.data.keys())
@@ -298,7 +275,7 @@ class GraphVizTopologyGenerator:
                 f'                    <tr><td align="left">'
                 f'<font color="{colors["org_bg"]}"><b>■</b></font> {directorate} Directorate</td></tr>'
             )
-       
+     
         return f"""    /* ==========================
        LEGEND (Modern Cloud Card)
     ========================== */
@@ -349,25 +326,25 @@ class GraphVizTopologyGenerator:
             >
         ]
     }}"""
-   
+ 
     def save_to_file(self, filepath: Path):
         """Save DOT content."""
         content = self.generate()
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_text(content, encoding='utf-8')
         logger.info(f"✓ DOT file saved: {filepath}")
-   
+ 
     @staticmethod
     def generate_pdf(dot_file: Path, pdf_file: Path) -> bool:
         """Generate PDF from DOT file."""
         if not shutil.which('dot'):
-            logger.warning("Graphviz 'dot' not found. Install from: https://graphviz.org/download/")
+            logger.warning("⚠ Graphviz 'dot' not found. Install from: https://graphviz.org/download/")
             return False
-       
+     
         try:
             subprocess.run(['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)], check=True, capture_output=True)
             logger.info(f"✓ PDF generated: {pdf_file}")
             return True
         except subprocess.CalledProcessError as e:
-            logger.error(f"PDF generation failed: {e}")
+            logger.warning(f"✗ PDF generation failed: {e}")
             return False

@@ -1,3 +1,4 @@
+
 """Data deduplication logic."""
 
 from typing import List, Dict
@@ -23,11 +24,11 @@ def deduplicate_assets(data: List[Dict]) -> List[Dict]:
 
 class AssetDeduplicator:
     """Remove duplicate assets based on business rules."""
-   
+ 
     def __init__(self, asset_field: str = "asset", ignore_type: str = "QCluster"):
         self.asset_field = asset_field
         self.ignore_type = ignore_type
-   
+ 
     def deduplicate(self, data: List[Dict]) -> List[Dict]:
         """
         Remove duplicates based on rules.
@@ -43,7 +44,7 @@ class AssetDeduplicator:
         first_record = data[0]
         if not isinstance(first_record, dict) or self.asset_field not in first_record:
             return data
-       
+     
         # Group by asset
         asset_groups = {}
         for record in data:
@@ -51,7 +52,7 @@ class AssetDeduplicator:
             if asset not in asset_groups:
                 asset_groups[asset] = []
             asset_groups[asset].append(record)
-       
+     
         # Apply deduplication
         deduplicated = []
         for asset, records in asset_groups.items():
@@ -61,5 +62,5 @@ class AssetDeduplicator:
                 # Keep non-QCluster records
                 non_qcluster = [r for r in records if r.get('asset_type') != self.ignore_type]
                 deduplicated.extend(non_qcluster if non_qcluster else [records[0]])
-       
+     
         return deduplicated

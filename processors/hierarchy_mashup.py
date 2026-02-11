@@ -1,3 +1,5 @@
+
+
 """
 Mashup processor to enrich MQ data with organizational hierarchy and application info.
 """
@@ -7,7 +9,8 @@ from pathlib import Path
 from typing import Dict, List
 from utils.logging_config import get_logger
 
-logger = get_logger("processor.hierarchy")
+logger = get_logger("processors.hierarchy_mashup")
+
 
 class HierarchyMashup:
     """Enrich MQ data with organizational hierarchy and application information."""
@@ -19,24 +22,24 @@ class HierarchyMashup:
         logger.info(f"✓ Loaded {len(self.org_hierarchy)} business owners from hierarchy")
         logger.info(f"✓ Loaded {len(self.app_mapping)} application mappings")
         logger.info(f"✓ Loaded {len(self.gateway_mapping)} gateway mappings")
-   
+ 
     def _load_org_hierarchy(self, filepath: Path) -> Dict:
         """Load and index org hierarchy by Biz_Ownr (directorate)."""
         from utils.file_io import load_json
 
         if not filepath.exists():
-            logger.warning(f"Warning: {filepath} not found. Using default hierarchy.")
+            logger.warning(f"⚠ {filepath} not found. Using default hierarchy.")
             return {}
 
         try:
             data = load_json(filepath)
         except Exception as e:
-            logger.warning(f"Warning: Failed to load {filepath}: {e}. Using default hierarchy.")
+            logger.warning(f"⚠ Failed to load {filepath}: {e}. Using default hierarchy.")
             return {}
 
         # Validate that data is a list
         if not isinstance(data, list):
-            logger.warning(f"Warning: {filepath} should contain a JSON array. Using default hierarchy.")
+            logger.warning(f"⚠ {filepath} should contain a JSON array. Using default hierarchy.")
             return {}
 
         hierarchy = {}
@@ -44,7 +47,7 @@ class HierarchyMashup:
         for idx, record in enumerate(data):
             # Validate each record is a dictionary
             if not isinstance(record, dict):
-                logger.warning(f"Warning: Record {idx} in {filepath} is not a valid object, skipping.")
+                logger.warning(f"⚠ Record {idx} in {filepath} is not a valid object, skipping.")
                 continue
 
             biz_ownr = str(record.get('Biz_Ownr', '')).strip()
@@ -57,24 +60,24 @@ class HierarchyMashup:
                 }
 
         return hierarchy
-   
+ 
     def _load_app_mapping(self, filepath: Path) -> Dict:
         """Load and index application mapping by QmgrName."""
         from utils.file_io import load_json
 
         if not filepath.exists():
-            logger.warning(f"Warning: {filepath} not found. Using default app mappings.")
+            logger.warning(f"⚠ {filepath} not found. Using default app mappings.")
             return {}
 
         try:
             data = load_json(filepath)
         except Exception as e:
-            logger.warning(f"Warning: Failed to load {filepath}: {e}. Using default app mappings.")
+            logger.warning(f"⚠ Failed to load {filepath}: {e}. Using default app mappings.")
             return {}
 
         # Validate that data is a list
         if not isinstance(data, list):
-            logger.warning(f"Warning: {filepath} should contain a JSON array. Using default app mappings.")
+            logger.warning(f"⚠ {filepath} should contain a JSON array. Using default app mappings.")
             return {}
 
         mapping = {}
@@ -82,7 +85,7 @@ class HierarchyMashup:
         for idx, record in enumerate(data):
             # Validate each record is a dictionary
             if not isinstance(record, dict):
-                logger.warning(f"Warning: Record {idx} in {filepath} is not a valid object, skipping.")
+                logger.warning(f"⚠ Record {idx} in {filepath} is not a valid object, skipping.")
                 continue
 
             qmgr_name = str(record.get('QmgrName', '')).strip()
@@ -97,18 +100,18 @@ class HierarchyMashup:
 
         if filepath is None or not filepath.exists():
             if filepath is not None:
-                logger.warning(f"Warning: {filepath} not found. No gateway mappings loaded.")
+                logger.warning(f"⚠ {filepath} not found. No gateway mappings loaded.")
             return {}
 
         try:
             data = load_json(filepath)
         except Exception as e:
-            logger.warning(f"Warning: Failed to load {filepath}: {e}. No gateway mappings loaded.")
+            logger.warning(f"⚠ Failed to load {filepath}: {e}. No gateway mappings loaded.")
             return {}
 
         # Validate that data is a list
         if not isinstance(data, list):
-            logger.warning(f"Warning: {filepath} should contain a JSON array. No gateway mappings loaded.")
+            logger.warning(f"⚠ {filepath} should contain a JSON array. No gateway mappings loaded.")
             return {}
 
         mapping = {}
@@ -116,7 +119,7 @@ class HierarchyMashup:
         for idx, record in enumerate(data):
             # Validate each record is a dictionary
             if not isinstance(record, dict):
-                logger.warning(f"Warning: Record {idx} in {filepath} is not a valid object, skipping.")
+                logger.warning(f"⚠ Record {idx} in {filepath} is not a valid object, skipping.")
                 continue
 
             qmgr_name = str(record.get('QmgrName', '')).strip()
@@ -128,16 +131,16 @@ class HierarchyMashup:
                 }
 
         return mapping
-   
+ 
     def enrich_data(self, processed_data: Dict) -> Dict:
         """
         Enrich processed MQ data with hierarchy and application info.
-       
+     
         Input: {directorate: {mqmanager: {...}}}
         Output: {Organization: {Department: {Biz_Ownr: {Application: {MQmanager: {...}}}}}}
         """
         enriched = {}
-       
+     
         for directorate, mqmanagers in processed_data.items():
             # Get hierarchy info for this directorate (Biz_Ownr)
             hierarchy_info = self.org_hierarchy.get(directorate, {
@@ -146,12 +149,12 @@ class HierarchyMashup:
                 'Biz_Ownr': directorate,
                 'Org_Type': 'Internal'
             })
-           
+         
             org = hierarchy_info['Organization']
             dept = hierarchy_info['Department']
             biz_ownr = hierarchy_info['Biz_Ownr']
             org_type = hierarchy_info['Org_Type']
-           
+         
             # Initialize hierarchy levels
             if org not in enriched:
                 enriched[org] = {'_org_type': org_type, '_departments': {}}
@@ -159,7 +162,7 @@ class HierarchyMashup:
                 enriched[org]['_departments'][dept] = {}
             if biz_ownr not in enriched[org]['_departments'][dept]:
                 enriched[org]['_departments'][dept][biz_ownr] = {}
-           
+         
             # Process each MQ manager
             for mqmanager, mq_data in mqmanagers.items():
                 # Check if this MQ manager is a gateway
@@ -189,10 +192,6 @@ class HierarchyMashup:
                         'outbound': mq_data.get('outbound', []),
                         'inbound_extra': mq_data.get('inbound_extra', []),
                         'outbound_extra': mq_data.get('outbound_extra', []),
-                        'inbound_apps': mq_data.get('inbound_apps', []),
-                        'outbound_apps': mq_data.get('outbound_apps', []),
-                        'inbound_apps_external': mq_data.get('inbound_apps_external', []),
-                        'outbound_apps_external': mq_data.get('outbound_apps_external', []),
                         'IsGateway': True,
                         'GatewayScope': gateway_scope,
                         'GatewayDescription': gateway_info.get('Description', '')
@@ -220,11 +219,9 @@ class HierarchyMashup:
                         'outbound': mq_data.get('outbound', []),
                         'inbound_extra': mq_data.get('inbound_extra', []),
                         'outbound_extra': mq_data.get('outbound_extra', []),
-                        'inbound_apps': mq_data.get('inbound_apps', []),
-                        'outbound_apps': mq_data.get('outbound_apps', []),
-                        'inbound_apps_external': mq_data.get('inbound_apps_external', []),
-                        'outbound_apps_external': mq_data.get('outbound_apps_external', []),
                         'IsGateway': False
                     }
-       
+     
         return enriched
+
+

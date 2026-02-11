@@ -102,7 +102,7 @@ def hsl_to_hex(h: float, s: float, l: float) -> str:
 
 class Config:
     """Central configuration for the MQ CMDB system."""
-   
+ 
     # ==================== PATHS ====================
     BASE_DIR = Path(__file__).parent.parent
     DATABASE_DIR = BASE_DIR / "Database"
@@ -132,29 +132,30 @@ class Config:
     BASELINE_JSON = DATA_DIR / "mq_cmdb_baseline.json"
     TOPOLOGY_DOT = TOPOLOGY_DIR / "mq_topology.dot"
     TOPOLOGY_PDF = TOPOLOGY_DIR / "mq_topology.pdf"
-   
+ 
     # Hierarchy input files
     ORG_HIERARCHY_JSON = INPUT_DIR / "org_hierarchy.json"
     APP_TO_QMGR_JSON = INPUT_DIR / "app_to_qmgr.json"
     GATEWAYS_JSON = INPUT_DIR / "gateways.json"
-    MQMANAGER_ALIASES_JSON = INPUT_DIR / "mqmanager_aliases.json"
-    EXTERNAL_APPS_JSON = INPUT_DIR / "external_apps.json"
-   
+ 
     # ==================== DATABASE ====================
     DEFAULT_PROFILE = "production"
     DEFAULT_DB_PORT = 3306
-   
+ 
     # ==================== EXPORT SETTINGS ====================
     DEFAULT_FORMAT = "json"
     LOG_RETENTION_DAYS = 7
+
 
     # ==================== BANNER ====================
     BANNER_CONFIG = {
         "art_text": "MQ CMDB",
         "title": "MQ CMDB HIERARCHICAL AUTOMATION SYSTEM",
+        "subtitle": "Processes IBM MQ CMDB data and generates:\n\t• Hierarchical organization topology diagrams\n\t• Application-focused connection diagrams\n\t• Individual MQ manager connection diagrams\n\t• JSON data with full organizational enrichment",
         "version": "1.0",
     }
-
+   
+   
     # Output Cleanup Settings
     ENABLE_OUTPUT_CLEANUP = True       # Enable automatic cleanup of old output files
     OUTPUT_RETENTION_DAYS = 30         # Delete output files older than this many days
@@ -167,9 +168,6 @@ class Config:
         "exports/mqcmdb_inventory_*.xlsx",
         "exports/EA_Documentation_*.txt"
     ]
-
-    # Parallel Processing
-    PARALLEL_WORKERS = None  # None = auto (min(4, cpu_count)); override with --workers or MQCMDB_WORKERS env var
 
     # Multi-Format Export Settings
     EXPORT_SVG = True  # Export diagrams to SVG format
@@ -187,14 +185,14 @@ class Config:
     # Deduplication
     DEDUP_ASSET_FIELD = "asset"
     DEDUP_IGNORE_TYPE = "QCluster"
-   
+ 
     # ==================== GRAPHVIZ SETTINGS ====================
     # Standard layout settings
     GRAPHVIZ_RANKDIR = "LR"
     GRAPHVIZ_BGCOLOR = "#f7f9fb"
     GRAPHVIZ_NODESEP = 0.8
     GRAPHVIZ_RANKSEP = 1.1
-   
+ 
     # Hierarchical layout settings (sfdp)
     HIERARCHICAL_LAYOUT = "sfdp"
     HIERARCHICAL_OVERLAP = "false"
@@ -202,7 +200,7 @@ class Config:
     HIERARCHICAL_PACKMODE = "clust"
     HIERARCHICAL_NODESEP = 0.9
     HIERARCHICAL_RANKSEP = 1.5
-   
+ 
     # ==================== COLOR SCHEMES ====================
     # External Organization Colors (Purple/Lavender)
     EXTERNAL_ORG_COLORS = {
@@ -218,7 +216,7 @@ class Config:
         'qm_border': '#4f2788',
         'qm_text': '#2d1b4a'
     }
-   
+ 
     # Internal Organization Colors
     INTERNAL_ORG_COLORS = [
         # First Department - Blue
@@ -302,7 +300,7 @@ class Config:
         "cross_org": "dot",            # Bullet at origin
         "bidirectional": "dot",        # Bullet at both ends (with dir=both)
     }
-   
+ 
     # ==================== FIELD MAPPINGS ====================
     FIELD_MAPPINGS = {
         "mqmanager": "MQmanager",
@@ -315,16 +313,16 @@ class Config:
         "impact": "impact",
         "appgroup": "APPGroup"
     }
-   
+ 
     # Asset type keywords
     ASSET_TYPE_LOCAL = "local"
     ASSET_TYPE_REMOTE = "remote"
     ASSET_TYPE_ALIAS = "alias"
-   
-    # Role field values
-    COMMENT_SENDER = "SENDER"
-    COMMENT_RECEIVER = "RECEIVER"
-   
+ 
+    # Role field values for MQ manager communication direction
+    ROLE_SENDER = "SENDER"
+    ROLE_RECEIVER = "RECEIVER"
+ 
     @classmethod
     def ensure_directories(cls):
         """Create necessary directories if they don't exist."""
@@ -346,10 +344,11 @@ class Config:
         ]
         for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)
-   
+ 
     @classmethod
     def get_log_file(cls, prefix="export"):
         """Generate timestamped log filename."""
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return cls.LOGS_DIR / f"{prefix}_{timestamp}.log"
+

@@ -1,3 +1,4 @@
+
 """
 Multi-Format Export Utilities
 
@@ -13,8 +14,9 @@ import re
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+from utils.common import iter_mqmanagers
 from utils.logging_config import get_logger
-from utils.parallel import DiagramTask, run_parallel
+
 
 logger = get_logger("export_formats")
 
@@ -58,7 +60,7 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str 
 
     # Check if dot command exists
     if not shutil.which('dot') and not shutil.which('sfdp'):
-        logger.warning("GraphViz not found - cannot generate SVG")
+        logger.warning("⚠ GraphViz not found - cannot generate SVG")
         return False
 
     try:
@@ -78,10 +80,10 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str 
         logger.info(f"✓ SVG generated: {svg_file}")
         return True
     except subprocess.CalledProcessError as e:
-        logger.error(f"SVG generation failed: {e.stderr}")
+        logger.error(f"✗ SVG generation failed: {e.stderr}")
         return False
     except Exception as e:
-        logger.error(f"SVG generation failed: {e}")
+        logger.error(f"✗ SVG generation failed: {e}")
         return False
 
 
@@ -118,7 +120,7 @@ a text { text-decoration: none !important; }
             svg_file.write_text(content, encoding='utf-8')
     except Exception as e:
         # Non-fatal - SVG still works, just with underlines
-        logger.warning(f"Could not remove link underlines: {e}")
+        logger.warning(f"  ⚠ Could not remove link underlines: {e}")
 
 
 def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, layout_engine: str = None) -> bool:
@@ -139,7 +141,7 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, lay
 
     # Check if dot command exists
     if not shutil.which('dot') and not shutil.which('sfdp'):
-        logger.warning("GraphViz not found - cannot generate PNG")
+        logger.warning("⚠ GraphViz not found - cannot generate PNG")
         return False
 
     try:
@@ -155,25 +157,14 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, lay
         logger.info(f"✓ PNG generated: {png_file}")
         return True
     except subprocess.CalledProcessError as e:
-        logger.error(f"PNG generation failed: {e.stderr}")
+        logger.error(f"✗ PNG generation failed: {e.stderr}")
         return False
     except Exception as e:
-        logger.error(f"PNG generation failed: {e}")
+        logger.error(f"✗ PNG generation failed: {e}")
         return False
 
 
-def _export_single_dot(dot_file: Path, formats: List[str], dpi: int) -> Dict[str, bool]:
-    """Export a single DOT file to the requested formats. Returns {fmt: success}."""
-    results = {}
-    for fmt in formats:
-        if fmt == 'svg':
-            results['svg'] = export_dot_to_svg(dot_file)
-        elif fmt == 'png':
-            results['png'] = export_dot_to_png(dot_file, dpi=dpi)
-    return results
-
-
-def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'png'], dpi: int = 150, max_workers: int = None):
+def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'png'], dpi: int = 150):
     """
     Export all DOT files in a directory to multiple formats.
 
@@ -181,34 +172,31 @@ def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'p
         directory: Directory containing DOT files
         formats: List of formats to export to ('svg', 'png')
         dpi: Resolution for PNG exports (default: 150)
-        max_workers: Number of parallel workers (None = default)
     """
     if not directory.exists():
-        logger.warning(f"Directory not found: {directory}")
+        logger.warning(f"⚠ Directory not found: {directory}")
         return
 
     dot_files = list(directory.glob('*.dot'))
     if not dot_files:
-        logger.warning(f"No DOT files found in {directory}")
+        logger.warning(f"⚠ No DOT files found in {directory}")
         return
 
+    success_count = {fmt: 0 for fmt in formats}
     total = len(dot_files)
 
-    # Build parallel tasks - one per DOT file
-    tasks = [
-        DiagramTask(
-            f"export:{dot_file.stem}",
-            _export_single_dot,
-            dot_file, formats, dpi
-        )
-        for dot_file in dot_files
-    ]
+    for dot_file in dot_files:
+        for fmt in formats:
+            if fmt == 'svg':
+                if export_dot_to_svg(dot_file):
+                    success_count['svg'] += 1
+            elif fmt == 'png':
+                if export_dot_to_png(dot_file, dpi=dpi):
+                    success_count['png'] += 1
 
-    result = run_parallel(tasks, max_workers=max_workers)
-
-    logger.info(f"✓ Export complete: {result.success_count}/{total} files exported")
-    if result.failure_count:
-        logger.warning(f"  {result.failure_count} file(s) failed")
+    logger.info(f"\n✓ Export Summary:")
+    for fmt in formats:
+        logger.info(f"  {fmt.upper()}: {success_count[fmt]}/{total} files")
 
 
 def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
@@ -229,8 +217,8 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
         from openpyxl.styles import Font, PatternFill, Alignment
         from openpyxl.utils import get_column_letter
     except ImportError:
-        logger.warning("openpyxl not installed - Excel export not available")
-        logger.warning("Install with: pip install openpyxl")
+        logger.warning("⚠ openpyxl not installed - Excel export not available")
+        logger.warning("  Install with: pip install openpyxl")
         return False
 
     wb = Workbook()
@@ -243,52 +231,45 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
     all_connections = []
     all_gateways = []
 
-    for org_name, org_data in enriched_data.items():
-        if not isinstance(org_data, dict) or '_departments' not in org_data:
-            continue
+    for mqmgr_name, mqmgr_data in iter_mqmanagers(enriched_data):
+        # MQ Manager inventory
+        all_mqmanagers.append({
+            'MQ Manager': mqmgr_name,
+            'Organization': mqmgr_data.get('Organization', ''),
+            'Department': mqmgr_data.get('Department', ''),
+            'Biz Owner': mqmgr_data.get('Biz_Ownr', ''),
+            'Application': mqmgr_data.get('Application', ''),
+            'Is Gateway': 'Yes' if mqmgr_data.get('IsGateway', False) else 'No',
+            'Gateway Scope': mqmgr_data.get('GatewayScope', ''),
+            'QLocal Count': mqmgr_data.get('qlocal_count', 0),
+            'QRemote Count': mqmgr_data.get('qremote_count', 0),
+            'QAlias Count': mqmgr_data.get('qalias_count', 0),
+            'Total Queues': mqmgr_data.get('total_count', 0),
+            'Inbound Connections': len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('inbound_extra', [])),
+            'Outbound Connections': len(mqmgr_data.get('outbound', [])) + len(mqmgr_data.get('outbound_extra', []))
+        })
 
-        for dept_name, dept_data in org_data['_departments'].items():
-            for biz_ownr, applications in dept_data.items():
-                for app_name, mqmgr_dict in applications.items():
-                    for mqmgr_name, mqmgr_data in mqmgr_dict.items():
-                        # MQ Manager inventory
-                        all_mqmanagers.append({
-                            'MQ Manager': mqmgr_name,
-                            'Organization': mqmgr_data.get('Organization', ''),
-                            'Department': mqmgr_data.get('Department', ''),
-                            'Biz Owner': mqmgr_data.get('Biz_Ownr', ''),
-                            'Application': mqmgr_data.get('Application', ''),
-                            'Is Gateway': 'Yes' if mqmgr_data.get('IsGateway', False) else 'No',
-                            'Gateway Scope': mqmgr_data.get('GatewayScope', ''),
-                            'QLocal Count': mqmgr_data.get('qlocal_count', 0),
-                            'QRemote Count': mqmgr_data.get('qremote_count', 0),
-                            'QAlias Count': mqmgr_data.get('qalias_count', 0),
-                            'Total Queues': mqmgr_data.get('total_count', 0),
-                            'Inbound Connections': len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('inbound_extra', [])),
-                            'Outbound Connections': len(mqmgr_data.get('outbound', [])) + len(mqmgr_data.get('outbound_extra', []))
-                        })
+        # Gateway inventory
+        if mqmgr_data.get('IsGateway', False):
+            all_gateways.append({
+                'Gateway Name': mqmgr_name,
+                'Scope': mqmgr_data.get('GatewayScope', ''),
+                'Organization': mqmgr_data.get('Organization', ''),
+                'Department': mqmgr_data.get('Department', ''),
+                'Description': mqmgr_data.get('GatewayDescription', ''),
+                'Total Connections': (len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('outbound', [])) +
+                                    len(mqmgr_data.get('inbound_extra', [])) + len(mqmgr_data.get('outbound_extra', [])))
+            })
 
-                        # Gateway inventory
-                        if mqmgr_data.get('IsGateway', False):
-                            all_gateways.append({
-                                'Gateway Name': mqmgr_name,
-                                'Scope': mqmgr_data.get('GatewayScope', ''),
-                                'Organization': mqmgr_data.get('Organization', ''),
-                                'Department': mqmgr_data.get('Department', ''),
-                                'Description': mqmgr_data.get('GatewayDescription', ''),
-                                'Total Connections': (len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('outbound', [])) +
-                                                    len(mqmgr_data.get('inbound_extra', [])) + len(mqmgr_data.get('outbound_extra', [])))
-                            })
-
-                        # Connections
-                        for target in mqmgr_data.get('outbound', []) + mqmgr_data.get('outbound_extra', []):
-                            all_connections.append({
-                                'Source': mqmgr_name,
-                                'Target': target,
-                                'Source Org': mqmgr_data.get('Organization', ''),
-                                'Source Dept': mqmgr_data.get('Department', ''),
-                                'Source App': mqmgr_data.get('Application', '')
-                            })
+        # Connections
+        for target in mqmgr_data.get('outbound', []) + mqmgr_data.get('outbound_extra', []):
+            all_connections.append({
+                'Source': mqmgr_name,
+                'Target': target,
+                'Source Org': mqmgr_data.get('Organization', ''),
+                'Source Dept': mqmgr_data.get('Department', ''),
+                'Source App': mqmgr_data.get('Application', '')
+            })
 
     # Sheet 1: MQ Manager Inventory
     ws1 = wb.create_sheet("MQ Managers")
@@ -418,3 +399,4 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
     wb.save(output_file)
     logger.info(f"✓ Excel inventory generated: {output_file}")
     return True
+

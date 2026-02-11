@@ -39,13 +39,7 @@ def test_processor():
     print("-" * 50)
 
     try:
-        processor = MQManagerProcessor(
-            sample_data,
-            Config.FIELD_MAPPINGS,
-            aliases_file=Config.MQMANAGER_ALIASES_JSON,
-            app_to_qmgr_file=Config.APP_TO_QMGR_JSON,
-            external_apps_file=Config.EXTERNAL_APPS_JSON
-        )
+        processor = MQManagerProcessor(sample_data, Config.FIELD_MAPPINGS)
 
         result = processor.process_assets()
         json_result = processor.convert_to_json(result)
