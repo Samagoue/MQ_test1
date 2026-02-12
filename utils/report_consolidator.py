@@ -7,7 +7,7 @@ Uses the shared report_styles.py for consistent look and feel.
 """
 
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from datetime import datetime
 from utils.logging_config import get_logger
 
@@ -20,12 +20,14 @@ def generate_consolidated_report(
     output_file: Path,
     current_timestamp: str,
     baseline_timestamp: str = None,
+    data_augmentation: Optional[List[Dict]] = None,
 ) -> Path:
     """
-    Generate a single HTML report combining change detection and gateway analytics.
+    Generate a single HTML report combining change detection, gateway analytics,
+    and data augmentation views.
 
     Each report appears as a separate tab with navigation at the top.
-    Gracefully handles missing data (no baseline, no gateways).
+    Gracefully handles missing data (no baseline, no gateways, no augmentation data).
 
     Args:
         changes: Change detection dict from ChangeDetector.compare(), or None
@@ -33,6 +35,7 @@ def generate_consolidated_report(
         output_file: Path to write the consolidated HTML file
         current_timestamp: Current pipeline run timestamp
         baseline_timestamp: Baseline timestamp string, or None if no baseline
+        data_augmentation: List of augmentation records from data_augmentation.json, or None
 
     Returns:
         Path to the generated file
@@ -60,6 +63,7 @@ def generate_consolidated_report(
         <span class="tab-bar-title">MQ CMDB Report</span>
         <button class="tab-btn active" id="btn-changes" onclick="showTab('changes')">Change Detection</button>
         <button class="tab-btn" id="btn-gateways" onclick="showTab('gateways')">Gateway Analytics</button>
+        <button class="tab-btn" id="btn-augmentation" onclick="showTab('augmentation')">Data Augmentation</button>
     </div>
 
     <div id="tab-changes" class="tab-pane active">
@@ -77,6 +81,15 @@ def generate_consolidated_report(
     # -- Gateway Analytics tab --
     html += _build_gateways_tab(gateway_analytics, report_time)
 
+    html += """
+    </div>
+
+    <div id="tab-augmentation" class="tab-pane">
+"""
+
+    # -- Data Augmentation tab --
+    html += _build_augmentation_tab(data_augmentation, report_time)
+
     html += f"""
     </div>
 
@@ -90,9 +103,8 @@ def generate_consolidated_report(
         document.getElementById('btn-' + tab).classList.add('active');
 
         /* Swap accent colour so section borders and cards match the active tab */
-        document.documentElement.style.setProperty(
-            '--accent', tab === 'gateways' ? '#9b59b6' : '#3498db'
-        );
+        var colors = {{ 'changes': '#3498db', 'gateways': '#9b59b6', 'augmentation': '#16a085' }};
+        document.documentElement.style.setProperty('--accent', colors[tab] || '#3498db');
     }}
     </script>
 </body>
@@ -567,6 +579,85 @@ def _build_gateways_tab(gateway_analytics, report_time):
             </details>
 """
         html += _section_close()
+
+    html += """
+    </div>
+"""
+    return html
+
+
+# ---------------------------------------------------------------------------
+# Data Augmentation tab
+# ---------------------------------------------------------------------------
+
+def _build_augmentation_tab(data_augmentation, report_time):
+    """Build the Data Augmentation tab content."""
+    if not data_augmentation:
+        return """
+        <div class="no-data">
+            <h2>No Data Augmentation Records</h2>
+            <p>The <code>input/data_augmentation.json</code> file is empty or was not found.</p>
+            <p>Add records with fields: field_name, asset, extrainfo, MQmanager, Application, directorate, Org, Validity.</p>
+        </div>
+"""
+
+    html = f"""
+    <div class="hero" style="background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #16a085 100%);">
+        <h1>Data Augmentation Report</h1>
+        <p>Supplementary data for outbound_extra and inbound_extra connections</p>
+        <div class="meta">
+            <span>Generated: {report_time}</span>
+            <span>Records: {len(data_augmentation)}</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="summary">
+            <div class="summary-card accent">
+                <h3>Total Records</h3>
+                <div class="count">{len(data_augmentation)}</div>
+            </div>
+            <div class="summary-card added">
+                <h3>Valid</h3>
+                <div class="count">{sum(1 for r in data_augmentation if str(r.get('Validity', '')).upper() in ('YES', 'VALID', 'TRUE', 'Y'))}</div>
+            </div>
+            <div class="summary-card removed">
+                <h3>Invalid</h3>
+                <div class="count">{sum(1 for r in data_augmentation if str(r.get('Validity', '')).upper() in ('NO', 'INVALID', 'FALSE', 'N'))}</div>
+            </div>
+            <div class="summary-card modified">
+                <h3>Pending Review</h3>
+                <div class="count">{sum(1 for r in data_augmentation if str(r.get('Validity', '')).strip() == '')}</div>
+            </div>
+        </div>
+"""
+
+    html += _section_open("Data Augmentation Records")
+    html += _table_open(["Field Name", "Asset", "Extra Info", "MQ Manager", "Application", "Directorate", "Org", "Validity"])
+
+    for record in data_augmentation:
+        validity = str(record.get('Validity', '')).strip()
+        if validity.upper() in ('YES', 'VALID', 'TRUE', 'Y'):
+            validity_badge = f'<span class="badge badge-ok">{validity}</span>'
+        elif validity.upper() in ('NO', 'INVALID', 'FALSE', 'N'):
+            validity_badge = f'<span class="badge badge-warning">{validity}</span>'
+        else:
+            validity_badge = f'<span class="badge badge-modified">{validity or "Pending"}</span>'
+
+        html += f"""
+                    <tr>
+                        <td><strong>{record.get('field_name', '')}</strong></td>
+                        <td>{record.get('asset', '')}</td>
+                        <td>{record.get('extrainfo', '')}</td>
+                        <td>{record.get('MQmanager', '')}</td>
+                        <td>{record.get('Application', '')}</td>
+                        <td>{record.get('directorate', '')}</td>
+                        <td>{record.get('Org', '')}</td>
+                        <td>{validity_badge}</td>
+                    </tr>
+"""
+
+    html += _table_close() + _section_close()
 
     html += """
     </div>

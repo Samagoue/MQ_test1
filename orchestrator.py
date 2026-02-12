@@ -243,17 +243,30 @@ class MQCMDBOrchestrator:
                 logger.warning(f"⚠ Gateway analytics failed: {e}")
                 self._pipeline_errors.append(f"Gateway analytics: {e}")
 
-            # Consolidated Report (combines change detection + gateway analytics)
+            # Consolidated Report (combines change detection + gateway analytics + data augmentation)
             logger.info("\n[10.5/14] Generating consolidated report...")
             try:
                 from utils.report_consolidator import generate_consolidated_report
                 consolidated_file = Config.REPORTS_DIR / f"consolidated_report_{timestamp}.html"
+
+                # Load data augmentation records from input file
+                augmentation_data = None
+                augmentation_file = Config.INPUT_DIR / "data_augmentation.json"
+                if augmentation_file.exists():
+                    try:
+                        augmentation_data = load_json(augmentation_file)
+                        if augmentation_data:
+                            logger.info(f"  Loaded {len(augmentation_data)} data augmentation records")
+                    except Exception as e:
+                        logger.warning(f"⚠ Could not load data_augmentation.json: {e}")
+
                 generate_consolidated_report(
                     changes=changes,
                     gateway_analytics=gateway_analytics,
                     output_file=consolidated_file,
                     current_timestamp=timestamp,
                     baseline_timestamp=baseline_time_str,
+                    data_augmentation=augmentation_data,
                 )
                 self._consolidated_report_file = consolidated_file
                 logger.info(f"✓ Consolidated report: {consolidated_file}")
