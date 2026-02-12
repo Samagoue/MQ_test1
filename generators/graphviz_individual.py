@@ -3,11 +3,7 @@
 from typing import Dict
 from pathlib import Path
 from datetime import datetime
-from utils.common import lighten_color, darken_color
-from utils.logging_config import get_logger
-from utils.parallel import DiagramTask, run_parallel
-
-logger = get_logger("generator.individual")
+from utils.common import lighten_color
 
 
 class IndividualDiagramGenerator:
@@ -20,10 +16,10 @@ class IndividualDiagramGenerator:
     def generate_diagram(self, mqmanager: str, directorate: str, info: Dict) -> str:
         """Generate diagram for single MQ Manager."""
         from utils.common import sanitize_id
-       
+     
         qm_id = sanitize_id(mqmanager)
         colors = self.config.INDIVIDUAL_DIAGRAM_COLORS
-       
+     
         sections = [
             self._header(mqmanager, directorate),
             self._central_node(mqmanager, directorate, info, qm_id, colors),
@@ -35,11 +31,11 @@ class IndividualDiagramGenerator:
             "}"
         ]
         return "\n".join(filter(None, sections))
-   
+ 
     def _header(self, mqmanager: str, directorate: str) -> str:
         """Generate header."""
         from utils.common import sanitize_id
-       
+     
         return f"""digraph MQ_{sanitize_id(mqmanager)} {{
     rankdir=LR fontname="Helvetica" bgcolor="{self.config.GRAPHVIZ_BGCOLOR}"
     splines=curved nodesep=0.6 ranksep=1.0
@@ -51,7 +47,7 @@ class IndividualDiagramGenerator:
     node [fontname="Helvetica" margin="0.40,0.25" penwidth=1.2]
     edge [fontname="Helvetica" fontsize=9 arrowsize=0.7]
 """
-   
+ 
     def _central_node(self, mqmanager: str, directorate: str, info: Dict, qm_id: str, colors: Dict) -> str:
         """Generate central node with gradient fill."""
         central = colors["central"]
@@ -82,7 +78,7 @@ class IndividualDiagramGenerator:
         >
     ]
 """
-   
+ 
     def _inbound_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
         """Generate inbound nodes with gradient fills and bidirectional detection."""
         from utils.common import sanitize_id
@@ -122,7 +118,7 @@ class IndividualDiagramGenerator:
                 lines.append(f"    {inbound_id} -> {qm_id} [color=\"{inbound['arrow']}\" penwidth=2.0 dir=both arrowhead=normal arrowtail=dot label=\"sends to\"]")
 
         return "\n".join(lines) + "\n"
-   
+ 
     def _outbound_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
         """Generate outbound nodes with gradient fills, skip bidirectional (handled in inbound)."""
         from utils.common import sanitize_id
@@ -155,7 +151,7 @@ class IndividualDiagramGenerator:
             ])
 
         return "\n".join(lines) + "\n"
-   
+ 
     def _external_nodes(self, info: Dict, qm_id: str, colors: Dict) -> str:
         """Generate external system nodes with gradient fills and proper positioning."""
         from utils.common import sanitize_id
@@ -194,7 +190,7 @@ class IndividualDiagramGenerator:
                 ])
 
         return "\n".join(lines) + "\n"
-   
+ 
     def _legend(self, colors: Dict) -> str:
         """Generate legend."""
         conn_colors = self.config.CONNECTION_COLORS
@@ -241,51 +237,32 @@ class IndividualDiagramGenerator:
             <tr><td align="center"><font point-size="9">Click on connected MQ Managers to navigate</font></td></tr>
         </table>>
     ]"""
-   
+ 
     def _find_directorate(self, mqmanager: str) -> str:
         """Find directorate for MQmanager."""
         for directorate, mqmanagers in self.data.items():
             if mqmanager in mqmanagers:
                 return directorate
         return "Unknown"
-   
-    def generate_all(self, output_dir: Path, max_workers=None) -> int:
-        """Generate all individual diagrams.
-
-        Args:
-            output_dir: Directory to write diagram files.
-            max_workers: Number of parallel workers. None uses the default.
-
-        Returns:
-            Number of successfully generated diagrams.
-        """
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        tasks = []
-        for directorate, mqmanagers in self.data.items():
-            for mqmanager, info in mqmanagers.items():
-                tasks.append(DiagramTask(
-                    mqmanager,
-                    self._generate_single,
-                    mqmanager, directorate, info, output_dir,
-                ))
-
-        if not tasks:
-            return 0
-
-        logger.info(f"Generating {len(tasks)} individual MQ manager diagrams...")
-        result = run_parallel(tasks, max_workers=max_workers)
-        return result.success_count
-
-    def _generate_single(self, mqmanager, directorate, info, output_dir):
-        """Generate DOT and PDF for a single MQ manager. Thread-safe."""
+ 
+    def generate_all(self, output_dir: Path) -> int:
+        """Generate all individual diagrams."""
         from utils.common import sanitize_id
         from generators.graphviz_topology import GraphVizTopologyGenerator
 
-        dot_content = self.generate_diagram(mqmanager, directorate, info)
-        safe_name = sanitize_id(mqmanager)
-        dot_file = output_dir / f"{safe_name}.dot"
-        pdf_file = output_dir / f"{safe_name}.pdf"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        count = 0
 
-        dot_file.write_text(dot_content, encoding='utf-8')
-        GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)
+        for directorate, mqmanagers in self.data.items():
+            for mqmanager, info in mqmanagers.items():
+                dot_content = self.generate_diagram(mqmanager, directorate, info)
+                safe_name = sanitize_id(mqmanager)
+                dot_file = output_dir / f"{safe_name}.dot"
+                pdf_file = output_dir / f"{safe_name}.pdf"
+
+                dot_file.write_text(dot_content, encoding='utf-8')
+                GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)
+                count += 1
+
+        return count
+

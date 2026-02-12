@@ -15,12 +15,12 @@ Reference: TOGAF 9.2 Architecture Content Framework
 """
 
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List
 from datetime import datetime
 from collections import defaultdict
 from utils.logging_config import get_logger
 
-logger = get_logger("generator.doc")
+logger = get_logger("generators.doc_generator")
 
 
 class EADocumentationGenerator:
@@ -1096,3 +1096,5 @@ class EADocumentationGenerator:
             "*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* Internal",
             "{panel}"
         ]
+
+

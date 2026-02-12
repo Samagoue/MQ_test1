@@ -1,3 +1,4 @@
+
 """
 Change Detection and Diff Report Generator
 
@@ -14,7 +15,7 @@ from datetime import datetime
 from utils.file_io import load_json, save_json
 from utils.logging_config import get_logger
 
-logger = get_logger("processor.change")
+logger = get_logger("processors.change_detector")
 
 
 class ChangeDetector:

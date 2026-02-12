@@ -1,3 +1,4 @@
+
 """Main orchestrator for the complete MQ CMDB pipeline."""
 
 import os
@@ -26,40 +27,22 @@ logger = get_logger("orchestrator")
 class MQCMDBOrchestrator:
     """Orchestrate the complete MQ CMDB processing pipeline."""
 
-    def __init__(self, skip_export=False, diagrams_only=False, workers=None, dry_run=False):
+    def __init__(self):
         setup_utf8_output()
         Config.ensure_directories()
-        self.skip_export = skip_export
-        self.diagrams_only = diagrams_only
-        self.dry_run = dry_run
         self._pipeline_errors: list = []
         self._summary_stats: dict = {}
-
-        # Resolve effective workers: CLI flag > env var > Config > default (None)
-        if workers is not None:
-            self.workers = workers
-        elif os.environ.get("MQCMDB_WORKERS"):
-            try:
-                self.workers = int(os.environ["MQCMDB_WORKERS"])
-            except ValueError:
-                self.workers = Config.PARALLEL_WORKERS
-        else:
-            self.workers = Config.PARALLEL_WORKERS
+        self._consolidated_report_file: Path = None
 
     def run_full_pipeline(self) -> bool:
         """
         Execute complete hierarchical pipeline.
-
-        If diagrams_only is set, loads existing processed data and skips
-        steps 1-5 (data loading, processing, enrichment, change detection).
 
         Returns:
             True if pipeline completed successfully, False otherwise
         """
         logger.info("\n" + "=" * 70)
         logger.info("MQ CMDB HIERARCHICAL AUTOMATION PIPELINE")
-        if self.diagrams_only:
-            logger.info("  (diagrams-only mode)")
         logger.info("=" * 70)
 
         success = False
@@ -67,108 +50,90 @@ class MQCMDBOrchestrator:
         enriched_data = None
 
         try:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            directorate_data = None
-
-            if self.diagrams_only:
-                # In diagrams-only mode, load existing processed data
-                logger.info("\n[1-5/14] Skipped (diagrams-only mode)")
-                logger.info("Loading existing processed data...")
-                if not Config.PROCESSED_JSON.exists():
-                    raise FileNotFoundError(
-                        f"Processed data not found: {Config.PROCESSED_JSON}\n"
-                        "Run the full pipeline first to generate processed data."
-                    )
-                enriched_data = load_json(Config.PROCESSED_JSON)
-                logger.info(f"✓ Loaded processed data from {Config.PROCESSED_JSON}")
-            else:
-                # Output cleanup (if enabled)
-                if Config.ENABLE_OUTPUT_CLEANUP:
-                    logger.info("\n[0/14] Cleaning up old output files...")
-                    cleanup_results = cleanup_output_directory(
-                        Config.OUTPUT_DIR,
-                        Config.OUTPUT_RETENTION_DAYS,
-                        Config.OUTPUT_CLEANUP_PATTERNS
-                    )
-                    if cleanup_results['total_deleted'] > 0:
-                        logger.info(f"✓ Cleaned up {cleanup_results['total_deleted']} old file(s) (>{Config.OUTPUT_RETENTION_DAYS} days)")
-                        for fname in cleanup_results['deleted_files'][:5]:  # Show first 5
-                            logger.info(f"  - {fname}")
-                        if len(cleanup_results['deleted_files']) > 5:
-                            logger.info(f"  ... and {len(cleanup_results['deleted_files']) - 5} more")
-                    else:
-                        logger.info("✓ No old files to clean up")
-                    if cleanup_results['errors']:
-                        for error in cleanup_results['errors']:
-                            logger.warning(f" {error}")
-
-                # Load data
-                logger.info("\n[1/14] Loading MQ CMDB data...")
-                raw_data = load_json(Config.INPUT_JSON)
-                logger.info(f"✓ Loaded {len(raw_data)} records")
-
-                # Process relationships
-                logger.info("\n[2/14] Processing MQ Manager relationships...")
-                processor = MQManagerProcessor(
-                    raw_data,
-                    Config.FIELD_MAPPINGS,
-                    aliases_file=Config.MQMANAGER_ALIASES_JSON,
-                    app_to_qmgr_file=Config.APP_TO_QMGR_JSON,
-                    external_apps_file=Config.EXTERNAL_APPS_JSON
+            # Output cleanup (if enabled)
+            if Config.ENABLE_OUTPUT_CLEANUP:
+                logger.info("\n[0/14] Cleaning up old output files...")
+                cleanup_results = cleanup_output_directory(
+                    Config.OUTPUT_DIR,
+                    Config.OUTPUT_RETENTION_DAYS,
+                    Config.OUTPUT_CLEANUP_PATTERNS
                 )
-                directorate_data = processor.process_assets()
-                processor.print_stats()
-
-                # Convert to JSON
-                logger.info("\n[3/14] Converting to JSON structure...")
-                json_output = processor.convert_to_json(directorate_data)
-
-                # Mashup with hierarchy
-                logger.info("\n[4/14] Enriching with organizational hierarchy...")
-                mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON)
-                enriched_data = mashup.enrich_data(json_output)
-                save_json(enriched_data, Config.PROCESSED_JSON)
-                logger.info(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
-
-                # Change Detection
-                logger.info("\n[5/14] Running change detection...")
-                baseline_file = Config.BASELINE_JSON
-                change_detection_success = True
-
-                if baseline_file.exists():
-                    try:
-                        baseline_data = load_json(baseline_file)
-                        detector = ChangeDetector()
-                        changes = detector.compare(enriched_data, baseline_data)
-
-                        # Get baseline timestamp from filename or use "previous"
-                        baseline_timestamp = baseline_file.stat().st_mtime
-                        baseline_time_str = datetime.fromtimestamp(baseline_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-
-                        # Generate HTML report
-                        report_file = Config.REPORTS_DIR / f"change_report_{timestamp}.html"
-                        generate_html_report(changes, report_file, timestamp, baseline_time_str)
-
-                        logger.info(f"✓ Detected {changes['summary']['total_changes']} changes")
-                        logger.info(f"✓ Change report: {report_file}")
-
-                        # Save change data as JSON for programmatic access
-                        change_json = Config.DATA_DIR / f"changes_{timestamp}.json"
-                        save_json(changes, change_json)
-                    except Exception as e:
-                        logger.warning(f" Change detection failed: {e}")
-                        logger.warning(" Baseline will NOT be updated to preserve change detection capability")
-                        self._pipeline_errors.append(f"Change detection: {e}")
-                        change_detection_success = False
+                if cleanup_results['total_deleted'] > 0:
+                    logger.info(f"✓ Cleaned up {cleanup_results['total_deleted']} old file(s) (>{Config.OUTPUT_RETENTION_DAYS} days)")
+                    for fname in cleanup_results['deleted_files'][:5]:  # Show first 5
+                        logger.info(f"  - {fname}")
+                    if len(cleanup_results['deleted_files']) > 5:
+                        logger.info(f"  ... and {len(cleanup_results['deleted_files']) - 5} more")
                 else:
-                    logger.warning(" No baseline found - this will be the first baseline")
+                    logger.info("✓ No old files to clean up")
+                if cleanup_results['errors']:
+                    for error in cleanup_results['errors']:
+                        logger.warning(f"⚠ {error}")
 
-                # Update baseline only if change detection succeeded (or no baseline existed)
-                if change_detection_success:
-                    save_json(enriched_data, baseline_file)
-                    logger.info(f"✓ Baseline updated: {baseline_file}")
-                else:
-                    logger.warning(" Baseline NOT updated due to change detection failure")
+            # Load data
+            logger.info("\n[1/14] Loading MQ CMDB data...")
+            raw_data = load_json(Config.INPUT_JSON)
+            logger.info(f"✓ Loaded {len(raw_data)} records")
+
+            # Process relationships
+            logger.info("\n[2/14] Processing MQ Manager relationships...")
+            processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
+            directorate_data = processor.process_assets()
+            processor.print_stats()
+
+            # Convert to JSON
+            logger.info("\n[3/14] Converting to JSON structure...")
+            json_output = processor.convert_to_json(directorate_data)
+
+            # Mashup with hierarchy
+            logger.info("\n[4/14] Enriching with organizational hierarchy...")
+            mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON)
+            enriched_data = mashup.enrich_data(json_output)
+            save_json(enriched_data, Config.PROCESSED_JSON)
+            logger.info(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
+
+            # Change Detection
+            logger.info("\n[5/14] Running change detection...")
+            baseline_file = Config.BASELINE_JSON
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            change_detection_success = True
+            changes = None
+            baseline_time_str = None
+
+            if baseline_file.exists():
+                try:
+                    baseline_data = load_json(baseline_file)
+                    detector = ChangeDetector()
+                    changes = detector.compare(enriched_data, baseline_data)
+
+                    # Get baseline timestamp from filename or use "previous"
+                    baseline_timestamp = baseline_file.stat().st_mtime
+                    baseline_time_str = datetime.fromtimestamp(baseline_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+                    # Generate HTML report
+                    report_file = Config.REPORTS_DIR / f"change_report_{timestamp}.html"
+                    generate_html_report(changes, report_file, timestamp, baseline_time_str)
+
+                    logger.info(f"✓ Detected {changes['summary']['total_changes']} changes")
+                    logger.info(f"✓ Change report: {report_file}")
+
+                    # Save change data as JSON for programmatic access
+                    change_json = Config.DATA_DIR / f"changes_{timestamp}.json"
+                    save_json(changes, change_json)
+                except Exception as e:
+                    logger.warning(f"⚠ Change detection failed: {e}")
+                    logger.warning("⚠ Baseline will NOT be updated to preserve change detection capability")
+                    self._pipeline_errors.append(f"Change detection: {e}")
+                    change_detection_success = False
+            else:
+                logger.warning("⚠ No baseline found - this will be the first baseline")
+
+            # Update baseline only if change detection succeeded (or no baseline existed)
+            if change_detection_success:
+                save_json(enriched_data, baseline_file)
+                logger.info(f"✓ Baseline updated: {baseline_file}")
+            else:
+                logger.warning("⚠ Baseline NOT updated due to change detection failure")
 
             # Generate hierarchical topology
             logger.info("\n[6/14] Generating hierarchical topology diagram...")
@@ -178,56 +143,53 @@ class MQCMDBOrchestrator:
             # Try to generate PDF, but don't fail if GraphViz is not installed
             pdf_generated = gen.generate_pdf(Config.TOPOLOGY_DOT, Config.TOPOLOGY_PDF)
             if not pdf_generated:
-                logger.warning(" GraphViz not found - DOT file created, PDF skipped")
+                logger.warning("⚠ GraphViz not found - DOT file created, PDF skipped")
                 logger.info(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
 
             # Generate application diagrams
             logger.info("\n[7/14] Generating application diagrams...")
             app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
-            count = app_gen.generate_all(app_diagrams_dir, max_workers=self.workers)
+            count = app_gen.generate_all(app_diagrams_dir)
             if count > 0:
                 logger.info(f"✓ Generated {count} application diagrams in {app_diagrams_dir}")
                 if not pdf_generated:
-                    logger.warning(" GraphViz required for PDF generation")
+                    logger.warning("⚠ GraphViz required for PDF generation")
                     logger.info(f"  → To generate PDFs: cd {app_diagrams_dir} && for f in *.dot; do dot -Tpdf $f -o ${{f%.dot}}.pdf; done")
             else:
-                logger.warning(" No application diagrams generated")
+                logger.warning("⚠ No application diagrams generated")
 
             # Generate individual MQ manager diagrams
             logger.info("\n[8/14] Generating individual MQ manager diagrams...")
             individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
-            if directorate_data is not None:
-                individual_gen = IndividualDiagramGenerator(directorate_data, Config)
-                individual_count = individual_gen.generate_all(individual_diagrams_dir, max_workers=self.workers)
-            else:
-                individual_count = 0
-                logger.warning("Skipping individual diagrams (directorate data not available in diagrams-only mode)")
+            individual_gen = IndividualDiagramGenerator(directorate_data, Config)
+            individual_count = individual_gen.generate_all(individual_diagrams_dir)
             if individual_count > 0:
                 logger.info(f"✓ Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
                 if not pdf_generated:
-                    logger.warning(" GraphViz required for PDF generation")
+                    logger.warning("⚠ GraphViz required for PDF generation")
                     logger.info(f"  → To generate PDFs: cd {individual_diagrams_dir} && for f in *.dot; do dot -Tpdf $f -o ${{f%.dot}}.pdf; done")
             else:
-                logger.warning(" No individual diagrams generated")
+                logger.warning("⚠ No individual diagrams generated")
 
             # Smart Filtered Views
             logger.info("\n[9/14] Generating smart filtered views...")
             try:
                 from utils.smart_filter import generate_filtered_diagrams
                 filtered_dir = Config.FILTERED_VIEWS_DIR
-                filtered_count = generate_filtered_diagrams(enriched_data, filtered_dir, Config, max_workers=self.workers)
+                filtered_count = generate_filtered_diagrams(enriched_data, filtered_dir, Config)
                 if filtered_count > 0:
                     logger.info(f"✓ Generated {filtered_count} filtered view diagrams in {filtered_dir}")
                     logger.info("  Views: per-organization, gateways-only, internal/external gateways")
                 else:
-                    logger.warning(" No filtered views generated")
+                    logger.warning("⚠ No filtered views generated")
             except Exception as e:
-                logger.warning(f" Filtered view generation failed: {e}")
+                logger.warning(f"⚠ Filtered view generation failed: {e}")
                 self._pipeline_errors.append(f"Filtered views: {e}")
 
             # Gateway Analytics (if gateways exist)
             logger.info("\n[10/14] Running gateway analytics...")
+            gateway_analytics = None
             try:
                 analyzer = GatewayAnalyzer(enriched_data)
                 gateway_analytics = analyzer.analyze()
@@ -244,10 +206,28 @@ class MQCMDBOrchestrator:
                     logger.info(f"✓ Gateway analytics: {gateway_analytics['summary']['total_gateways']} gateways analyzed")
                     logger.info(f"✓ Report: {analytics_report}")
                 else:
-                    logger.warning(" No gateways found in data")
+                    logger.warning("⚠ No gateways found in data")
             except Exception as e:
-                logger.warning(f" Gateway analytics failed: {e}")
+                logger.warning(f"⚠ Gateway analytics failed: {e}")
                 self._pipeline_errors.append(f"Gateway analytics: {e}")
+
+            # Consolidated Report (combines change detection + gateway analytics)
+            logger.info("\n[10.5/14] Generating consolidated report...")
+            try:
+                from utils.report_consolidator import generate_consolidated_report
+                consolidated_file = Config.REPORTS_DIR / f"consolidated_report_{timestamp}.html"
+                generate_consolidated_report(
+                    changes=changes,
+                    gateway_analytics=gateway_analytics,
+                    output_file=consolidated_file,
+                    current_timestamp=timestamp,
+                    baseline_timestamp=baseline_time_str,
+                )
+                self._consolidated_report_file = consolidated_file
+                logger.info(f"✓ Consolidated report: {consolidated_file}")
+            except Exception as e:
+                logger.warning(f"⚠ Consolidated report generation failed: {e}")
+                self._pipeline_errors.append(f"Consolidated report: {e}")
 
             # Multi-Format Exports
             logger.info("\n[11/14] Generating multi-format exports...")
@@ -260,18 +240,18 @@ class MQCMDBOrchestrator:
 
                 # Export all application diagrams
                 if Config.APPLICATION_DIAGRAMS_DIR.exists():
-                    export_directory_to_formats(Config.APPLICATION_DIAGRAMS_DIR, formats=['svg'], dpi=150, max_workers=self.workers)
+                    export_directory_to_formats(Config.APPLICATION_DIAGRAMS_DIR, formats=['svg'], dpi=150)
 
                 # Export all individual diagrams
                 if Config.INDIVIDUAL_DIAGRAMS_DIR.exists():
-                    export_directory_to_formats(Config.INDIVIDUAL_DIAGRAMS_DIR, formats=['svg'], dpi=150, max_workers=self.workers)
+                    export_directory_to_formats(Config.INDIVIDUAL_DIAGRAMS_DIR, formats=['svg'], dpi=150)
 
                 # Generate Excel inventory
                 excel_file = Config.EXPORTS_DIR / f"mqcmdb_inventory_{timestamp}.xlsx"
                 if generate_excel_inventory(enriched_data, excel_file):
                     logger.info(f"✓ Excel inventory: {excel_file}")
             except Exception as e:
-                logger.warning(f" Multi-format export failed: {e}")
+                logger.warning(f"⚠ Multi-format export failed: {e}")
                 self._pipeline_errors.append(f"Multi-format export: {e}")
 
             # EA Documentation Generation
@@ -283,7 +263,7 @@ class MQCMDBOrchestrator:
                 logger.info(f"✓ EA Documentation: {confluence_doc}")
                 logger.info("  → Import into Confluence using Insert → Markup")
             except Exception as e:
-                logger.warning(f" EA documentation generation failed: {e}")
+                logger.warning(f"⚠ EA documentation generation failed: {e}")
                 self._pipeline_errors.append(f"EA documentation: {e}")
 
             # Final Summary
@@ -298,11 +278,11 @@ class MQCMDBOrchestrator:
             success = True
 
         except FileNotFoundError as e:
-            logger.error(f"\n ERROR: {e}")
+            logger.error(f"\n✗ ERROR: {e}")
             logger.info("Ensure all required files exist in the correct directories")
             error_message = f"File not found: {e}"
         except Exception as e:
-            logger.error(f"\n UNEXPECTED ERROR: {e}")
+            logger.error(f"\n✗ UNEXPECTED ERROR: {e}")
             error_message = f"Unexpected error: {e}\n{traceback.format_exc()}"
             logger.exception("Unexpected pipeline error")
 
@@ -359,7 +339,7 @@ class MQCMDBOrchestrator:
 
         # Show warnings if any
         if self._pipeline_errors:
-            logger.info("\nWarnings during execution:")
+            logger.warning("\nWarnings during execution:")
             for error in self._pipeline_errors:
                 logger.info(f"  ⚠ {error}")
 
@@ -375,7 +355,7 @@ class MQCMDBOrchestrator:
             notifier = get_notifier()
 
             if not notifier.is_enabled:
-                logger.warning(" Email notifications not configured")
+                logger.warning("⚠ Email notifications not configured")
                 return
 
             # Build summary for email
@@ -393,17 +373,18 @@ class MQCMDBOrchestrator:
                 success=success,
                 summary=summary,
                 error_message=error_message,
+                report_file=self._consolidated_report_file,
             )
 
             if result:
                 logger.info("✓ Email notification sent")
             else:
-                logger.warning(" Failed to send email notification")
+                logger.warning("⚠ Failed to send email notification")
                 for err in notifier.errors:
                     logger.info(f"  - {err}")
 
         except Exception as e:
-            logger.warning(f" Email notification error: {e}")
+            logger.warning(f"⚠ Email notification error: {e}")
 
 
 def main():

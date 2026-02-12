@@ -70,8 +70,8 @@ class DatabaseConnection:
             if cursor is not None:
                 try:
                     cursor.close()
-                except Exception:
-                    pass  # Ignore errors during cleanup
+                except Exception as e:
+                    logger.debug(f"Cursor cleanup error (non-critical): {e}")
 
     def close(self):
         """Close database connection."""

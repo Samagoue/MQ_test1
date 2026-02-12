@@ -9,7 +9,7 @@ Analyzes gateway MQ managers to provide insights on:
 """
 
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict
 from collections import defaultdict
 from datetime import datetime
 from utils.logging_config import get_logger
@@ -95,57 +95,28 @@ class GatewayAnalyzer:
         internal_gateways = [g for g in self.gateways.values() if g.get('GatewayScope') == 'Internal']
         external_gateways = [g for g in self.gateways.values() if g.get('GatewayScope') == 'External']
 
-        # Count all connection types
-        total_mq_connections = sum(
-            len(g.get('inbound', [])) + len(g.get('outbound', []))
-            for g in self.gateways.values()
-        )
-        total_external_connections = sum(
-            len(g.get('inbound_extra', [])) + len(g.get('outbound_extra', []))
-            for g in self.gateways.values()
-        )
-        total_app_connections = sum(
-            len(g.get('inbound_apps', [])) + len(g.get('outbound_apps', [])) +
-            len(g.get('inbound_apps_external', [])) + len(g.get('outbound_apps_external', []))
-            for g in self.gateways.values()
-        )
-
         self.analytics['summary'] = {
             'total_gateways': len(self.gateways),
             'internal_gateways': len(internal_gateways),
             'external_gateways': len(external_gateways),
-            'total_mq_connections': total_mq_connections,
-            'total_external_connections': total_external_connections,
-            'total_app_connections': total_app_connections,
-            'total_gateway_connections': total_mq_connections + total_external_connections + total_app_connections
+            'total_gateway_connections': sum(
+                len(g.get('inbound', [])) + len(g.get('outbound', [])) +
+                len(g.get('inbound_extra', [])) + len(g.get('outbound_extra', []))
+                for g in self.gateways.values()
+            )
         }
 
     def _analyze_gateway_traffic(self):
         """Analyze traffic patterns through each gateway."""
         for gw_name, gw_data in self.gateways.items():
-            # MQ Manager connections
-            inbound_mq = gw_data.get('inbound', [])
-            outbound_mq = gw_data.get('outbound', [])
+            inbound = gw_data.get('inbound', []) + gw_data.get('inbound_extra', [])
+            outbound = gw_data.get('outbound', []) + gw_data.get('outbound_extra', [])
 
-            # External/unknown connections
-            inbound_extra = gw_data.get('inbound_extra', [])
-            outbound_extra = gw_data.get('outbound_extra', [])
-
-            # Application connections
-            inbound_apps = gw_data.get('inbound_apps', [])
-            outbound_apps = gw_data.get('outbound_apps', [])
-            inbound_apps_ext = gw_data.get('inbound_apps_external', [])
-            outbound_apps_ext = gw_data.get('outbound_apps_external', [])
-
-            # Total counts
-            total_inbound = len(inbound_mq) + len(inbound_extra) + len(inbound_apps) + len(inbound_apps_ext)
-            total_outbound = len(outbound_mq) + len(outbound_extra) + len(outbound_apps) + len(outbound_apps_ext)
-
-            # Count unique organizations/departments connected via MQ managers
+            # Count unique organizations/departments connected
             connected_orgs = set()
             connected_depts = set()
 
-            for mqmgr in inbound_mq + outbound_mq:
+            for mqmgr in inbound + outbound:
                 if mqmgr in self.all_mqmanagers:
                     connected_orgs.add(self.all_mqmanagers[mqmgr].get('Organization', ''))
                     connected_depts.add(self.all_mqmanagers[mqmgr].get('Department', ''))
@@ -154,29 +125,14 @@ class GatewayAnalyzer:
                 'scope': gw_data.get('GatewayScope', ''),
                 'organization': gw_data.get('Organization', ''),
                 'department': gw_data.get('Department', ''),
-                # MQ Manager connections
-                'inbound_mq': len(inbound_mq),
-                'outbound_mq': len(outbound_mq),
-                # External/unknown connections
-                'inbound_external': len(inbound_extra),
-                'outbound_external': len(outbound_extra),
-                # Application connections
-                'inbound_apps': len(inbound_apps) + len(inbound_apps_ext),
-                'outbound_apps': len(outbound_apps) + len(outbound_apps_ext),
-                # Totals (for backwards compatibility)
-                'inbound_connections': total_inbound,
-                'outbound_connections': total_outbound,
-                'total_connections': total_inbound + total_outbound,
+                'inbound_connections': len(inbound),
+                'outbound_connections': len(outbound),
+                'total_connections': len(inbound) + len(outbound),
                 'connected_organizations': len(connected_orgs),
                 'connected_departments': len(connected_depts),
                 'queue_local': gw_data.get('qlocal_count', 0),
                 'queue_remote': gw_data.get('qremote_count', 0),
-                'queue_alias': gw_data.get('qalias_count', 0),
-                # Detailed lists for debugging
-                'inbound_mq_list': inbound_mq,
-                'outbound_mq_list': outbound_mq,
-                'inbound_extra_list': inbound_extra,
-                'outbound_extra_list': outbound_extra
+                'queue_alias': gw_data.get('qalias_count', 0)
             }
 
     def _analyze_org_connectivity(self):
@@ -441,14 +397,6 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
                 <div class="count">{summary['external_gateways']}</div>
             </div>
             <div class="summary-card">
-                <h3>MQ Connections</h3>
-                <div class="count">{summary.get('total_mq_connections', 0)}</div>
-            </div>
-            <div class="summary-card">
-                <h3>External Connections</h3>
-                <div class="count">{summary.get('total_external_connections', 0)}</div>
-            </div>
-            <div class="summary-card">
                 <h3>Total Connections</h3>
                 <div class="count">{summary['total_gateway_connections']}</div>
             </div>
@@ -461,12 +409,11 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
                     <th>Gateway</th>
                     <th>Scope</th>
                     <th>Organization</th>
-                    <th>Inbound MQ</th>
-                    <th>Outbound MQ</th>
-                    <th>Inbound Ext</th>
-                    <th>Outbound Ext</th>
+                    <th>Inbound</th>
+                    <th>Outbound</th>
                     <th>Total</th>
                     <th>Connected Orgs</th>
+                    <th>Connected Depts</th>
                 </tr>
             </thead>
             <tbody>
@@ -479,12 +426,11 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
                     <td><strong>{gw_name}</strong></td>
                     <td>{scope_badge}</td>
                     <td>{traffic['organization']}</td>
-                    <td>{traffic.get('inbound_mq', traffic['inbound_connections'])}</td>
-                    <td>{traffic.get('outbound_mq', traffic['outbound_connections'])}</td>
-                    <td>{traffic.get('inbound_external', 0)}</td>
-                    <td>{traffic.get('outbound_external', 0)}</td>
+                    <td>{traffic['inbound_connections']}</td>
+                    <td>{traffic['outbound_connections']}</td>
                     <td><strong>{traffic['total_connections']}</strong></td>
                     <td>{traffic['connected_organizations']}</td>
+                    <td>{traffic['connected_departments']}</td>
                 </tr>
 """
 
@@ -622,3 +568,4 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
         f.write(html)
 
     logger.info(f"✓ Gateway analytics report generated: {output_file}")
+

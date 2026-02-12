@@ -7,7 +7,6 @@ and other components. Supports configuration via environment variables or config
 
 import os
 import sys
-import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
@@ -23,8 +22,9 @@ from email.mime.base import MIMEBase
 from email import encoders
 
 
-# Set up module logger
-logger = logging.getLogger(__name__)
+from utils.logging_config import get_logger
+
+logger = get_logger("utils.email_notifier")
 
 
 @dataclass
@@ -82,22 +82,22 @@ class EmailConfig:
         parser.read(config_path)
 
         if "smtp" in parser:
-            s = parser["smtp"]
-            config.smtp_server = s.get("server", "localhost")
-            config.smtp_port = s.getint("port", 25)
-            config.smtp_user = s.get("user") or s.get("username")
-            config.smtp_password = s.get("password")
-            config.from_address = s.get("from", "mqcmdb@localhost")
-            config.use_tls = s.getboolean("use_tls", False)
-            config.use_ssl = s.getboolean("use_ssl", False)
+            smtp_section = parser["smtp"]
+            config.smtp_server = smtp_section.get("server", "localhost")
+            config.smtp_port = smtp_section.getint("port", 25)
+            config.smtp_user = smtp_section.get("user") or smtp_section.get("username")
+            config.smtp_password = smtp_section.get("password")
+            config.from_address = smtp_section.get("from", "mqcmdb@localhost")
+            config.use_tls = smtp_section.getboolean("use_tls", False)
+            config.use_ssl = smtp_section.getboolean("use_ssl", False)
 
         if "notifications" in parser:
-            n = parser["notifications"]
-            config.enabled = n.getboolean("enabled", False)
+            notif_section = parser["notifications"]
+            config.enabled = notif_section.getboolean("enabled", False)
 
-            success_list = n.get("recipients_success", "")
-            failure_list = n.get("recipients_failure", "")
-            all_list = n.get("recipients", "")
+            success_list = notif_section.get("recipients_success", "")
+            failure_list = notif_section.get("recipients_failure", "")
+            all_list = notif_section.get("recipients", "")
 
             config.recipients_success = [r.strip() for r in success_list.split(",") if r.strip()]
             config.recipients_failure = [r.strip() for r in failure_list.split(",") if r.strip()]
@@ -268,6 +268,7 @@ class EmailNotifier:
         summary: Dict[str, Any],
         log_file: Optional[Path] = None,
         error_message: Optional[str] = None,
+        report_file: Optional[Path] = None,
     ) -> bool:
         """
         Send a pipeline completion notification.
@@ -277,6 +278,7 @@ class EmailNotifier:
             summary: Dictionary with pipeline statistics
             log_file: Path to log file to attach
             error_message: Error message if pipeline failed
+            report_file: Path to consolidated HTML report to attach
 
         Returns:
             True if sent successfully
@@ -363,6 +365,8 @@ class EmailNotifier:
         attachments = []
         if log_file and log_file.exists():
             attachments.append(log_file)
+        if report_file and report_file.exists():
+            attachments.append(report_file)
 
         return self.send(
             subject=subject,
