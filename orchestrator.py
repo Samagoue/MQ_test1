@@ -53,6 +53,7 @@ class MQCMDBOrchestrator:
         self.dry_run = dry_run
         self._pipeline_errors: list = []
         self._summary_stats: dict = {}
+        self._consolidated_report_file: Path = None
 
         # Resolve effective workers: CLI flag > env var > Config > default (None)
         if workers is not None:
@@ -128,6 +129,8 @@ class MQCMDBOrchestrator:
             baseline_file = Config.BASELINE_JSON
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             change_detection_success = True
+            changes = None
+            baseline_time_str = None
 
             if baseline_file.exists():
                 try:
