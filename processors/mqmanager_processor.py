@@ -33,6 +33,7 @@ class MQManagerProcessor:
         # Collections for processing
         self.valid_mqmanagers = set()
         self.mqmanager_to_directorate = {}
+        self.canonical_mqmanagers = {}  # UPPER -> canonical name from raw data
      
         self.stats = {
             'total_records': len(self.raw_data),
@@ -86,25 +87,25 @@ class MQManagerProcessor:
     def _find_mqmanager_in_string(self, text: str, exclude_mqmanager: str = "") -> Optional[str]:
         """
         Check if any valid MQmanager name exists in the text.
-        Returns the MQmanager name if found, None otherwise.
+        Returns the canonical MQmanager name if found, None otherwise.
         """
         if not text:
             return None
-     
+
         text_upper = text.upper()
         exclude_upper = exclude_mqmanager.upper()
-     
+
         # Split by dots and check each part
         parts = text.split('.')
         for part in parts:
             part_upper = part.upper()
             if part_upper in self.valid_mqmanagers and part_upper != exclude_upper:
-                return part
-     
+                return self.canonical_mqmanagers.get(part_upper, part)
+
         # Check if entire string matches
         if text_upper in self.valid_mqmanagers and text_upper != exclude_upper:
-            return text
-     
+            return self.canonical_mqmanagers.get(text_upper, text)
+
         return None
  
     def _build_index(self):
@@ -123,6 +124,9 @@ class MQManagerProcessor:
             if mqmanager:
                 mqmanager_upper = mqmanager.upper()
                 self.valid_mqmanagers.add(mqmanager_upper)
+                # Store canonical name (first occurrence wins)
+                if mqmanager_upper not in self.canonical_mqmanagers:
+                    self.canonical_mqmanagers[mqmanager_upper] = mqmanager
                 directorate = self._normalize_value(record.get(directorate_field, ''))
                 if not directorate:
                     directorate = "Unknown"

@@ -243,10 +243,15 @@ class IndividualDiagramGenerator:
     ]"""
  
     def _find_directorate(self, mqmanager: str) -> str:
-        """Find directorate for MQmanager."""
+        """Find directorate for MQmanager (case-insensitive)."""
+        mqmgr_upper = mqmanager.upper()
         for directorate, mqmanagers in self.data.items():
             if mqmanager in mqmanagers:
                 return directorate
+            # Fallback: case-insensitive match
+            for key in mqmanagers:
+                if key.upper() == mqmgr_upper:
+                    return directorate
         return "Unknown"
  
     def generate_all(self, output_dir: Path, workers: int = None) -> int:

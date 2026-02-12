@@ -448,19 +448,21 @@ class ApplicationDiagramGenerator:
         inbound_extra = mq_data.get('inbound_extra', [])
         outbound_extra = mq_data.get('outbound_extra', [])
 
-        # Store connections
-        # Regular connections are always added
+        # Store connections — resolve names to canonical form so edge IDs
+        # match the node IDs generated from hierarchy keys.
         for target in outbound:
+            canonical_target = self.mqmgr_lookup.get(target.upper(), {}).get('canonical_name', target)
             all_connections.append({
                 'from': mqmgr_name,
-                'to': target,
+                'to': canonical_target,
                 'is_focus_source': is_focus,
                 'type': 'outbound'
             })
 
         for source in inbound:
+            canonical_source = self.mqmgr_lookup.get(source.upper(), {}).get('canonical_name', source)
             all_connections.append({
-                'from': source,
+                'from': canonical_source,
                 'to': mqmgr_name,
                 'is_focus_source': False,
                 'type': 'inbound'
@@ -471,16 +473,18 @@ class ApplicationDiagramGenerator:
         # For non-focused: Add external connections normally
         if not is_focus:
             for target in outbound_extra:
+                canonical_target = self.mqmgr_lookup.get(target.upper(), {}).get('canonical_name', target)
                 all_connections.append({
                     'from': mqmgr_name,
-                    'to': target,
+                    'to': canonical_target,
                     'is_focus_source': is_focus,
                     'type': 'outbound_extra'
                 })
 
             for source in inbound_extra:
+                canonical_source = self.mqmgr_lookup.get(source.upper(), {}).get('canonical_name', source)
                 all_connections.append({
-                    'from': source,
+                    'from': canonical_source,
                     'to': mqmgr_name,
                     'is_focus_source': False,
                     'type': 'inbound_extra'
