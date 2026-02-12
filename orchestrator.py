@@ -1,5 +1,13 @@
 
-"""Main orchestrator for the complete MQ CMDB pipeline."""
+
+"""
+MQ CMDB Pipeline Orchestrator
+
+Coordinates the 14-step processing pipeline: data loading, relationship
+extraction, hierarchy enrichment, change detection, diagram generation
+(topology, per-application, per-manager, filtered views), gateway
+analytics, multi-format export, EA documentation, and email notification.
+"""
 
 import os
 import sys
@@ -27,12 +35,35 @@ logger = get_logger("orchestrator")
 class MQCMDBOrchestrator:
     """Orchestrate the complete MQ CMDB processing pipeline."""
 
-    def __init__(self):
+    def __init__(self, skip_export: bool = False, diagrams_only: bool = False,
+                 workers: int = None, dry_run: bool = False):
+        """
+        Initialize with pipeline configuration.
+
+        Args:
+            skip_export: Skip database export, use existing data.
+            diagrams_only: Only regenerate diagrams from processed data.
+            workers: Parallel workers for diagram generation (None = sequential).
+            dry_run: Log planned actions without executing.
+        """
         setup_utf8_output()
         Config.ensure_directories()
+        self.skip_export = skip_export
+        self.diagrams_only = diagrams_only
+        self.dry_run = dry_run
         self._pipeline_errors: list = []
         self._summary_stats: dict = {}
-        self._consolidated_report_file: Path = None
+
+        # Resolve effective workers: CLI flag > env var > Config > default (None)
+        if workers is not None:
+            self.workers = workers
+        elif os.environ.get("MQCMDB_WORKERS"):
+            try:
+                self.workers = int(os.environ["MQCMDB_WORKERS"])
+            except ValueError:
+                self.workers = Config.PARALLEL_WORKERS
+        else:
+            self.workers = Config.PARALLEL_WORKERS
 
     def run_full_pipeline(self) -> bool:
         """
@@ -97,8 +128,6 @@ class MQCMDBOrchestrator:
             baseline_file = Config.BASELINE_JSON
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             change_detection_success = True
-            changes = None
-            baseline_time_str = None
 
             if baseline_file.exists():
                 try:
@@ -150,7 +179,7 @@ class MQCMDBOrchestrator:
             logger.info("\n[7/14] Generating application diagrams...")
             app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
-            count = app_gen.generate_all(app_diagrams_dir)
+            count = app_gen.generate_all(app_diagrams_dir, workers=self.workers)
             if count > 0:
                 logger.info(f"✓ Generated {count} application diagrams in {app_diagrams_dir}")
                 if not pdf_generated:
@@ -163,7 +192,7 @@ class MQCMDBOrchestrator:
             logger.info("\n[8/14] Generating individual MQ manager diagrams...")
             individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
             individual_gen = IndividualDiagramGenerator(directorate_data, Config)
-            individual_count = individual_gen.generate_all(individual_diagrams_dir)
+            individual_count = individual_gen.generate_all(individual_diagrams_dir, workers=self.workers)
             if individual_count > 0:
                 logger.info(f"✓ Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
                 if not pdf_generated:
@@ -398,3 +427,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

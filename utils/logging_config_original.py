@@ -1,4 +1,4 @@
-"""Logging configuration for the MQ CMDB system.
+"""Logging configuration for all projects.
 
 Provides dual-output logging: user-friendly console output (preserving emoji indicators)
 and structured file output with timestamps, levels, and rotation.
@@ -14,6 +14,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Root logger name — set by setup_logging(log_prefix=...) so that
+# get_logger() returns children under the correct namespace.
+# Before setup_logging() is called, defaults to "app".
+_ROOT_LOGGER_NAME = "app"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Built-in ASCII Art Font  (6 rows per character, variable width)
@@ -422,49 +426,78 @@ class EmojiFormatter(logging.Formatter):
         return msg
 
 
+def _add_text_lines(content_lines: list, text: str, indent: str = "        "):
+    """Split a string on newlines, expand tabs, and append each line."""
+    for line in text.split('\n'):
+        line = line.expandtabs(8)
+        content_lines.append(f"{indent}{line}")
+
+
 def _build_banner(config: Dict, log_file_path: Optional[str] = None) -> str:
     """
-    Build the ASCII banner string from a config dict.
+    Build the ASCII banner string with a Unicode box border.
 
     If config["art_text"] is provided, the art is auto-generated.
     Otherwise config["art"] (a list of pre-made lines) is used.
+
+    Subtitle and title may contain newlines to produce multi-line sections.
+
+    Uses box-drawing characters: ╔ ═ ╗ ║ ╚ ╝
     """
-    border = config["border_char"] * config["border_width"]
-    lines = ["", border, ""]
+    # Collect all content lines first
+    content_lines = []
 
     # ASCII art - auto-generate from text or use provided lines
     if config.get("art_text"):
         art_lines = generate_ascii_art(config["art_text"])
         for art_line in art_lines:
-            lines.append(f"  {art_line}")
+            content_lines.append(f"       {art_line}")
     elif config.get("art"):
         for art_line in config["art"]:
-            lines.append(art_line)
+            content_lines.append(f"  {art_line}")
 
-    lines.append("")
+    content_lines.append("")
 
     if config.get("title"):
-        lines.append(f"  {config['title']}")
+        _add_text_lines(content_lines, config["title"])
 
     if config.get("version"):
-        lines.append(f"  Version {config['version']}")
+        content_lines.append(f"        Version {config['version']}")
 
     if config.get("subtitle"):
-        lines.append(f"  {config['subtitle']}")
+        _add_text_lines(content_lines, config["subtitle"])
 
-    lines.append("")
+    content_lines.append("")
 
     if config.get("show_timestamp"):
-        lines.append(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        content_lines.append(f"        Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     if config.get("show_log_path") and log_file_path:
-        lines.append(f"  Log:     {log_file_path}")
+        content_lines.append(f"        Log:     {log_file_path}")
 
-    lines.extend(["", border, ""])
+    # Calculate inner width: use config width or expand to fit longest line
+    max_content = max((len(line) for line in content_lines), default=0)
+    inner_width = max(config["border_width"], max_content + 4)
+
+    # Build the box
+    top_border    = f"    ╔{'═' * inner_width}╗"
+    bottom_border = f"    ╚{'═' * inner_width}╝"
+    empty_line    = f"    ║{' ' * inner_width}║"
+
+    def box_line(text):
+        return f"    ║{text.ljust(inner_width)}║"
+
+    lines = ["", top_border, empty_line]
+    for content in content_lines:
+        if content == "":
+            lines.append(empty_line)
+        else:
+            lines.append(box_line(content))
+    lines.extend([empty_line, bottom_border, ""])
     return "\n".join(lines)
 
 
-def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
+def setup_logging(verbose=False, log_dir=None, log_prefix="app",
                   banner_config: Optional[Dict] = None):
     """
     Initialize the dual-output logging system.
@@ -472,7 +505,7 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
     Args:
         verbose: If True, set console handler to DEBUG level.
         log_dir: Directory for log files. Defaults to Config.LOGS_DIR.
-        log_prefix: Prefix for log filenames.
+        log_prefix: Prefix for log filenames and root logger name.
         banner_config: Dict to override banner defaults. Examples:
             {"art_text": "MY APP"}          - auto-generate art from text
             {"art": [lines], "title": "X"}  - use pre-made art
@@ -481,7 +514,10 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
     Returns:
         The configured root logger for the application.
     """
-    logger = logging.getLogger("mqcmdb")
+    global _ROOT_LOGGER_NAME
+    previous_root = _ROOT_LOGGER_NAME
+    _ROOT_LOGGER_NAME = log_prefix
+    logger = logging.getLogger(log_prefix)
 
     if logger.handlers:
         return logger
@@ -528,12 +564,22 @@ def setup_logging(verbose=False, log_dir=None, log_prefix="mqcmdb",
         banner = _build_banner(cfg, log_file_path=str(log_file))
         logger.info(banner)
 
+    # --- Bridge ---
+    # Module-level get_logger() calls that ran before setup_logging()
+    # created loggers under the old default root (e.g. "app.orchestrator").
+    # Give that old root the same handlers so those loggers still work.
+    if previous_root != log_prefix:
+        bridge = logging.getLogger(previous_root)
+        bridge.setLevel(logger.level)
+        for handler in logger.handlers:
+            bridge.addHandler(handler)
+
     return logger
 
 
 def get_logger(name):
     """
-    Get a child logger under the mqcmdb hierarchy.
+    Get a child logger under the application hierarchy.
 
     Args:
         name: Module name (e.g., "orchestrator", "generator.application").
@@ -541,7 +587,7 @@ def get_logger(name):
     Returns:
         A logging.Logger instance.
     """
-    return logging.getLogger(f"mqcmdb.{name}")
+    return logging.getLogger(f"{_ROOT_LOGGER_NAME}.{name}")
 
 
 def cleanup_old_logs(log_dir=None, retention_days=None):

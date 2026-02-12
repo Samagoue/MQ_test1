@@ -1,3 +1,4 @@
+
 """
 Gateway Analytics and Insights
 
@@ -12,6 +13,7 @@ from pathlib import Path
 from typing import Dict
 from collections import defaultdict
 from datetime import datetime
+from utils.common import iter_mqmanagers
 from utils.logging_config import get_logger
 
 logger = get_logger("analytics.gateway")
@@ -47,36 +49,14 @@ class GatewayAnalyzer:
 
     def _extract_gateways(self) -> Dict[str, Dict]:
         """Extract all gateway MQ managers from the data."""
-        gateways = {}
-
-        for org_name, org_data in self.data.items():
-            if not isinstance(org_data, dict) or '_departments' not in org_data:
-                continue
-
-            for dept_name, dept_data in org_data['_departments'].items():
-                for biz_ownr, applications in dept_data.items():
-                    for app_name, mqmgr_dict in applications.items():
-                        for mqmgr_name, mqmgr_data in mqmgr_dict.items():
-                            if mqmgr_data.get('IsGateway', False):
-                                gateways[mqmgr_name] = mqmgr_data
-
-        return gateways
+        return {
+            name: data for name, data in iter_mqmanagers(self.data)
+            if data.get('IsGateway', False)
+        }
 
     def _extract_all_mqmanagers(self) -> Dict[str, Dict]:
         """Extract all MQ managers from the data."""
-        mqmanagers = {}
-
-        for org_name, org_data in self.data.items():
-            if not isinstance(org_data, dict) or '_departments' not in org_data:
-                continue
-
-            for dept_name, dept_data in org_data['_departments'].items():
-                for biz_ownr, applications in dept_data.items():
-                    for app_name, mqmgr_dict in applications.items():
-                        for mqmgr_name, mqmgr_data in mqmgr_dict.items():
-                            mqmanagers[mqmgr_name] = mqmgr_data
-
-        return mqmanagers
+        return dict(iter_mqmanagers(self.data))
 
     def analyze(self) -> Dict:
         """Run full gateway analysis."""
@@ -104,6 +84,11 @@ class GatewayAnalyzer:
                 len(g.get('inbound_extra', [])) + len(g.get('outbound_extra', []))
                 for g in self.gateways.values()
             )
+            'total_gateway_connections': sum(
+                len(g.get('inbound', [])) + len(g.get('outbound', [])) +
+                len(g.get('inbound_extra', [])) + len(g.get('outbound_extra', []))
+                for g in self.gateways.values()
+            )
         }
 
     def _analyze_gateway_traffic(self):
@@ -111,11 +96,15 @@ class GatewayAnalyzer:
         for gw_name, gw_data in self.gateways.items():
             inbound = gw_data.get('inbound', []) + gw_data.get('inbound_extra', [])
             outbound = gw_data.get('outbound', []) + gw_data.get('outbound_extra', [])
+            inbound = gw_data.get('inbound', []) + gw_data.get('inbound_extra', [])
+            outbound = gw_data.get('outbound', []) + gw_data.get('outbound_extra', [])
 
+            # Count unique organizations/departments connected
             # Count unique organizations/departments connected
             connected_orgs = set()
             connected_depts = set()
 
+            for mqmgr in inbound + outbound:
             for mqmgr in inbound + outbound:
                 if mqmgr in self.all_mqmanagers:
                     connected_orgs.add(self.all_mqmanagers[mqmgr].get('Organization', ''))
@@ -128,10 +117,14 @@ class GatewayAnalyzer:
                 'inbound_connections': len(inbound),
                 'outbound_connections': len(outbound),
                 'total_connections': len(inbound) + len(outbound),
+                'inbound_connections': len(inbound),
+                'outbound_connections': len(outbound),
+                'total_connections': len(inbound) + len(outbound),
                 'connected_organizations': len(connected_orgs),
                 'connected_departments': len(connected_depts),
                 'queue_local': gw_data.get('qlocal_count', 0),
                 'queue_remote': gw_data.get('qremote_count', 0),
+                'queue_alias': gw_data.get('qalias_count', 0)
                 'queue_alias': gw_data.get('qalias_count', 0)
             }
 
@@ -277,8 +270,16 @@ class GatewayAnalyzer:
 
 
 def generate_gateway_report_html(analytics: Dict, output_file: Path):
-    """Generate an HTML report for gateway analytics."""
+    """Generate an HTML report for gateway analytics with rich UI."""
+    from utils.report_styles import get_report_css, get_report_js
+
     summary = analytics['summary']
+    generated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Find max load score for CSS bar chart scaling
+    all_loads = (analytics['load_distribution']['internal_gateways'] +
+                 analytics['load_distribution']['external_gateways'])
+    max_load = max((ld['load_score'] for ld in all_loads), default=1) or 1
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -286,114 +287,30 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gateway Analytics Report</title>
-    <style>
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }}
-        .container {{
-            max-width: 1400px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        h1 {{
-            color: #2c3e50;
-            border-bottom: 3px solid #9b59b6;
-            padding-bottom: 10px;
-        }}
-        h2 {{
-            color: #34495e;
-            border-left: 4px solid #9b59b6;
-            padding-left: 10px;
-            margin-top: 30px;
-        }}
-        .summary {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }}
-        .summary-card {{
-            background: linear-gradient(135deg, #9b59b6 0%, #e91e63 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-        }}
-        .summary-card.internal {{ background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); }}
-        .summary-card.external {{ background: linear-gradient(135deg, #00bcd4 0%, #009688 100%); }}
-        .summary-card h3 {{ margin: 0 0 10px 0; font-size: 14px; }}
-        .summary-card .count {{ font-size: 36px; font-weight: bold; }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }}
-        th, td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }}
-        th {{
-            background-color: #9b59b6;
-            color: white;
-            font-weight: 600;
-        }}
-        tr:hover {{
-            background-color: #f5f5f5;
-        }}
-        .badge {{
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }}
-        .badge-internal {{ background-color: #ff9800; color: white; }}
-        .badge-external {{ background-color: #00bcd4; color: white; }}
-        .badge-warning {{ background-color: #e74c3c; color: white; }}
-        .badge-ok {{ background-color: #27ae60; color: white; }}
-        .chart-bar {{
-            background-color: #9b59b6;
-            color: white;
-            padding: 5px 10px;
-            margin: 2px 0;
-            border-radius: 3px;
-        }}
-        .alert {{
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 4px;
-        }}
-        .alert-danger {{
-            background-color: #f8d7da;
-            border-left-color: #dc3545;
-        }}
-    </style>
+    <style>{get_report_css('#9b59b6')}</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔀 Gateway Analytics Report</h1>
-        <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    <div class="hero">
+        <h1>Gateway Analytics Report</h1>
+        <p>Traffic patterns, dependencies, and redundancy analysis</p>
+        <div class="meta">
+            <span>Generated: {generated_at}</span>
+            <span>Gateways analyzed: {summary['total_gateways']}</span>
+        </div>
+    </div>
 
+    <div class="container">
         <div class="summary">
-            <div class="summary-card">
+            <div class="summary-card accent">
                 <h3>Total Gateways</h3>
                 <div class="count">{summary['total_gateways']}</div>
             </div>
             <div class="summary-card internal">
-                <h3>Internal Gateways</h3>
+                <h3>Internal</h3>
                 <div class="count">{summary['internal_gateways']}</div>
             </div>
             <div class="summary-card external">
-                <h3>External Gateways</h3>
+                <h3>External</h3>
                 <div class="count">{summary['external_gateways']}</div>
             </div>
             <div class="summary-card">
@@ -420,7 +337,7 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
 """
 
     for gw_name, traffic in sorted(analytics['gateway_traffic'].items(), key=lambda x: x[1]['total_connections'], reverse=True):
-        scope_badge = f'<span class="badge badge-{traffic["scope"].lower()}">{traffic["scope"]}</span>'
+        scope_class = traffic['scope'].lower() if traffic['scope'] else 'internal'
         html += f"""
                 <tr>
                     <td><strong>{gw_name}</strong></td>
@@ -435,8 +352,9 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
 """
 
     html += """
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
 """
 
     # Redundancy Analysis
@@ -444,8 +362,11 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
     if redundancy['spof_count'] > 0:
         html += f"""
         <div class="alert alert-danger">
-            <h2>⚠ Single Points of Failure Detected</h2>
-            <p>Found <strong>{redundancy['spof_count']}</strong> critical routes with no gateway redundancy:</p>
+            <h3>Single Points of Failure Detected</h3>
+            <p>Found <strong>{redundancy['spof_count']}</strong> critical routes with no gateway redundancy.</p>
+        </div>
+        <div class="section">
+            <h2>Single Points of Failure</h2>
             <table>
                 <thead>
                     <tr>
@@ -473,92 +394,141 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
 """
     else:
         html += """
-        <div class="alert">
-            <h2>✅ Gateway Redundancy</h2>
+        <div class="alert alert-success">
+            <h3>Gateway Redundancy OK</h3>
             <p>All critical routes have redundant gateways configured.</p>
         </div>
 """
 
-    # Load Distribution
-    html += """
-        <h2>⚖️ Load Distribution</h2>
-        <h3>Internal Gateways</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Gateway</th>
-                    <th>Connections</th>
-                    <th>Queues</th>
-                    <th>Load Score</th>
-                </tr>
-            </thead>
-            <tbody>
+    # Load Distribution with CSS bar charts
+    def _load_table_rows(loads):
+        rows = ""
+        for ld in loads:
+            bar_pct = int(ld['load_score'] / max_load * 100)
+            rows += f"""
+                    <tr>
+                        <td>{ld['gateway']}</td>
+                        <td>{ld['connections']}</td>
+                        <td>{ld['queues']}</td>
+                        <td>
+                            <div class="bar-wrap">
+                                <div class="bar" style="width:{bar_pct}%"></div>
+                                <span class="bar-label">{ld['load_score']}</span>
+                            </div>
+                        </td>
+                    </tr>
 """
-    for load in analytics['load_distribution']['internal_gateways']:
-        html += f"""
-                <tr>
-                    <td>{load['gateway']}</td>
-                    <td>{load['connections']}</td>
-                    <td>{load['queues']}</td>
-                    <td><strong>{load['load_score']}</strong></td>
-                </tr>
-"""
-    html += """
-            </tbody>
-        </table>
+        return rows
 
-        <h3>External Gateways</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Gateway</th>
-                    <th>Connections</th>
-                    <th>Queues</th>
-                    <th>Load Score</th>
-                </tr>
-            </thead>
-            <tbody>
+    html += """
+        <div class="section">
+            <h2>Load Distribution</h2>
 """
-    for load in analytics['load_distribution']['external_gateways']:
-        html += f"""
-                <tr>
-                    <td>{load['gateway']}</td>
-                    <td>{load['connections']}</td>
-                    <td>{load['queues']}</td>
-                    <td><strong>{load['load_score']}</strong></td>
-                </tr>
+    if analytics['load_distribution']['internal_gateways']:
+        html += """
+            <details open>
+            <summary>Internal Gateways</summary>
+            <div class="detail-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Gateway</th>
+                        <th>Connections</th>
+                        <th>Queues</th>
+                        <th>Load Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+"""
+        html += _load_table_rows(analytics['load_distribution']['internal_gateways'])
+        html += """
+                </tbody>
+            </table>
+            </div>
+            </details>
+"""
+
+    if analytics['load_distribution']['external_gateways']:
+        html += """
+            <details open>
+            <summary>External Gateways</summary>
+            <div class="detail-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Gateway</th>
+                        <th>Connections</th>
+                        <th>Queues</th>
+                        <th>Load Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+"""
+        html += _load_table_rows(analytics['load_distribution']['external_gateways'])
+        html += """
+                </tbody>
+            </table>
+            </div>
+            </details>
 """
     html += """
-            </tbody>
-        </table>
+        </div>
+"""
 
-        <h2>🔗 Organization Connectivity Matrix</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Organization Route</th>
-                    <th>Gateways</th>
-                    <th>Connections</th>
-                    <th>Redundancy</th>
-                </tr>
-            </thead>
-            <tbody>
+    # Organization Connectivity Matrix
+    html += """
+        <div class="section">
+            <h2>Organization Connectivity Matrix</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Organization Route</th>
+                        <th>Gateways</th>
+                        <th>Connections</th>
+                        <th>Redundancy</th>
+                    </tr>
+                </thead>
+                <tbody>
 """
     for route, data in sorted(analytics['org_connectivity'].items(), key=lambda x: x[1]['connection_count'], reverse=True):
-        redundancy_badge = f'<span class="badge badge-ok">Yes</span>' if len(data['gateways']) > 1 else '<span class="badge badge-warning">No</span>'
+        redundancy_badge = '<span class="badge badge-ok">Yes</span>' if len(data['gateways']) > 1 else '<span class="badge badge-warning">No</span>'
         html += f"""
-                <tr>
-                    <td>{route}</td>
-                    <td>{', '.join(data['gateways'])}</td>
-                    <td>{data['connection_count']}</td>
-                    <td>{redundancy_badge}</td>
-                </tr>
+                    <tr>
+                        <td>{route}</td>
+                        <td>{', '.join(data['gateways'])}</td>
+                        <td>{data['connection_count']}</td>
+                        <td>{redundancy_badge}</td>
+                    </tr>
 """
     html += """
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
+"""
 
+    # Gateway Dependencies (collapsible per gateway)
+    if analytics['gateway_dependencies']:
+        html += """
+        <div class="section">
+            <h2>Gateway Dependencies</h2>
+"""
+        for gw_name, deps in sorted(analytics['gateway_dependencies'].items()):
+            apps_list = ', '.join(deps['dependent_applications']) if deps['dependent_applications'] else 'None'
+            html += f"""
+            <details>
+                <summary>{gw_name} &mdash; {deps['application_count']} apps, {deps['dependent_mqmanagers']} MQ managers</summary>
+                <div class="detail-body">
+                    <p><strong>Dependent Applications:</strong> {apps_list}</p>
+                </div>
+            </details>
+"""
+        html += """
+        </div>
+"""
+
+    html += f"""
     </div>
+    <script>{get_report_js()}</script>
 </body>
 </html>
 """

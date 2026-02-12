@@ -1,13 +1,22 @@
 
+<<<<<<< HEAD
 """Full MQ topology diagram generator."""
+=======
+"""Full MQ topology diagram generator with directorate-level clustering."""
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
 import subprocess
 import shutil
 from typing import Dict, List
 from pathlib import Path
+from utils.common import lighten_color, darken_color
 from utils.logging_config import get_logger
 
 logger = get_logger("generators.graphviz_topology")
+<<<<<<< HEAD
+=======
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
 class GraphVizTopologyGenerator:
     """Generate complete MQ topology diagrams."""
@@ -17,6 +26,7 @@ class GraphVizTopologyGenerator:
         self.config = config
         self.mqmanager_to_directorate = self._build_index()
 
+<<<<<<< HEAD
     def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
         """Lighten a hex color by a factor for gradient effects."""
         hex_color = hex_color.lstrip('#')
@@ -43,6 +53,8 @@ class GraphVizTopologyGenerator:
 
         return f'#{r:02x}{g:02x}{b:02x}'
  
+=======
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _build_index(self) -> Dict[str, str]:
         """Build MQmanager to directorate lookup."""
         index = {}
@@ -57,7 +69,6 @@ class GraphVizTopologyGenerator:
      
         sections = [
             self._generate_header(),
-            self._generate_minimap(),
             self._generate_directorates(),
             self._generate_connections(),
             self._generate_legend(),
@@ -70,7 +81,7 @@ class GraphVizTopologyGenerator:
         cfg = self.config
         return f"""digraph MQ_Topology {{
     rankdir={cfg.GRAPHVIZ_RANKDIR}
-    compound=true
+    newrank=true
     fontname="Helvetica"
     bgcolor="{cfg.GRAPHVIZ_BGCOLOR}"
     splines=curved
@@ -81,6 +92,7 @@ class GraphVizTopologyGenerator:
     edge [fontname="Helvetica" fontsize=10 color="#5d6d7e" arrowsize=0.8]
 """
  
+<<<<<<< HEAD
     def _generate_minimap(self) -> str:
         """Generate overview minimap (Top-Left)."""
         from utils.common import sanitize_id
@@ -126,6 +138,8 @@ class GraphVizTopologyGenerator:
         lines.extend(["    }", ""])
         return "\n".join(lines)
  
+=======
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _generate_directorates(self) -> str:
         """Generate all directorate clusters with gradient fills."""
         from utils.common import sanitize_id
@@ -136,7 +150,7 @@ class GraphVizTopologyGenerator:
 
             # Create gradient fill for directorate
             dir_bg = colors["org_bg"]
-            dir_bg_light = self._lighten_color(dir_bg, 0.15)
+            dir_bg_light = lighten_color(dir_bg, 0.15)
 
             lines = [
                 f"    /* DIRECTORATE: {directorate} */",
@@ -163,7 +177,7 @@ class GraphVizTopologyGenerator:
 
         # Create gradient fill for MQ manager node
         qm_bg = colors["qm_bg"]
-        qm_bg_dark = self._darken_color(qm_bg, 0.08)
+        qm_bg_dark = darken_color(qm_bg, 0.08)
 
         return [
             f"        {qm_id} [",
@@ -362,7 +376,7 @@ class GraphVizTopologyGenerator:
     def generate_pdf(dot_file: Path, pdf_file: Path) -> bool:
         """Generate PDF from DOT file."""
         if not shutil.which('dot'):
-            logger.warning("Graphviz 'dot' not found. Install from: https://graphviz.org/download/")
+            logger.warning("⚠ Graphviz 'dot' not found. Install from: https://graphviz.org/download/")
             return False
      
         try:
@@ -370,5 +384,5 @@ class GraphVizTopologyGenerator:
             logger.info(f"✓ PDF generated: {pdf_file}")
             return True
         except subprocess.CalledProcessError as e:
-            logger.error(f"PDF generation failed: {e}")
+            logger.warning(f"✗ PDF generation failed: {e}")
             return False

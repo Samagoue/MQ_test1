@@ -13,8 +13,10 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from datetime import datetime
 from utils.file_io import load_json, save_json
+from utils.common import iter_mqmanagers
 from utils.logging_config import get_logger
 
+logger = get_logger("processors.change_detector")
 logger = get_logger("processors.change_detector")
 
 
@@ -72,19 +74,7 @@ class ChangeDetector:
 
     def _extract_mqmanagers(self, data: Dict) -> Dict[str, Dict]:
         """Extract all MQ managers from hierarchical data structure."""
-        mqmanagers = {}
-
-        for org_name, org_data in data.items():
-            if not isinstance(org_data, dict) or '_departments' not in org_data:
-                continue
-
-            for dept_name, dept_data in org_data['_departments'].items():
-                for biz_ownr, applications in dept_data.items():
-                    for app_name, mqmgr_dict in applications.items():
-                        for mqmgr_name, mqmgr_data in mqmgr_dict.items():
-                            mqmanagers[mqmgr_name] = mqmgr_data
-
-        return mqmanagers
+        return dict(iter_mqmanagers(data))
 
     def _detect_mqmanager_changes(self, current: Dict, baseline: Dict):
         """Detect added, removed, and modified MQ managers."""
@@ -282,8 +272,11 @@ class ChangeDetector:
 
 
 def generate_html_report(changes: Dict, output_file: Path, current_timestamp: str, baseline_timestamp: str):
-    """Generate an HTML diff report."""
+    """Generate an HTML diff report with rich UI."""
+    from utils.report_styles import get_report_css, get_report_js
+
     summary = changes['summary']
+    generated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -291,128 +284,35 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MQ CMDB Change Report</title>
-    <style>
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }}
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        h1 {{
-            color: #2c3e50;
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
-        }}
-        .header-info {{
-            background-color: #ecf0f1;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }}
-        .summary {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }}
-        .summary-card {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-        }}
-        .summary-card.added {{ background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); }}
-        .summary-card.removed {{ background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }}
-        .summary-card.modified {{ background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }}
-        .summary-card h3 {{ margin: 0 0 10px 0; font-size: 14px; }}
-        .summary-card .count {{ font-size: 36px; font-weight: bold; }}
-        .section {{
-            margin-bottom: 30px;
-        }}
-        .section h2 {{
-            color: #34495e;
-            border-left: 4px solid #3498db;
-            padding-left: 10px;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }}
-        th, td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }}
-        th {{
-            background-color: #3498db;
-            color: white;
-            font-weight: 600;
-        }}
-        tr:hover {{
-            background-color: #f5f5f5;
-        }}
-        .badge {{
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }}
-        .badge-added {{ background-color: #27ae60; color: white; }}
-        .badge-removed {{ background-color: #e74c3c; color: white; }}
-        .badge-modified {{ background-color: #f39c12; color: white; }}
-        .badge-gateway {{ background-color: #9b59b6; color: white; }}
-        .no-changes {{
-            text-align: center;
-            padding: 40px;
-            color: #7f8c8d;
-            font-style: italic;
-        }}
-        .change-detail {{
-            font-size: 12px;
-            color: #7f8c8d;
-        }}
-        .timestamp {{
-            font-family: monospace;
-            color: #555;
-        }}
-    </style>
+    <style>{get_report_css('#3498db')}</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔄 MQ CMDB Change Detection Report</h1>
-
-        <div class="header-info">
-            <p><strong>Baseline:</strong> <span class="timestamp">{baseline_timestamp}</span></p>
-            <p><strong>Current:</strong> <span class="timestamp">{current_timestamp}</span></p>
-            <p><strong>Report Generated:</strong> <span class="timestamp">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span></p>
+    <div class="hero">
+        <h1>MQ CMDB Change Detection Report</h1>
+        <p>Baseline vs. current snapshot comparison</p>
+        <div class="meta">
+            <span>Baseline: {baseline_timestamp}</span>
+            <span>Current: {current_timestamp}</span>
+            <span>Generated: {generated_at}</span>
         </div>
+    </div>
 
+    <div class="container">
         <div class="summary">
-            <div class="summary-card">
+            <div class="summary-card accent">
                 <h3>Total Changes</h3>
                 <div class="count">{summary['total_changes']}</div>
             </div>
             <div class="summary-card added">
-                <h3>MQ Managers Added</h3>
+                <h3>Managers Added</h3>
                 <div class="count">{summary['mqmanagers_added']}</div>
             </div>
             <div class="summary-card removed">
-                <h3>MQ Managers Removed</h3>
+                <h3>Managers Removed</h3>
                 <div class="count">{summary['mqmanagers_removed']}</div>
             </div>
             <div class="summary-card modified">
-                <h3>MQ Managers Modified</h3>
+                <h3>Managers Modified</h3>
                 <div class="count">{summary['mqmanagers_modified']}</div>
             </div>
             <div class="summary-card added">
@@ -430,7 +330,7 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if changes['mqmanagers']['added']:
         html += """
         <div class="section">
-            <h2>➕ MQ Managers Added</h2>
+            <h2>MQ Managers Added</h2>
             <table>
                 <thead>
                     <tr>
@@ -464,7 +364,7 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if changes['mqmanagers']['removed']:
         html += """
         <div class="section">
-            <h2>➖ MQ Managers Removed</h2>
+            <h2>MQ Managers Removed</h2>
             <table>
                 <thead>
                     <tr>
@@ -495,7 +395,7 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if changes['mqmanagers']['modified']:
         html += """
         <div class="section">
-            <h2>🔄 MQ Managers Modified</h2>
+            <h2>MQ Managers Modified</h2>
             <table>
                 <thead>
                     <tr>
@@ -508,11 +408,11 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
         for mgr in changes['mqmanagers']['modified']:
             changes_text = []
             for field, change in mgr['changes'].items():
-                changes_text.append(f"{field}: {change['old']} → {change['new']}")
+                changes_text.append(f"{field}: {change['old']} &rarr; {change['new']}")
             html += f"""
                     <tr>
                         <td><strong>{mgr['name']}</strong></td>
-                        <td class="change-detail">{', '.join(changes_text)}</td>
+                        <td class="change-detail">{'<br>'.join(changes_text)}</td>
                     </tr>
 """
         html += """
@@ -525,12 +425,12 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if changes['connections']['added']:
         html += """
         <div class="section">
-            <h2>🔗 Connections Added</h2>
+            <h2>Connections Added</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Source MQ Manager</th>
-                        <th>Target MQ Manager</th>
+                        <th>Source</th>
+                        <th>Target</th>
                         <th>Source Org</th>
                         <th>Target Org</th>
                     </tr>
@@ -556,12 +456,12 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if changes['connections']['removed']:
         html += """
         <div class="section">
-            <h2>🔗 Connections Removed</h2>
+            <h2>Connections Removed</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Source MQ Manager</th>
-                        <th>Target MQ Manager</th>
+                        <th>Source</th>
+                        <th>Target</th>
                         <th>Source Org</th>
                         <th>Target Org</th>
                     </tr>
@@ -587,11 +487,13 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if changes['gateways']['added'] or changes['gateways']['removed'] or changes['gateways']['modified']:
         html += """
         <div class="section">
-            <h2>🔀 Gateway Changes</h2>
+            <h2>Gateway Changes</h2>
 """
         if changes['gateways']['added']:
             html += """
-            <h3>Added Gateways</h3>
+            <details open>
+            <summary>Added Gateways</summary>
+            <div class="detail-body">
             <table>
                 <thead>
                     <tr>
@@ -615,10 +517,14 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
             html += """
                 </tbody>
             </table>
+            </div>
+            </details>
 """
         if changes['gateways']['removed']:
             html += """
-            <h3>Removed Gateways</h3>
+            <details open>
+            <summary>Removed Gateways</summary>
+            <div class="detail-body">
             <table>
                 <thead>
                     <tr>
@@ -640,10 +546,14 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
             html += """
                 </tbody>
             </table>
+            </div>
+            </details>
 """
         if changes['gateways']['modified']:
             html += """
-            <h3>Modified Gateway Scopes</h3>
+            <details open>
+            <summary>Modified Gateway Scopes</summary>
+            <div class="detail-body">
             <table>
                 <thead>
                     <tr>
@@ -665,6 +575,8 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
             html += """
                 </tbody>
             </table>
+            </div>
+            </details>
 """
         html += """
         </div>
@@ -674,7 +586,7 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if changes['queue_counts']:
         html += """
         <div class="section">
-            <h2>📊 Significant Queue Count Changes (>20%)</h2>
+            <h2>Significant Queue Count Changes (&gt;20%)</h2>
             <table>
                 <thead>
                     <tr>
@@ -688,13 +600,14 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
                 <tbody>
 """
         for qc in changes['queue_counts']:
+            direction = "added" if qc['new_count'] > qc['old_count'] else "removed"
             html += f"""
                     <tr>
                         <td>{qc['mqmanager']}</td>
                         <td>{qc['queue_type']}</td>
                         <td>{qc['old_count']}</td>
                         <td>{qc['new_count']}</td>
-                        <td>{qc['change_percent']}%</td>
+                        <td><span class="badge badge-{direction}">{qc['change_percent']}%</span></td>
                     </tr>
 """
         html += """
@@ -707,13 +620,14 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
     if summary['total_changes'] == 0:
         html += """
         <div class="no-changes">
-            <h2>✅ No Changes Detected</h2>
+            <h2>No Changes Detected</h2>
             <p>The current MQ CMDB data is identical to the baseline.</p>
         </div>
 """
 
-    html += """
+    html += f"""
     </div>
+    <script>{get_report_js()}</script>
 </body>
 </html>
 """
@@ -723,3 +637,5 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
         f.write(html)
 
     logger.info(f"✓ Change report generated: {output_file}")
+
+

@@ -2,8 +2,16 @@
 """
 MQ Manager Processor
 
+<<<<<<< HEAD
 Parses MQ CMDB asset records to extract queue manager names and
 determine sender/receiver relationships from the Role field.
+=======
+Parses CMDB asset records to build the directorate-level MQ topology.
+Each record contains an MQ manager name, an asset string, and a Role
+(SENDER/RECEIVER). The processor extracts connection pairs by matching
+known MQ manager names inside asset strings and tracks queue counts
+(QLocal, QRemote, QAlias) per manager.
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 """
 
 from typing import Dict, List, Optional
@@ -14,7 +22,11 @@ logger = get_logger("processors.mqmanager")
 
 
 class MQManagerProcessor:
+<<<<<<< HEAD
     """Process MQ CMDB assets to extract queue manager relationships."""
+=======
+    """Process MQ CMDB assets using the original working logic."""
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
  
     def __init__(self, raw_data: List[Dict], field_mappings: Dict[str, str]):
         """Initialize processor with raw data and field mappings."""
@@ -30,6 +42,10 @@ class MQManagerProcessor:
         # Collections for processing
         self.valid_mqmanagers = set()
         self.mqmanager_to_directorate = {}
+<<<<<<< HEAD
+=======
+        self.canonical_mqmanagers = {}  # UPPER -> canonical name from raw data
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
         self.stats = {
             'total_records': len(self.raw_data),
@@ -83,25 +99,42 @@ class MQManagerProcessor:
     def _find_mqmanager_in_string(self, text: str, exclude_mqmanager: str = "") -> Optional[str]:
         """
         Check if any valid MQmanager name exists in the text.
+<<<<<<< HEAD
         Returns the MQmanager name if found, None otherwise.
+=======
+        Returns the canonical MQmanager name if found, None otherwise.
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         """
         if not text:
             return None
      
         text_upper = text.upper()
         exclude_upper = exclude_mqmanager.upper()
+<<<<<<< HEAD
      
+=======
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         # Split by dots and check each part
         parts = text.split('.')
         for part in parts:
             part_upper = part.upper()
             if part_upper in self.valid_mqmanagers and part_upper != exclude_upper:
+<<<<<<< HEAD
                 return part
      
         # Check if entire string matches
         if text_upper in self.valid_mqmanagers and text_upper != exclude_upper:
             return text
      
+=======
+                return self.canonical_mqmanagers.get(part_upper, part)
+
+        # Check if entire string matches
+        if text_upper in self.valid_mqmanagers and text_upper != exclude_upper:
+            return self.canonical_mqmanagers.get(text_upper, text)
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         return None
  
     def _build_index(self):
@@ -120,6 +153,12 @@ class MQManagerProcessor:
             if mqmanager:
                 mqmanager_upper = mqmanager.upper()
                 self.valid_mqmanagers.add(mqmanager_upper)
+<<<<<<< HEAD
+=======
+                # Store canonical name (first occurrence wins)
+                if mqmanager_upper not in self.canonical_mqmanagers:
+                    self.canonical_mqmanagers[mqmanager_upper] = mqmanager
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
                 directorate = self._normalize_value(record.get(directorate_field, ''))
                 if not directorate:
                     directorate = "Unknown"
@@ -133,7 +172,11 @@ class MQManagerProcessor:
         Process all assets and extract sender/receiver relationships.
         Returns: {directorate: {mqmanager: {...}}}
         """
+<<<<<<< HEAD
         logger.info("\nProcessing MQ CMDB assets...")
+=======
+        logger.info("Processing MQ CMDB assets...")
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
         # Build index first
         self._build_index()
@@ -280,3 +323,8 @@ class MQManagerProcessor:
         logger.info(f"Outbound_Extra:       {self.stats['outbound_extra_found']}")
         logger.info("=" * 70)
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912

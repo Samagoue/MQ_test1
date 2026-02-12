@@ -1,3 +1,4 @@
+
 """
 Enterprise Architecture Documentation Generator - TOGAF Aligned
 
@@ -1097,4 +1098,7 @@ class EADocumentationGenerator:
             "{panel}"
         ]
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912

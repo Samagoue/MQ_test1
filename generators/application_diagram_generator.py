@@ -1,6 +1,11 @@
+
 """
-Individual Application Diagram Generator - WITH FULL HIERARCHY
-Shows the application with its full hierarchy, plus connected MQ managers with their hierarchies.
+Per-Application Diagram Generator
+
+Generates a focused DOT diagram for each application showing its MQ
+managers highlighted within the full organizational hierarchy, plus all
+directly connected MQ managers with their own hierarchy context.
+Supports parallel generation via ThreadPoolExecutor.
 """
 
 import subprocess
@@ -8,7 +13,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
-from utils.common import lighten_color, darken_color
+from utils.common import lighten_color, darken_color, sanitize_id
 from utils.logging_config import get_logger
 
 logger = get_logger("generators.application_diagram")
@@ -31,29 +36,49 @@ class ApplicationDiagramGenerator:
         # Build lookup for quick access to any MQ manager's full context
         self.mqmgr_lookup = self._build_mqmgr_lookup()
 
+<<<<<<< HEAD
         # Initialize external_notes list (populated during diagram generation)
         self.external_notes = []
+=======
+        # Note: external_notes is passed as a local list to ensure thread safety
+        # during parallel diagram generation
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
     def _build_mqmgr_lookup(self) -> Dict:
-        """Build a lookup dict: {mqmanager_name: full_context}"""
+        """Build a lookup dict: {UPPER_NAME: full_context}
+
+        Keys are uppercased for case-insensitive matching since
+        outbound/inbound lists may use different casing than the
+        canonical MQ manager name.
+        """
         lookup = {}
+<<<<<<< HEAD
      
         for org_name, org_data in self.enriched_data.items():
             org_type = org_data.get('_org_type', 'Internal')
             departments = org_data.get('_departments', {})
          
+=======
+
+        for org_name, org_data in self.enriched_data.items():
+            org_type = org_data.get('_org_type', 'Internal')
+            departments = org_data.get('_departments', {})
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
             for dept_name, biz_owners in departments.items():
                 for biz_ownr, applications in biz_owners.items():
                     for app_name, mqmanagers in applications.items():
                         for mqmgr_name, mq_data in mqmanagers.items():
-                            lookup[mqmgr_name] = {
+                            lookup[mqmgr_name.upper()] = {
                                 'organization': org_name,
                                 'org_type': org_type,
                                 'department': dept_name,
                                 'biz_ownr': biz_ownr,
                                 'application': app_name,
-                                'data': mq_data
+                                'data': mq_data,
+                                'canonical_name': mqmgr_name
                             }
+<<<<<<< HEAD
      
         return lookup
  
@@ -95,6 +120,81 @@ class ApplicationDiagramGenerator:
          
             count += 1
      
+=======
+
+        return lookup
+ 
+    def generate_all(self, output_dir: Path, workers: int = None) -> int:
+        """
+        Generate diagrams for all applications.
+
+        Args:
+            output_dir: Target directory for .dot and .pdf files.
+            workers: Number of parallel workers. Sequential if None or 1.
+
+        Returns:
+            Number of diagrams generated.
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        applications = self._collect_applications()
+
+        if not applications:
+            return 0
+
+        logger.info(f"Generating {len(applications)} application diagrams with full hierarchy...")
+
+        if workers and workers > 1:
+            return self._generate_parallel(applications, output_dir, workers)
+        return self._generate_sequential(applications, output_dir)
+
+    def _generate_single_app(self, app_info: Dict, output_dir: Path) -> bool:
+        """Generate DOT and optional PDF for a single application. Thread-safe."""
+        app_name = app_info['application']
+        safe_name = self._sanitize_filename(app_name)
+        dot_file = output_dir / f"{safe_name}.dot"
+        pdf_file = output_dir / f"{safe_name}.pdf"
+
+        dot_content = self._generate_application_diagram(app_info)
+        dot_file.write_text(dot_content, encoding='utf-8')
+
+        if shutil.which('dot'):
+            try:
+                subprocess.run(
+                    ['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)],
+                    check=True, capture_output=True
+                )
+            except subprocess.CalledProcessError:
+                logger.warning(f"  ⚠ PDF generation failed for {safe_name}")
+
+        return True
+
+    def _generate_sequential(self, applications: List, output_dir: Path) -> int:
+        """Generate diagrams one at a time."""
+        count = 0
+        for app_info in applications:
+            if self._generate_single_app(app_info, output_dir):
+                count += 1
+        return count
+
+    def _generate_parallel(self, applications: List, output_dir: Path, workers: int) -> int:
+        """Generate diagrams using a thread pool for I/O-bound GraphViz calls."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        count = 0
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(self._generate_single_app, app_info, output_dir): app_info
+                for app_info in applications
+            }
+            for future in as_completed(futures):
+                try:
+                    if future.result():
+                        count += 1
+                except Exception as exc:
+                    app_name = futures[future]['application']
+                    logger.warning(f"  ⚠ Diagram generation failed for {app_name}: {exc}")
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         return count
  
     def _collect_applications(self) -> List[Dict]:
@@ -154,7 +254,11 @@ class ApplicationDiagramGenerator:
         # Group contexts by organization -> department -> biz_ownr -> application
         hierarchy_map = self._organize_contexts_hierarchically(connected_contexts, focus_org, focus_dept, focus_biz_ownr, app_name)
      
+<<<<<<< HEAD
         # Generate hierarchy
+=======
+        # Generate hierarchy (external_notes is local for thread safety)
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         all_connections = []
         self.external_notes = []  # Reset for this diagram
         lines.append(self._generate_hierarchy(hierarchy_map, focus_org, focus_dept, focus_biz_ownr, app_name, all_connections))
@@ -180,8 +284,13 @@ class ApplicationDiagramGenerator:
         return '\n'.join(lines)
  
     def _collect_connected_contexts(self, mqmanagers: Dict) -> Dict:
-        """Collect all MQ managers connected to this application's MQ managers."""
+        """Collect all MQ managers connected to this application's MQ managers.
+
+        Uses case-insensitive matching since outbound/inbound names may
+        differ in casing from canonical names in the lookup.
+        """
         connected = {}
+<<<<<<< HEAD
      
         for mqmgr_name, mq_data in mqmanagers.items():
             # Add this MQ manager itself
@@ -197,24 +306,56 @@ class ApplicationDiagramGenerator:
                 if source not in connected and source in self.mqmgr_lookup:
                     connected[source] = self.mqmgr_lookup[source]
      
+=======
+
+        for mqmgr_name, mq_data in mqmanagers.items():
+            # Add this MQ manager itself
+            key = mqmgr_name.upper()
+            if key not in connected:
+                connected[key] = self.mqmgr_lookup.get(key, {})
+
+            # Add all connected MQ managers (case-insensitive)
+            for target in mq_data.get('outbound', []):
+                tkey = target.upper()
+                if tkey not in connected and tkey in self.mqmgr_lookup:
+                    connected[tkey] = self.mqmgr_lookup[tkey]
+
+            for source in mq_data.get('inbound', []):
+                skey = source.upper()
+                if skey not in connected and skey in self.mqmgr_lookup:
+                    connected[skey] = self.mqmgr_lookup[skey]
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         return connected
  
     def _organize_contexts_hierarchically(self, contexts: Dict, focus_org: str, focus_dept: str,
                                          focus_biz_ownr: str, focus_app: str) -> Dict:
         """Organize contexts into hierarchical structure."""
         hierarchy = {}
+<<<<<<< HEAD
      
         for mqmgr_name, context in contexts.items():
+=======
+
+        for upper_key, context in contexts.items():
+            # Use canonical name (original casing) for display
+            mqmgr_name = context.get('canonical_name', upper_key)
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
             org = context.get('organization', 'Unknown')
             dept = context.get('department', 'Unknown')
             biz_ownr = context.get('biz_ownr', 'Unknown')
             app = context.get('application', 'No Application')
+<<<<<<< HEAD
          
+=======
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
             if org not in hierarchy:
                 hierarchy[org] = {
                     'org_type': context.get('org_type', 'Internal'),
                     'departments': {}
                 }
+<<<<<<< HEAD
          
             if dept not in hierarchy[org]['departments']:
                 hierarchy[org]['departments'][dept] = {}
@@ -227,6 +368,20 @@ class ApplicationDiagramGenerator:
          
             hierarchy[org]['departments'][dept][biz_ownr][app][mqmgr_name] = context.get('data', {})
      
+=======
+
+            if dept not in hierarchy[org]['departments']:
+                hierarchy[org]['departments'][dept] = {}
+
+            if biz_ownr not in hierarchy[org]['departments'][dept]:
+                hierarchy[org]['departments'][dept][biz_ownr] = {}
+
+            if app not in hierarchy[org]['departments'][dept][biz_ownr]:
+                hierarchy[org]['departments'][dept][biz_ownr][app] = {}
+
+            hierarchy[org]['departments'][dept][biz_ownr][app][mqmgr_name] = context.get('data', {})
+
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         return hierarchy
  
     def _generate_hierarchy(self, hierarchy_map: Dict, focus_org: str, focus_dept: str,
@@ -244,7 +399,11 @@ class ApplicationDiagramGenerator:
             else:
                 colors = self.config.INTERNAL_ORG_COLORS[0]
          
+<<<<<<< HEAD
             org_id = self._sanitize_id(org_name)
+=======
+            org_id = sanitize_id(org_name)
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
             # Create gradient fill for organization
             org_bg = colors["org_bg"]
@@ -264,7 +423,7 @@ class ApplicationDiagramGenerator:
          
             for dept_name, biz_owners in sorted(org_data['departments'].items()):
                 is_focus_dept = (is_focus_org and dept_name == focus_dept)
-                dept_id = self._sanitize_id(dept_name)
+                dept_id = sanitize_id(dept_name)
 
                 # Create gradient fill for department
                 dept_bg = colors["dept_bg"]
@@ -283,7 +442,7 @@ class ApplicationDiagramGenerator:
              
                 for biz_ownr, applications in sorted(biz_owners.items()):
                     is_focus_biz = (is_focus_dept and biz_ownr == focus_biz_ownr)
-                    biz_id = self._sanitize_id(biz_ownr)
+                    biz_id = sanitize_id(biz_ownr)
 
                     # Create gradient fill for business owner
                     biz_bg = colors["biz_bg"]
@@ -302,7 +461,7 @@ class ApplicationDiagramGenerator:
                  
                     for app_name, mqmanagers in sorted(applications.items()):
                         is_focus_app = (is_focus_biz and app_name == focus_app)
-                        app_id = self._sanitize_id(app_name)
+                        app_id = sanitize_id(app_name)
 
                         # Check if this is a gateway
                         is_gateway = app_name.startswith("Gateway (")
@@ -384,7 +543,11 @@ class ApplicationDiagramGenerator:
     def _generate_mqmanager_node(self, mqmgr_name: str, mq_data: Dict, colors: Dict,
                                  is_focus: bool, indent: str, all_connections: List) -> str:
         """Generate MQ manager node."""
+<<<<<<< HEAD
         qm_id = self._sanitize_id(mqmgr_name)
+=======
+        qm_id = sanitize_id(mqmgr_name)
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
         qlocal = mq_data.get('qlocal_count', 0)
         qremote = mq_data.get('qremote_count', 0)
@@ -394,19 +557,21 @@ class ApplicationDiagramGenerator:
         inbound_extra = mq_data.get('inbound_extra', [])
         outbound_extra = mq_data.get('outbound_extra', [])
 
-        # Store connections
-        # Regular connections are always added
+        # Store connections — resolve names to canonical form so edge IDs
+        # match the node IDs generated from hierarchy keys.
         for target in outbound:
+            canonical_target = self.mqmgr_lookup.get(target.upper(), {}).get('canonical_name', target)
             all_connections.append({
                 'from': mqmgr_name,
-                'to': target,
+                'to': canonical_target,
                 'is_focus_source': is_focus,
                 'type': 'outbound'
             })
 
         for source in inbound:
+            canonical_source = self.mqmgr_lookup.get(source.upper(), {}).get('canonical_name', source)
             all_connections.append({
-                'from': source,
+                'from': canonical_source,
                 'to': mqmgr_name,
                 'is_focus_source': False,
                 'type': 'inbound'
@@ -417,16 +582,18 @@ class ApplicationDiagramGenerator:
         # For non-focused: Add external connections normally
         if not is_focus:
             for target in outbound_extra:
+                canonical_target = self.mqmgr_lookup.get(target.upper(), {}).get('canonical_name', target)
                 all_connections.append({
                     'from': mqmgr_name,
-                    'to': target,
+                    'to': canonical_target,
                     'is_focus_source': is_focus,
                     'type': 'outbound_extra'
                 })
 
             for source in inbound_extra:
+                canonical_source = self.mqmgr_lookup.get(source.upper(), {}).get('canonical_name', source)
                 all_connections.append({
-                    'from': source,
+                    'from': canonical_source,
                     'to': mqmgr_name,
                     'is_focus_source': False,
                     'type': 'inbound_extra'
@@ -487,7 +654,12 @@ class ApplicationDiagramGenerator:
             # Connection FROM note box TO the MQ manager (top position)
             connection = f"    {note_id} -> {qm_id} [style=dashed color=\"#ffc107\" penwidth=2 constraint=false headport=n tailport=s]"
 
+<<<<<<< HEAD
             self.external_notes.append({'box_def': box_def, 'connection': connection})
+=======
+            if external_notes is not None:
+                external_notes.append({'box_def': box_def, 'connection': connection})
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
         # Outbound note positioned on BOTTOM with tailport=s headport=n
         if is_focus and outbound_extra:
@@ -510,7 +682,12 @@ class ApplicationDiagramGenerator:
             # Connection FROM the MQ manager TO note box (bottom position)
             connection = f"    {qm_id} -> {note_id} [style=dashed color=\"#17a2b8\" penwidth=2 constraint=false tailport=s headport=n]"
 
+<<<<<<< HEAD
             self.external_notes.append({'box_def': box_def, 'connection': connection})
+=======
+            if external_notes is not None:
+                external_notes.append({'box_def': box_def, 'connection': connection})
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
         return ''.join(node_lines)
  
@@ -594,11 +771,11 @@ class ApplicationDiagramGenerator:
         if direct_connections:
             lines.append('    /* Direct connections from focus application */')
             for conn in direct_connections:
-                from_id = self._sanitize_id(conn['from'])
-                to_id = self._sanitize_id(conn['to'])
+                from_id = sanitize_id(conn['from'])
+                to_id = sanitize_id(conn['to'])
 
-                from_context = self.mqmgr_lookup.get(conn['from'], {})
-                to_context = self.mqmgr_lookup.get(conn['to'], {})
+                from_context = self.mqmgr_lookup.get(conn['from'].upper(), {})
+                to_context = self.mqmgr_lookup.get(conn['to'].upper(), {})
 
                 from_org = from_context.get('organization', '')
                 from_dept = from_context.get('department', '')
@@ -633,8 +810,8 @@ class ApplicationDiagramGenerator:
         if bidirectional_connections:
             lines.append('    /* Bidirectional connections - teal */')
             for conn in bidirectional_connections:
-                from_id = self._sanitize_id(conn['from'])
-                to_id = self._sanitize_id(conn['to'])
+                from_id = sanitize_id(conn['from'])
+                to_id = sanitize_id(conn['to'])
                 lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold dir=both arrowhead={conn_arrows["bidirectional"]} arrowtail={conn_tails["bidirectional"]}]')
             lines.append('')
 
@@ -642,8 +819,8 @@ class ApplicationDiagramGenerator:
         if reverse_connections:
             lines.append('    /* Reverse connections to focus application */')
             for conn in reverse_connections:
-                from_id = self._sanitize_id(conn['from'])
-                to_id = self._sanitize_id(conn['to'])
+                from_id = sanitize_id(conn['from'])
+                to_id = sanitize_id(conn['to'])
 
                 # Reverse connections in green - arrow points TO focus, bullet at origin
                 lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["reverse"]}" penwidth=2.0 style=dashed dir=both arrowhead=normal arrowtail=dot]')
@@ -718,6 +895,7 @@ class ApplicationDiagramGenerator:
         </table>>
     ]"""
  
+<<<<<<< HEAD
     def _sanitize_id(self, name: str) -> str:
         """Sanitize name for GraphViz ID."""
         import re
@@ -726,6 +904,8 @@ class ApplicationDiagramGenerator:
             sanitized = '_' + sanitized
         return sanitized or 'node'
  
+=======
+>>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _sanitize_filename(self, name: str) -> str:
         """Sanitize application name for filename."""
         import re

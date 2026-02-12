@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 MQ CMDB Hierarchical Automation System - Main Entry Point
@@ -151,6 +152,9 @@ def main():
         return 130
  
     except Exception as e:
+        # safe_print(f"\n✗ FATAL ERROR: {e}")
+        # import traceback
+        # traceback.print_exc()
         logger.error(f"\n✗ FATAL ERROR: {e}")
         logger.exception("Fatal pipeline error")
         return 1

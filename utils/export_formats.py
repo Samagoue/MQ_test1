@@ -1,3 +1,4 @@
+
 """
 Multi-Format Export Utilities
 
@@ -13,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+from utils.common import iter_mqmanagers
 from utils.logging_config import get_logger
 
 
@@ -33,11 +35,9 @@ def _select_layout_engine(dot_file: Path, layout_engine: str = None) -> str:
     if layout_engine:
         return layout_engine
 
-    # Use sfdp for large hierarchical layouts (topology files)
-    # Use dot for everything else (better for smaller, structured graphs)
-    stem_lower = dot_file.stem.lower()
-    if 'topology' in stem_lower or 'hierarchical' in stem_lower:
-        return 'sfdp'
+    # Always use 'dot' engine — it is the only engine that fully supports
+    # subgraph clusters (the nested Org > Dept > BizOwner > App hierarchy).
+    # sfdp/neato/fdp silently drop cluster borders.
     return 'dot'
 
 
@@ -229,52 +229,45 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
     all_connections = []
     all_gateways = []
 
-    for org_name, org_data in enriched_data.items():
-        if not isinstance(org_data, dict) or '_departments' not in org_data:
-            continue
+    for mqmgr_name, mqmgr_data in iter_mqmanagers(enriched_data):
+        # MQ Manager inventory
+        all_mqmanagers.append({
+            'MQ Manager': mqmgr_name,
+            'Organization': mqmgr_data.get('Organization', ''),
+            'Department': mqmgr_data.get('Department', ''),
+            'Biz Owner': mqmgr_data.get('Biz_Ownr', ''),
+            'Application': mqmgr_data.get('Application', ''),
+            'Is Gateway': 'Yes' if mqmgr_data.get('IsGateway', False) else 'No',
+            'Gateway Scope': mqmgr_data.get('GatewayScope', ''),
+            'QLocal Count': mqmgr_data.get('qlocal_count', 0),
+            'QRemote Count': mqmgr_data.get('qremote_count', 0),
+            'QAlias Count': mqmgr_data.get('qalias_count', 0),
+            'Total Queues': mqmgr_data.get('total_count', 0),
+            'Inbound Connections': len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('inbound_extra', [])),
+            'Outbound Connections': len(mqmgr_data.get('outbound', [])) + len(mqmgr_data.get('outbound_extra', []))
+        })
 
-        for dept_name, dept_data in org_data['_departments'].items():
-            for biz_ownr, applications in dept_data.items():
-                for app_name, mqmgr_dict in applications.items():
-                    for mqmgr_name, mqmgr_data in mqmgr_dict.items():
-                        # MQ Manager inventory
-                        all_mqmanagers.append({
-                            'MQ Manager': mqmgr_name,
-                            'Organization': mqmgr_data.get('Organization', ''),
-                            'Department': mqmgr_data.get('Department', ''),
-                            'Biz Owner': mqmgr_data.get('Biz_Ownr', ''),
-                            'Application': mqmgr_data.get('Application', ''),
-                            'Is Gateway': 'Yes' if mqmgr_data.get('IsGateway', False) else 'No',
-                            'Gateway Scope': mqmgr_data.get('GatewayScope', ''),
-                            'QLocal Count': mqmgr_data.get('qlocal_count', 0),
-                            'QRemote Count': mqmgr_data.get('qremote_count', 0),
-                            'QAlias Count': mqmgr_data.get('qalias_count', 0),
-                            'Total Queues': mqmgr_data.get('total_count', 0),
-                            'Inbound Connections': len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('inbound_extra', [])),
-                            'Outbound Connections': len(mqmgr_data.get('outbound', [])) + len(mqmgr_data.get('outbound_extra', []))
-                        })
+        # Gateway inventory
+        if mqmgr_data.get('IsGateway', False):
+            all_gateways.append({
+                'Gateway Name': mqmgr_name,
+                'Scope': mqmgr_data.get('GatewayScope', ''),
+                'Organization': mqmgr_data.get('Organization', ''),
+                'Department': mqmgr_data.get('Department', ''),
+                'Description': mqmgr_data.get('GatewayDescription', ''),
+                'Total Connections': (len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('outbound', [])) +
+                                    len(mqmgr_data.get('inbound_extra', [])) + len(mqmgr_data.get('outbound_extra', [])))
+            })
 
-                        # Gateway inventory
-                        if mqmgr_data.get('IsGateway', False):
-                            all_gateways.append({
-                                'Gateway Name': mqmgr_name,
-                                'Scope': mqmgr_data.get('GatewayScope', ''),
-                                'Organization': mqmgr_data.get('Organization', ''),
-                                'Department': mqmgr_data.get('Department', ''),
-                                'Description': mqmgr_data.get('GatewayDescription', ''),
-                                'Total Connections': (len(mqmgr_data.get('inbound', [])) + len(mqmgr_data.get('outbound', [])) +
-                                                    len(mqmgr_data.get('inbound_extra', [])) + len(mqmgr_data.get('outbound_extra', [])))
-                            })
-
-                        # Connections
-                        for target in mqmgr_data.get('outbound', []) + mqmgr_data.get('outbound_extra', []):
-                            all_connections.append({
-                                'Source': mqmgr_name,
-                                'Target': target,
-                                'Source Org': mqmgr_data.get('Organization', ''),
-                                'Source Dept': mqmgr_data.get('Department', ''),
-                                'Source App': mqmgr_data.get('Application', '')
-                            })
+        # Connections
+        for target in mqmgr_data.get('outbound', []) + mqmgr_data.get('outbound_extra', []):
+            all_connections.append({
+                'Source': mqmgr_name,
+                'Target': target,
+                'Source Org': mqmgr_data.get('Organization', ''),
+                'Source Dept': mqmgr_data.get('Department', ''),
+                'Source App': mqmgr_data.get('Application', '')
+            })
 
     # Sheet 1: MQ Manager Inventory
     ws1 = wb.create_sheet("MQ Managers")
