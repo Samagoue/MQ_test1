@@ -3,6 +3,7 @@ Consolidated Report Generator
 
 Combines the Change Detection and Gateway Analytics reports into a single
 HTML document with tab navigation, so both views are accessible from one file.
+Uses the shared report_styles.py for consistent look and feel.
 """
 
 from pathlib import Path
@@ -36,7 +37,13 @@ def generate_consolidated_report(
     Returns:
         Path to the generated file
     """
+    from utils.report_styles import get_report_css, get_report_js
+
     report_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Build CSS: shared base (blue accent default) + tab navigation overrides
+    base_css = get_report_css('#3498db')
+    tab_css = _get_tab_css()
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -44,272 +51,49 @@ def generate_consolidated_report(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MQ CMDB Consolidated Report</title>
-    <style>
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }}
-
-        /* Navigation bar */
-        .nav-bar {{
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background-color: #2c3e50;
-            padding: 0 20px;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }}
-        .nav-title {{
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            margin-right: 30px;
-            padding: 14px 0;
-            white-space: nowrap;
-        }}
-        .tab-btn {{
-            background: none;
-            border: none;
-            color: #bdc3c7;
-            font-size: 14px;
-            font-weight: 500;
-            padding: 14px 20px;
-            cursor: pointer;
-            border-bottom: 3px solid transparent;
-            transition: color 0.2s, border-color 0.2s;
-            font-family: inherit;
-        }}
-        .tab-btn:hover {{
-            color: white;
-        }}
-        .tab-btn.active-changes {{
-            color: white;
-            border-bottom-color: #3498db;
-        }}
-        .tab-btn.active-gateways {{
-            color: white;
-            border-bottom-color: #9b59b6;
-        }}
-
-        /* Tab content */
-        .tab-content {{
-            display: none;
-            padding: 20px;
-        }}
-        .tab-content.active {{
-            display: block;
-        }}
-
-        /* Shared layout */
-        .container {{
-            max-width: 1400px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        .header-info {{
-            background-color: #ecf0f1;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }}
-        .timestamp {{
-            font-family: monospace;
-            color: #555;
-        }}
-
-        /* Summary cards */
-        .summary {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }}
-        .summary-card {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-        }}
-        .summary-card.added {{ background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); }}
-        .summary-card.removed {{ background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }}
-        .summary-card.modified {{ background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }}
-        .summary-card.internal {{ background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); }}
-        .summary-card.external {{ background: linear-gradient(135deg, #00bcd4 0%, #009688 100%); }}
-        .summary-card.purple {{ background: linear-gradient(135deg, #9b59b6 0%, #e91e63 100%); }}
-        .summary-card h3 {{ margin: 0 0 10px 0; font-size: 14px; }}
-        .summary-card .count {{ font-size: 36px; font-weight: bold; }}
-
-        /* Section headings */
-        .section {{
-            margin-bottom: 30px;
-        }}
-        .section-blue h2 {{
-            color: #34495e;
-            border-left: 4px solid #3498db;
-            padding-left: 10px;
-        }}
-        .section-purple h2 {{
-            color: #34495e;
-            border-left: 4px solid #9b59b6;
-            padding-left: 10px;
-        }}
-        h1.page-title-blue {{
-            color: #2c3e50;
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
-        }}
-        h1.page-title-purple {{
-            color: #2c3e50;
-            border-bottom: 3px solid #9b59b6;
-            padding-bottom: 10px;
-        }}
-        h2.section-heading-purple {{
-            color: #34495e;
-            border-left: 4px solid #9b59b6;
-            padding-left: 10px;
-            margin-top: 30px;
-        }}
-
-        /* Tables */
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }}
-        th, td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }}
-        .table-blue th {{
-            background-color: #3498db;
-            color: white;
-            font-weight: 600;
-        }}
-        .table-purple th {{
-            background-color: #9b59b6;
-            color: white;
-            font-weight: 600;
-        }}
-        tr:hover {{
-            background-color: #f5f5f5;
-        }}
-
-        /* Badges */
-        .badge {{
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }}
-        .badge-added {{ background-color: #27ae60; color: white; }}
-        .badge-removed {{ background-color: #e74c3c; color: white; }}
-        .badge-modified {{ background-color: #f39c12; color: white; }}
-        .badge-gateway {{ background-color: #9b59b6; color: white; }}
-        .badge-internal {{ background-color: #ff9800; color: white; }}
-        .badge-external {{ background-color: #00bcd4; color: white; }}
-        .badge-warning {{ background-color: #e74c3c; color: white; }}
-        .badge-ok {{ background-color: #27ae60; color: white; }}
-
-        /* Alerts */
-        .alert {{
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 4px;
-        }}
-        .alert-danger {{
-            background-color: #f8d7da;
-            border-left-color: #dc3545;
-        }}
-
-        /* Misc */
-        .no-changes {{
-            text-align: center;
-            padding: 40px;
-            color: #7f8c8d;
-            font-style: italic;
-        }}
-        .change-detail {{
-            font-size: 12px;
-            color: #7f8c8d;
-        }}
-        .no-data {{
-            text-align: center;
-            padding: 60px 20px;
-            color: #95a5a6;
-        }}
-        .no-data h2 {{
-            border: none;
-            color: #95a5a6;
-        }}
-
-        /* Footer */
-        .footer {{
-            text-align: center;
-            padding: 20px;
-            color: #95a5a6;
-            font-size: 12px;
-            margin-top: 30px;
-            border-top: 1px solid #ecf0f1;
-        }}
+    <style>{base_css}
+    {tab_css}
     </style>
 </head>
 <body>
-    <div class="nav-bar">
-        <span class="nav-title">MQ CMDB Report</span>
-        <button class="tab-btn active-changes" id="btn-changes" onclick="showTab('changes')">Change Detection</button>
+    <div class="tab-bar">
+        <span class="tab-bar-title">MQ CMDB Report</span>
+        <button class="tab-btn active" id="btn-changes" onclick="showTab('changes')">Change Detection</button>
         <button class="tab-btn" id="btn-gateways" onclick="showTab('gateways')">Gateway Analytics</button>
     </div>
 
-    <div id="tab-changes" class="tab-content active">
-        <div class="container">
+    <div id="tab-changes" class="tab-pane active">
 """
 
-    # -- Change Detection tab content --
+    # -- Change Detection tab --
     html += _build_changes_tab(changes, current_timestamp, baseline_timestamp, report_time)
 
     html += """
-            <div class="footer">MQ CMDB Automation System</div>
-        </div>
     </div>
 
-    <div id="tab-gateways" class="tab-content">
-        <div class="container">
+    <div id="tab-gateways" class="tab-pane">
 """
 
-    # -- Gateway Analytics tab content --
+    # -- Gateway Analytics tab --
     html += _build_gateways_tab(gateway_analytics, report_time)
 
     html += f"""
-            <div class="footer">MQ CMDB Automation System</div>
-        </div>
     </div>
 
-    <script>
-        function showTab(tab) {{
-            document.getElementById('tab-changes').classList.remove('active');
-            document.getElementById('tab-gateways').classList.remove('active');
-            document.getElementById('btn-changes').className = 'tab-btn';
-            document.getElementById('btn-gateways').className = 'tab-btn';
+    <script>{get_report_js()}
 
-            document.getElementById('tab-' + tab).classList.add('active');
-            if (tab === 'changes') {{
-                document.getElementById('btn-changes').className = 'tab-btn active-changes';
-            }} else {{
-                document.getElementById('btn-gateways').className = 'tab-btn active-gateways';
-            }}
-        }}
+    /* Tab switching */
+    function showTab(tab) {{
+        document.querySelectorAll('.tab-pane').forEach(function(el) {{ el.classList.remove('active'); }});
+        document.querySelectorAll('.tab-btn').forEach(function(el) {{ el.classList.remove('active'); }});
+        document.getElementById('tab-' + tab).classList.add('active');
+        document.getElementById('btn-' + tab).classList.add('active');
+
+        /* Swap accent colour so section borders and cards match the active tab */
+        document.documentElement.style.setProperty(
+            '--accent', tab === 'gateways' ? '#9b59b6' : '#3498db'
+        );
+    }}
     </script>
 </body>
 </html>
@@ -319,284 +103,510 @@ def generate_consolidated_report(
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
 
-    logger.info(f"✓ Consolidated report generated: {output_file}")
+    logger.info(f"Consolidated report generated: {output_file}")
     return output_file
 
+
+# ---------------------------------------------------------------------------
+# Tab navigation CSS (layered on top of the shared report_styles)
+# ---------------------------------------------------------------------------
+
+def _get_tab_css() -> str:
+    """Additional CSS for the tab navigation bar and pane switching."""
+    return """
+        /* Override hero - we use the tab bar instead */
+        .hero { margin-top: 0; }
+
+        /* Tab navigation bar */
+        .tab-bar {
+            position: sticky; top: 0; z-index: 200;
+            background: #1e293b;
+            padding: 0 24px;
+            display: flex; align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,.25);
+        }
+        .tab-bar-title {
+            color: #fff; font-size: 15px; font-weight: 700;
+            margin-right: 28px; padding: 13px 0; white-space: nowrap;
+            letter-spacing: -.2px;
+        }
+        .tab-btn {
+            background: none; border: none;
+            color: #94a3b8; font-size: 13px; font-weight: 600;
+            padding: 13px 18px; cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: color .2s, border-color .2s;
+            font-family: inherit; letter-spacing: .2px;
+        }
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.active {
+            color: #fff;
+            border-bottom-color: var(--accent);
+        }
+
+        /* Tab panes */
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* No-data placeholder */
+        .no-data {
+            text-align: center; padding: 80px 20px; color: var(--text-muted);
+        }
+        .no-data h2 { color: var(--text-muted); border: none; }
+"""
+
+
+# ---------------------------------------------------------------------------
+# Change Detection tab
+# ---------------------------------------------------------------------------
 
 def _build_changes_tab(changes, current_timestamp, baseline_timestamp, report_time):
     """Build the Change Detection tab content."""
     if changes is None:
         return """
-            <div class="no-data">
-                <h2>No Change Detection Data</h2>
-                <p>No baseline was available for comparison during this pipeline run.</p>
-                <p>A baseline has been created. Changes will be detected on the next run.</p>
-            </div>
+        <div class="no-data">
+            <h2>No Change Detection Data</h2>
+            <p>No baseline was available for comparison during this pipeline run.</p>
+            <p>A baseline has been created. Changes will be detected on the next run.</p>
+        </div>
 """
 
     summary = changes['summary']
 
     html = f"""
-            <h1 class="page-title-blue">Change Detection Report</h1>
+    <div class="hero">
+        <h1>MQ CMDB Change Detection Report</h1>
+        <p>Baseline vs. current snapshot comparison</p>
+        <div class="meta">
+            <span>Baseline: {baseline_timestamp or 'N/A'}</span>
+            <span>Current: {current_timestamp}</span>
+            <span>Generated: {report_time}</span>
+        </div>
+    </div>
 
-            <div class="header-info">
-                <p><strong>Baseline:</strong> <span class="timestamp">{baseline_timestamp or 'N/A'}</span></p>
-                <p><strong>Current:</strong> <span class="timestamp">{current_timestamp}</span></p>
-                <p><strong>Report Generated:</strong> <span class="timestamp">{report_time}</span></p>
+    <div class="container">
+        <div class="summary">
+            <div class="summary-card accent">
+                <h3>Total Changes</h3>
+                <div class="count">{summary['total_changes']}</div>
             </div>
-
-            <div class="summary">
-                <div class="summary-card">
-                    <h3>Total Changes</h3>
-                    <div class="count">{summary['total_changes']}</div>
-                </div>
-                <div class="summary-card added">
-                    <h3>MQ Managers Added</h3>
-                    <div class="count">{summary['mqmanagers_added']}</div>
-                </div>
-                <div class="summary-card removed">
-                    <h3>MQ Managers Removed</h3>
-                    <div class="count">{summary['mqmanagers_removed']}</div>
-                </div>
-                <div class="summary-card modified">
-                    <h3>MQ Managers Modified</h3>
-                    <div class="count">{summary['mqmanagers_modified']}</div>
-                </div>
-                <div class="summary-card added">
-                    <h3>Connections Added</h3>
-                    <div class="count">{summary['connections_added']}</div>
-                </div>
-                <div class="summary-card removed">
-                    <h3>Connections Removed</h3>
-                    <div class="count">{summary['connections_removed']}</div>
-                </div>
+            <div class="summary-card added">
+                <h3>Managers Added</h3>
+                <div class="count">{summary['mqmanagers_added']}</div>
             </div>
+            <div class="summary-card removed">
+                <h3>Managers Removed</h3>
+                <div class="count">{summary['mqmanagers_removed']}</div>
+            </div>
+            <div class="summary-card modified">
+                <h3>Managers Modified</h3>
+                <div class="count">{summary['mqmanagers_modified']}</div>
+            </div>
+            <div class="summary-card added">
+                <h3>Connections Added</h3>
+                <div class="count">{summary['connections_added']}</div>
+            </div>
+            <div class="summary-card removed">
+                <h3>Connections Removed</h3>
+                <div class="count">{summary['connections_removed']}</div>
+            </div>
+        </div>
 """
 
     # MQ Managers Added
     if changes['mqmanagers']['added']:
-        html += _table_section_blue("MQ Managers Added",
-            ["MQ Manager", "Organization", "Department", "Application", "Type"],
-            [[f"<strong>{m['name']}</strong>", m['organization'], m['department'], m['application'],
-              '<span class="badge badge-gateway">Gateway</span>' if m['is_gateway'] else '']
-             for m in changes['mqmanagers']['added']])
+        html += _section_open("MQ Managers Added")
+        html += _table_open(["MQ Manager", "Organization", "Department", "Application", "Type"])
+        for mgr in changes['mqmanagers']['added']:
+            gateway_badge = '<span class="badge badge-gateway">Gateway</span>' if mgr['is_gateway'] else ''
+            html += f"""
+                    <tr>
+                        <td><strong>{mgr['name']}</strong></td>
+                        <td>{mgr['organization']}</td>
+                        <td>{mgr['department']}</td>
+                        <td>{mgr['application']}</td>
+                        <td>{gateway_badge}</td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
 
     # MQ Managers Removed
     if changes['mqmanagers']['removed']:
-        html += _table_section_blue("MQ Managers Removed",
-            ["MQ Manager", "Organization", "Department", "Application"],
-            [[f"<strong>{m['name']}</strong>", m['organization'], m['department'], m['application']]
-             for m in changes['mqmanagers']['removed']])
+        html += _section_open("MQ Managers Removed")
+        html += _table_open(["MQ Manager", "Organization", "Department", "Application"])
+        for mgr in changes['mqmanagers']['removed']:
+            html += f"""
+                    <tr>
+                        <td><strong>{mgr['name']}</strong></td>
+                        <td>{mgr['organization']}</td>
+                        <td>{mgr['department']}</td>
+                        <td>{mgr['application']}</td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
 
     # MQ Managers Modified
     if changes['mqmanagers']['modified']:
-        rows = []
+        html += _section_open("MQ Managers Modified")
+        html += _table_open(["MQ Manager", "Changes"])
         for mgr in changes['mqmanagers']['modified']:
-            changes_text = ', '.join(
+            changes_text = '<br>'.join(
                 f"{field}: {c['old']} &rarr; {c['new']}" for field, c in mgr['changes'].items()
             )
-            rows.append([f"<strong>{mgr['name']}</strong>", f'<span class="change-detail">{changes_text}</span>'])
-        html += _table_section_blue("MQ Managers Modified", ["MQ Manager", "Changes"], rows)
+            html += f"""
+                    <tr>
+                        <td><strong>{mgr['name']}</strong></td>
+                        <td class="change-detail">{changes_text}</td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
 
     # Connections Added
     if changes['connections']['added']:
-        html += _table_section_blue("Connections Added",
-            ["Source MQ Manager", "Target MQ Manager", "Source Org", "Target Org"],
-            [[c['source'], c['target'], c['source_org'], c['target_org']]
-             for c in changes['connections']['added']])
+        html += _section_open("Connections Added")
+        html += _table_open(["Source", "Target", "Source Org", "Target Org"])
+        for conn in changes['connections']['added']:
+            html += f"""
+                    <tr>
+                        <td>{conn['source']}</td>
+                        <td>{conn['target']}</td>
+                        <td>{conn['source_org']}</td>
+                        <td>{conn['target_org']}</td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
 
     # Connections Removed
     if changes['connections']['removed']:
-        html += _table_section_blue("Connections Removed",
-            ["Source MQ Manager", "Target MQ Manager", "Source Org", "Target Org"],
-            [[c['source'], c['target'], c['source_org'], c['target_org']]
-             for c in changes['connections']['removed']])
+        html += _section_open("Connections Removed")
+        html += _table_open(["Source", "Target", "Source Org", "Target Org"])
+        for conn in changes['connections']['removed']:
+            html += f"""
+                    <tr>
+                        <td>{conn['source']}</td>
+                        <td>{conn['target']}</td>
+                        <td>{conn['source_org']}</td>
+                        <td>{conn['target_org']}</td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
 
     # Gateway Changes
     if changes['gateways']['added'] or changes['gateways']['removed'] or changes['gateways']['modified']:
-        html += '            <div class="section section-blue"><h2>Gateway Changes</h2>\n'
+        html += _section_open("Gateway Changes")
 
         if changes['gateways']['added']:
-            html += '            <h3>Added Gateways</h3>\n'
-            html += _simple_table_blue(
-                ["Gateway Name", "Scope", "Organization", "Department"],
-                [[f"<strong>{g['name']}</strong>", f'<span class="badge badge-gateway">{g["scope"]}</span>',
-                  g['organization'], g['department']]
-                 for g in changes['gateways']['added']])
+            html += _details_open("Added Gateways")
+            html += _table_open(["Gateway Name", "Scope", "Organization", "Department"])
+            for gw in changes['gateways']['added']:
+                html += f"""
+                    <tr>
+                        <td><strong>{gw['name']}</strong></td>
+                        <td><span class="badge badge-gateway">{gw['scope']}</span></td>
+                        <td>{gw['organization']}</td>
+                        <td>{gw['department']}</td>
+                    </tr>
+"""
+            html += _table_close() + _details_close()
 
         if changes['gateways']['removed']:
-            html += '            <h3>Removed Gateways</h3>\n'
-            html += _simple_table_blue(
-                ["Gateway Name", "Scope", "Organization"],
-                [[f"<strong>{g['name']}</strong>", f'<span class="badge badge-gateway">{g["scope"]}</span>',
-                  g['organization']]
-                 for g in changes['gateways']['removed']])
+            html += _details_open("Removed Gateways")
+            html += _table_open(["Gateway Name", "Scope", "Organization"])
+            for gw in changes['gateways']['removed']:
+                html += f"""
+                    <tr>
+                        <td><strong>{gw['name']}</strong></td>
+                        <td><span class="badge badge-gateway">{gw['scope']}</span></td>
+                        <td>{gw['organization']}</td>
+                    </tr>
+"""
+            html += _table_close() + _details_close()
 
         if changes['gateways']['modified']:
-            html += '            <h3>Modified Gateway Scopes</h3>\n'
-            html += _simple_table_blue(
-                ["Gateway Name", "Old Scope", "New Scope"],
-                [[f"<strong>{g['name']}</strong>", g['old_scope'], g['new_scope']]
-                 for g in changes['gateways']['modified']])
+            html += _details_open("Modified Gateway Scopes")
+            html += _table_open(["Gateway Name", "Old Scope", "New Scope"])
+            for gw in changes['gateways']['modified']:
+                html += f"""
+                    <tr>
+                        <td><strong>{gw['name']}</strong></td>
+                        <td>{gw['old_scope']}</td>
+                        <td>{gw['new_scope']}</td>
+                    </tr>
+"""
+            html += _table_close() + _details_close()
 
-        html += '            </div>\n'
+        html += _section_close()
 
     # Queue Count Changes
     if changes['queue_counts']:
-        html += _table_section_blue("Significant Queue Count Changes (&gt;20%)",
-            ["MQ Manager", "Queue Type", "Old Count", "New Count", "Change %"],
-            [[q['mqmanager'], q['queue_type'], str(q['old_count']), str(q['new_count']), f"{q['change_percent']}%"]
-             for q in changes['queue_counts']])
+        html += _section_open("Significant Queue Count Changes (&gt;20%)")
+        html += _table_open(["MQ Manager", "Queue Type", "Old Count", "New Count", "Change %"])
+        for qc in changes['queue_counts']:
+            direction = "added" if qc['new_count'] > qc['old_count'] else "removed"
+            html += f"""
+                    <tr>
+                        <td>{qc['mqmanager']}</td>
+                        <td>{qc['queue_type']}</td>
+                        <td>{qc['old_count']}</td>
+                        <td>{qc['new_count']}</td>
+                        <td><span class="badge badge-{direction}">{qc['change_percent']}%</span></td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
 
     # No changes message
     if summary['total_changes'] == 0:
         html += """
-            <div class="no-changes">
-                <h2>No Changes Detected</h2>
-                <p>The current MQ CMDB data is identical to the baseline.</p>
-            </div>
+        <div class="no-changes">
+            <h2>No Changes Detected</h2>
+            <p>The current MQ CMDB data is identical to the baseline.</p>
+        </div>
 """
 
+    html += """
+    </div>
+"""
     return html
 
+
+# ---------------------------------------------------------------------------
+# Gateway Analytics tab
+# ---------------------------------------------------------------------------
 
 def _build_gateways_tab(gateway_analytics, report_time):
     """Build the Gateway Analytics tab content."""
     if gateway_analytics is None:
         return """
-            <div class="no-data">
-                <h2>No Gateway Analytics Data</h2>
-                <p>No gateways were found in the current dataset, or gateway analysis was not performed.</p>
-            </div>
+        <div class="no-data">
+            <h2>No Gateway Analytics Data</h2>
+            <p>No gateways were found in the current dataset, or gateway analysis was not performed.</p>
+        </div>
 """
 
     summary = gateway_analytics['summary']
 
-    html = f"""
-            <h1 class="page-title-purple">Gateway Analytics Report</h1>
-            <p><strong>Generated:</strong> <span class="timestamp">{report_time}</span></p>
+    # Max load score for CSS bar charts
+    all_loads = (gateway_analytics['load_distribution']['internal_gateways'] +
+                 gateway_analytics['load_distribution']['external_gateways'])
+    max_load = max((ld['load_score'] for ld in all_loads), default=1) or 1
 
-            <div class="summary">
-                <div class="summary-card purple">
-                    <h3>Total Gateways</h3>
-                    <div class="count">{summary['total_gateways']}</div>
-                </div>
-                <div class="summary-card internal">
-                    <h3>Internal Gateways</h3>
-                    <div class="count">{summary['internal_gateways']}</div>
-                </div>
-                <div class="summary-card external">
-                    <h3>External Gateways</h3>
-                    <div class="count">{summary['external_gateways']}</div>
-                </div>
-                <div class="summary-card purple">
-                    <h3>Total Connections</h3>
-                    <div class="count">{summary['total_gateway_connections']}</div>
-                </div>
+    html = f"""
+    <div class="hero" style="background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #9b59b6 100%);">
+        <h1>Gateway Analytics Report</h1>
+        <p>Traffic patterns, dependencies, and redundancy analysis</p>
+        <div class="meta">
+            <span>Generated: {report_time}</span>
+            <span>Gateways analyzed: {summary['total_gateways']}</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="summary">
+            <div class="summary-card accent">
+                <h3>Total Gateways</h3>
+                <div class="count">{summary['total_gateways']}</div>
             </div>
+            <div class="summary-card internal">
+                <h3>Internal</h3>
+                <div class="count">{summary['internal_gateways']}</div>
+            </div>
+            <div class="summary-card external">
+                <h3>External</h3>
+                <div class="count">{summary['external_gateways']}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Total Connections</h3>
+                <div class="count">{summary['total_gateway_connections']}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Gateway Traffic Overview</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Gateway</th>
+                        <th>Scope</th>
+                        <th>Organization</th>
+                        <th>Inbound</th>
+                        <th>Outbound</th>
+                        <th>Total</th>
+                        <th>Connected Orgs</th>
+                        <th>Connected Depts</th>
+                    </tr>
+                </thead>
+                <tbody>
 """
 
-    # Gateway Traffic Overview
-    html += '            <h2 class="section-heading-purple">Gateway Traffic Overview</h2>\n'
-    traffic_rows = []
     for gw_name, traffic in sorted(gateway_analytics['gateway_traffic'].items(),
                                      key=lambda x: x[1]['total_connections'], reverse=True):
-        scope_badge = f'<span class="badge badge-{traffic["scope"].lower()}">{traffic["scope"]}</span>'
-        traffic_rows.append([
-            f"<strong>{gw_name}</strong>", scope_badge, traffic['organization'],
-            str(traffic['inbound_connections']), str(traffic['outbound_connections']),
-            f"<strong>{traffic['total_connections']}</strong>",
-            str(traffic['connected_organizations']), str(traffic['connected_departments']),
-        ])
-    html += _simple_table_purple(
-        ["Gateway", "Scope", "Organization", "Inbound", "Outbound", "Total", "Connected Orgs", "Connected Depts"],
-        traffic_rows)
+        scope_class = traffic['scope'].lower() if traffic['scope'] else 'internal'
+        scope_badge = f'<span class="badge badge-{scope_class}">{traffic["scope"]}</span>'
+        html += f"""
+                    <tr>
+                        <td><strong>{gw_name}</strong></td>
+                        <td>{scope_badge}</td>
+                        <td>{traffic['organization']}</td>
+                        <td>{traffic['inbound_connections']}</td>
+                        <td>{traffic['outbound_connections']}</td>
+                        <td><strong>{traffic['total_connections']}</strong></td>
+                        <td>{traffic['connected_organizations']}</td>
+                        <td>{traffic['connected_departments']}</td>
+                    </tr>
+"""
+
+    html += """
+                </tbody>
+            </table>
+        </div>
+"""
 
     # Redundancy Analysis
     redundancy = gateway_analytics['redundancy_analysis']
     if redundancy['spof_count'] > 0:
         html += f"""
-            <div class="alert alert-danger">
-                <h2 class="section-heading-purple">Single Points of Failure Detected</h2>
-                <p>Found <strong>{redundancy['spof_count']}</strong> critical routes with no gateway redundancy:</p>
+        <div class="alert alert-danger">
+            <h3>Single Points of Failure Detected</h3>
+            <p>Found <strong>{redundancy['spof_count']}</strong> critical routes with no gateway redundancy.</p>
+        </div>
 """
-        html += _simple_table_purple(
-            ["Route", "Type", "Gateway", "Connections"],
-            [[s['route'], s['type'], f"<strong>{s['gateway']}</strong>", str(s['connection_count'])]
-             for s in redundancy['single_points_of_failure']])
-        html += '            </div>\n'
+        html += _section_open("Single Points of Failure")
+        html += _table_open(["Route", "Type", "Gateway", "Connections"])
+        for spof in redundancy['single_points_of_failure']:
+            html += f"""
+                    <tr>
+                        <td>{spof['route']}</td>
+                        <td>{spof['type']}</td>
+                        <td><strong>{spof['gateway']}</strong></td>
+                        <td>{spof['connection_count']}</td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
     else:
         html += """
-            <div class="alert">
-                <h2 class="section-heading-purple">Gateway Redundancy</h2>
-                <p>All critical routes have redundant gateways configured.</p>
-            </div>
+        <div class="alert alert-success">
+            <h3>Gateway Redundancy OK</h3>
+            <p>All critical routes have redundant gateways configured.</p>
+        </div>
 """
 
-    # Load Distribution - Internal
-    html += '            <h2 class="section-heading-purple">Load Distribution</h2>\n'
-    html += '            <h3>Internal Gateways</h3>\n'
-    html += _simple_table_purple(
-        ["Gateway", "Connections", "Queues", "Load Score"],
-        [[ld['gateway'], str(ld['connections']), str(ld['queues']), f"<strong>{ld['load_score']}</strong>"]
-         for ld in gateway_analytics['load_distribution']['internal_gateways']])
+    # Load Distribution with CSS bar charts
+    html += _section_open("Load Distribution")
 
-    # Load Distribution - External
-    html += '            <h3>External Gateways</h3>\n'
-    html += _simple_table_purple(
-        ["Gateway", "Connections", "Queues", "Load Score"],
-        [[ld['gateway'], str(ld['connections']), str(ld['queues']), f"<strong>{ld['load_score']}</strong>"]
-         for ld in gateway_analytics['load_distribution']['external_gateways']])
+    if gateway_analytics['load_distribution']['internal_gateways']:
+        html += _details_open("Internal Gateways")
+        html += _table_open(["Gateway", "Connections", "Queues", "Load Score"])
+        for ld in gateway_analytics['load_distribution']['internal_gateways']:
+            bar_pct = int(ld['load_score'] / max_load * 100)
+            html += f"""
+                    <tr>
+                        <td>{ld['gateway']}</td>
+                        <td>{ld['connections']}</td>
+                        <td>{ld['queues']}</td>
+                        <td>
+                            <div class="bar-wrap">
+                                <div class="bar" style="width:{bar_pct}%"></div>
+                                <span class="bar-label">{ld['load_score']}</span>
+                            </div>
+                        </td>
+                    </tr>
+"""
+        html += _table_close() + _details_close()
+
+    if gateway_analytics['load_distribution']['external_gateways']:
+        html += _details_open("External Gateways")
+        html += _table_open(["Gateway", "Connections", "Queues", "Load Score"])
+        for ld in gateway_analytics['load_distribution']['external_gateways']:
+            bar_pct = int(ld['load_score'] / max_load * 100)
+            html += f"""
+                    <tr>
+                        <td>{ld['gateway']}</td>
+                        <td>{ld['connections']}</td>
+                        <td>{ld['queues']}</td>
+                        <td>
+                            <div class="bar-wrap">
+                                <div class="bar" style="width:{bar_pct}%"></div>
+                                <span class="bar-label">{ld['load_score']}</span>
+                            </div>
+                        </td>
+                    </tr>
+"""
+        html += _table_close() + _details_close()
+
+    html += _section_close()
 
     # Organization Connectivity Matrix
-    html += '            <h2 class="section-heading-purple">Organization Connectivity Matrix</h2>\n'
-    conn_rows = []
+    html += _section_open("Organization Connectivity Matrix")
+    html += _table_open(["Organization Route", "Gateways", "Connections", "Redundancy"])
     for route, data in sorted(gateway_analytics['org_connectivity'].items(),
                                 key=lambda x: x[1]['connection_count'], reverse=True):
         redundancy_badge = ('<span class="badge badge-ok">Yes</span>'
                             if len(data['gateways']) > 1
                             else '<span class="badge badge-warning">No</span>')
-        conn_rows.append([route, ', '.join(data['gateways']), str(data['connection_count']), redundancy_badge])
-    html += _simple_table_purple(
-        ["Organization Route", "Gateways", "Connections", "Redundancy"],
-        conn_rows)
+        html += f"""
+                    <tr>
+                        <td>{route}</td>
+                        <td>{', '.join(data['gateways'])}</td>
+                        <td>{data['connection_count']}</td>
+                        <td>{redundancy_badge}</td>
+                    </tr>
+"""
+    html += _table_close() + _section_close()
 
+    # Gateway Dependencies (collapsible per gateway)
+    if gateway_analytics.get('gateway_dependencies'):
+        html += _section_open("Gateway Dependencies")
+        for gw_name, deps in sorted(gateway_analytics['gateway_dependencies'].items()):
+            apps_list = ', '.join(deps['dependent_applications']) if deps['dependent_applications'] else 'None'
+            html += f"""
+            <details>
+                <summary>{gw_name} &mdash; {deps['application_count']} apps, {deps['dependent_mqmanagers']} MQ managers</summary>
+                <div class="detail-body">
+                    <p><strong>Dependent Applications:</strong> {apps_list}</p>
+                </div>
+            </details>
+"""
+        html += _section_close()
+
+    html += """
+    </div>
+"""
     return html
 
 
-# -- Table helpers --
+# ---------------------------------------------------------------------------
+# HTML fragment helpers (match the standalone report structure exactly)
+# ---------------------------------------------------------------------------
 
-def _table_section_blue(title, headers, rows):
-    """Build a section with a blue-themed table."""
-    html = f'            <div class="section section-blue"><h2>{title}</h2>\n'
-    html += _simple_table_blue(headers, rows)
-    html += '            </div>\n'
-    return html
+def _section_open(title: str) -> str:
+    return f"""
+        <div class="section">
+            <h2>{title}</h2>
+"""
 
+def _section_close() -> str:
+    return """        </div>
+"""
 
-def _simple_table_blue(headers, rows):
-    """Build a blue-themed table."""
-    return _build_table("table-blue", headers, rows)
+def _table_open(headers: list) -> str:
+    ths = ''.join(f'<th>{h}</th>' for h in headers)
+    return f"""            <table>
+                <thead><tr>{ths}</tr></thead>
+                <tbody>
+"""
 
+def _table_close() -> str:
+    return """                </tbody>
+            </table>
+"""
 
-def _simple_table_purple(headers, rows):
-    """Build a purple-themed table."""
-    return _build_table("table-purple", headers, rows)
+def _details_open(label: str) -> str:
+    return f"""            <details open>
+            <summary>{label}</summary>
+            <div class="detail-body">
+"""
 
-
-def _build_table(css_class, headers, rows):
-    """Build an HTML table with the given class, headers, and rows."""
-    html = f'            <table class="{css_class}">\n'
-    html += '                <thead><tr>'
-    for h in headers:
-        html += f'<th>{h}</th>'
-    html += '</tr></thead>\n'
-    html += '                <tbody>\n'
-    for row in rows:
-        html += '                    <tr>'
-        for cell in row:
-            html += f'<td>{cell}</td>'
-        html += '</tr>\n'
-    html += '                </tbody>\n'
-    html += '            </table>\n'
-    return html
+def _details_close() -> str:
+    return """            </div>
+            </details>
+"""
