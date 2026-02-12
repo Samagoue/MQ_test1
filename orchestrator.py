@@ -112,6 +112,7 @@ class MQCMDBOrchestrator:
             processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
             directorate_data = processor.process_assets()
             processor.print_stats()
+            self._raw_augmentation_records = processor.augmentation_records
 
             # Convert to JSON
             logger.info("\n[3/14] Converting to JSON structure...")
@@ -249,16 +250,17 @@ class MQCMDBOrchestrator:
                 from utils.report_consolidator import generate_consolidated_report
                 consolidated_file = Config.REPORTS_DIR / f"consolidated_report_{timestamp}.html"
 
-                # Load data augmentation records from input file
+                # Generate and merge data augmentation records
                 augmentation_data = None
                 augmentation_file = Config.INPUT_DIR / "data_augmentation.json"
-                if augmentation_file.exists():
-                    try:
-                        augmentation_data = load_json(augmentation_file)
-                        if augmentation_data:
-                            logger.info(f"  Loaded {len(augmentation_data)} data augmentation records")
-                    except Exception as e:
-                        logger.warning(f"⚠ Could not load data_augmentation.json: {e}")
+                try:
+                    augmentation_data = self._generate_augmentation_data(
+                        augmentation_file
+                    )
+                    if augmentation_data:
+                        logger.info(f"  Data augmentation: {len(augmentation_data)} records")
+                except Exception as e:
+                    logger.warning(f"⚠ Data augmentation generation failed: {e}")
 
                 generate_consolidated_report(
                     changes=changes,
@@ -387,6 +389,53 @@ class MQCMDBOrchestrator:
             logger.warning("\nWarnings during execution:")
             for error in self._pipeline_errors:
                 logger.info(f"  ⚠ {error}")
+
+    def _generate_augmentation_data(self, augmentation_file: Path) -> list:
+        """
+        Merge processor-captured augmentation records with the user-maintained
+        data_augmentation.json file.
+
+        Each record has: field_name (the remaining string), asset (original asset),
+        extrainfo, MQmanager, and directorate — captured during processing.
+        The user fills in Application, Org, and Validity manually.
+
+        Existing records (matched by field_name + MQmanager) are preserved as-is.
+        """
+        extracted = getattr(self, '_raw_augmentation_records', [])
+
+        # Load existing user-maintained records
+        existing = []
+        if augmentation_file.exists():
+            try:
+                existing = load_json(augmentation_file) or []
+            except Exception:
+                existing = []
+
+        # Build lookup of existing records by (field_name, MQmanager) to preserve user edits
+        existing_keys = {
+            (r.get('field_name', ''), r.get('MQmanager', ''))
+            for r in existing
+        }
+
+        # Merge: keep all existing records, append only genuinely new ones
+        new_count = 0
+        for record in extracted:
+            key = (record['field_name'], record['MQmanager'])
+            if key not in existing_keys:
+                # Add user-fillable fields with blank defaults
+                record['Application'] = ''
+                record['Org'] = ''
+                record['Validity'] = ''
+                existing.append(record)
+                existing_keys.add(key)
+                new_count += 1
+
+        # Save merged result back to input file
+        save_json(existing, augmentation_file)
+        if new_count > 0:
+            logger.info(f"  Added {new_count} new entries to {augmentation_file}")
+
+        return existing
 
     def _send_notification(self, success: bool, error_message: str = None):
         """Send email notification about pipeline completion."""

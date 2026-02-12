@@ -47,6 +47,8 @@ class MQManagerProcessor:
         self.canonical_mqmanagers = {}  # UPPER -> canonical name from raw data
 >>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
+        self.augmentation_records = []
+
         self.stats = {
             'total_records': len(self.raw_data),
             'processed_sender': 0,
@@ -199,6 +201,7 @@ class MQManagerProcessor:
         asset_type_field = self.field_mappings.get('asset_type', 'asset_type')
         directorate_field = self.field_mappings.get('directorate', 'directorate')
         role_field = self.field_mappings.get('role', 'Role')
+        extrainfo_field = self.field_mappings.get('extrainfo', 'extrainfo')
      
         # Second pass: process each record
         for record in self.raw_data:
@@ -210,6 +213,7 @@ class MQManagerProcessor:
             asset_type = self._normalize_value(record.get(asset_type_field, '')).lower()
             directorate = self._normalize_value(record.get(directorate_field, ''))
             role = self._normalize_value(record.get(role_field, '')).upper()
+            extrainfo = self._normalize_value(record.get(extrainfo_field, ''))
          
             if not mqmanager:
                 continue
@@ -256,6 +260,13 @@ class MQManagerProcessor:
                         # No MQmanager found -> Outbound_Extra
                         directorate_data[directorate][mqmanager]['outbound_extra'].add(remaining)
                         self.stats['outbound_extra_found'] += 1
+                        self.augmentation_records.append({
+                            'field_name': remaining,
+                            'asset': asset,
+                            'extrainfo': extrainfo,
+                            'MQmanager': mqmanager,
+                            'directorate': directorate,
+                        })
 
             elif 'RECEIVER' in role and asset:
                 self.stats['processed_receiver'] += 1
@@ -280,6 +291,13 @@ class MQManagerProcessor:
                         # No MQmanager found -> Inbound_Extra
                         directorate_data[directorate][mqmanager]['inbound_extra'].add(remaining)
                         self.stats['inbound_extra_found'] += 1
+                        self.augmentation_records.append({
+                            'field_name': remaining,
+                            'asset': asset,
+                            'extrainfo': extrainfo,
+                            'MQmanager': mqmanager,
+                            'directorate': directorate,
+                        })
      
         return directorate_data
  
