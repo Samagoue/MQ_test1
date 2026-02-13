@@ -16,7 +16,6 @@ Usage:
 
 import os
 import json
-import glob as glob_module
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -126,7 +125,8 @@ def publish_ea_documentation(
     """
     Publish EA documentation to a Confluence page.
 
-    Reads the wiki markup file and updates the target page.
+    Reads the wiki markup file and updates the target page using
+    Confluence wiki representation.
 
     Args:
         doc_file: Path to the EA documentation .txt file (Confluence wiki markup)
@@ -151,7 +151,7 @@ def publish_ea_documentation(
         if not Path(doc_file).exists():
             raise FileNotFoundError(f"Documentation file not found: {doc_file}")
 
-        comment = version_comment or f"Auto-updated by MQ CMDB pipeline"
+        comment = version_comment or "Auto-updated by MQ CMDB pipeline"
 
         result = client.update_page_from_file(
             page_id=pid,

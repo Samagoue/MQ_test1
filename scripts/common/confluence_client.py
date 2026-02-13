@@ -56,17 +56,19 @@ class ConfluenceClient:
             personal_access_token: PAT for bearer auth
             username: Username for basic auth (fallback)
             password: Password for basic auth (fallback)
-            certificate_path: Path to client certificate (.pem) for mTLS
-            verify_ssl: Whether to verify SSL certificates (True, or path to CA bundle)
+            certificate_path: Path to CA bundle (.pem) for SSL server verification.
+                              Passed as requests' verify= parameter.
+            verify_ssl: Whether to verify SSL certificates. Ignored when
+                        certificate_path is provided (certificate_path takes precedence).
             timeout: Request timeout in seconds
         """
         self.base_url = base_url.rstrip("/")
         self.api_url = f"{self.base_url}/rest/api"
         self.timeout = timeout
 
-        # SSL / certificate config
+        # SSL config: certificate_path is the CA bundle for server verification
+        # (same as requests' verify= parameter). NOT a client cert for mTLS.
         self.verify_ssl = certificate_path if certificate_path else verify_ssl
-        self.cert = certificate_path if certificate_path else None
 
         # Build session with auth
         self.session = requests.Session()
@@ -425,7 +427,6 @@ class ConfluenceClient:
                 files=files,
                 headers=headers,
                 verify=self.verify_ssl,
-                cert=self.cert,
                 timeout=self.timeout,
             )
             resp.raise_for_status()
