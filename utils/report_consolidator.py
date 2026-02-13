@@ -1,3 +1,4 @@
+
 """
 Consolidated Report Generator
 

@@ -321,4 +321,3 @@ def cleanup_output_directory(directory: Path, days: int, patterns: List[str]) ->
         results['total_deleted'] += pattern_deleted
 
     return results
-

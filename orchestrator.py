@@ -1,13 +1,5 @@
 
-
-"""
-MQ CMDB Pipeline Orchestrator
-
-Coordinates the 14-step processing pipeline: data loading, relationship
-extraction, hierarchy enrichment, change detection, diagram generation
-(topology, per-application, per-manager, filtered views), gateway
-analytics, multi-format export, EA documentation, and email notification.
-"""
+"""Main orchestrator for the complete MQ CMDB pipeline."""
 
 import os
 import sys
@@ -29,42 +21,19 @@ from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
 from generators.application_diagram_generator import ApplicationDiagramGenerator
 from generators.graphviz_individual import IndividualDiagramGenerator
 
+
 logger = get_logger("orchestrator")
 
 
 class MQCMDBOrchestrator:
     """Orchestrate the complete MQ CMDB processing pipeline."""
 
-    def __init__(self, skip_export: bool = False, diagrams_only: bool = False,
-                 workers: int = None, dry_run: bool = False):
-        """
-        Initialize with pipeline configuration.
-
-        Args:
-            skip_export: Skip database export, use existing data.
-            diagrams_only: Only regenerate diagrams from processed data.
-            workers: Parallel workers for diagram generation (None = sequential).
-            dry_run: Log planned actions without executing.
-        """
+    def __init__(self):
         setup_utf8_output()
         Config.ensure_directories()
-        self.skip_export = skip_export
-        self.diagrams_only = diagrams_only
-        self.dry_run = dry_run
         self._pipeline_errors: list = []
         self._summary_stats: dict = {}
         self._consolidated_report_file: Path = None
-
-        # Resolve effective workers: CLI flag > env var > Config > default (None)
-        if workers is not None:
-            self.workers = workers
-        elif os.environ.get("MQCMDB_WORKERS"):
-            try:
-                self.workers = int(os.environ["MQCMDB_WORKERS"])
-            except ValueError:
-                self.workers = Config.PARALLEL_WORKERS
-        else:
-            self.workers = Config.PARALLEL_WORKERS
 
     def run_full_pipeline(self) -> bool:
         """
@@ -112,7 +81,6 @@ class MQCMDBOrchestrator:
             processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
             directorate_data = processor.process_assets()
             processor.print_stats()
-            self._raw_augmentation_records = processor.augmentation_records
 
             # Convert to JSON
             logger.info("\n[3/14] Converting to JSON structure...")
@@ -183,7 +151,7 @@ class MQCMDBOrchestrator:
             logger.info("\n[7/14] Generating application diagrams...")
             app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
             app_gen = ApplicationDiagramGenerator(enriched_data, Config)
-            count = app_gen.generate_all(app_diagrams_dir, workers=self.workers)
+            count = app_gen.generate_all(app_diagrams_dir)
             if count > 0:
                 logger.info(f"✓ Generated {count} application diagrams in {app_diagrams_dir}")
                 if not pdf_generated:
@@ -196,7 +164,7 @@ class MQCMDBOrchestrator:
             logger.info("\n[8/14] Generating individual MQ manager diagrams...")
             individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
             individual_gen = IndividualDiagramGenerator(directorate_data, Config)
-            individual_count = individual_gen.generate_all(individual_diagrams_dir, workers=self.workers)
+            individual_count = individual_gen.generate_all(individual_diagrams_dir)
             if individual_count > 0:
                 logger.info(f"✓ Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
                 if not pdf_generated:
@@ -222,7 +190,6 @@ class MQCMDBOrchestrator:
 
             # Gateway Analytics (if gateways exist)
             logger.info("\n[10/14] Running gateway analytics...")
-            gateway_analytics = None
             try:
                 analyzer = GatewayAnalyzer(enriched_data)
                 gateway_analytics = analyzer.analyze()
@@ -244,31 +211,19 @@ class MQCMDBOrchestrator:
                 logger.warning(f"⚠ Gateway analytics failed: {e}")
                 self._pipeline_errors.append(f"Gateway analytics: {e}")
 
-            # Consolidated Report (combines change detection + gateway analytics + data augmentation)
+            # Consolidated Report
             logger.info("\n[10.5/14] Generating consolidated report...")
             try:
                 from utils.report_consolidator import generate_consolidated_report
                 consolidated_file = Config.REPORTS_DIR / f"consolidated_report_{timestamp}.html"
 
-                # Generate and merge data augmentation records
-                augmentation_data = None
-                augmentation_file = Config.INPUT_DIR / "data_augmentation.json"
-                try:
-                    augmentation_data = self._generate_augmentation_data(
-                        augmentation_file
-                    )
-                    if augmentation_data:
-                        logger.info(f"  Data augmentation: {len(augmentation_data)} records")
-                except Exception as e:
-                    logger.warning(f"⚠ Data augmentation generation failed: {e}")
-
+                # Load data
                 generate_consolidated_report(
                     changes=changes,
                     gateway_analytics=gateway_analytics,
                     output_file=consolidated_file,
                     current_timestamp=timestamp,
                     baseline_timestamp=baseline_time_str,
-                    data_augmentation=augmentation_data,
                 )
                 self._consolidated_report_file = consolidated_file
                 logger.info(f"✓ Consolidated report: {consolidated_file}")
@@ -329,6 +284,9 @@ class MQCMDBOrchestrator:
             logger.info("Ensure all required files exist in the correct directories")
             error_message = f"File not found: {e}"
         except Exception as e:
+            # safe_print(f"\n✗ UNEXPECTED ERROR: {e}")
+            # error_message = f"Unexpected error: {e}\n{traceback.format_exc()}"
+            # traceback.print_exc()
             logger.error(f"\n✗ UNEXPECTED ERROR: {e}")
             error_message = f"Unexpected error: {e}\n{traceback.format_exc()}"
             logger.exception("Unexpected pipeline error")
@@ -386,56 +344,9 @@ class MQCMDBOrchestrator:
 
         # Show warnings if any
         if self._pipeline_errors:
-            logger.warning("\nWarnings during execution:")
+            logger.info("\nWarnings during execution:")
             for error in self._pipeline_errors:
                 logger.info(f"  ⚠ {error}")
-
-    def _generate_augmentation_data(self, augmentation_file: Path) -> list:
-        """
-        Merge processor-captured augmentation records with the user-maintained
-        data_augmentation.json file.
-
-        Each record has: field_name (the remaining string), asset (original asset),
-        extrainfo, MQmanager, and directorate — captured during processing.
-        The user fills in Application, Org, and Validity manually.
-
-        Existing records (matched by field_name + MQmanager) are preserved as-is.
-        """
-        extracted = getattr(self, '_raw_augmentation_records', [])
-
-        # Load existing user-maintained records
-        existing = []
-        if augmentation_file.exists():
-            try:
-                existing = load_json(augmentation_file) or []
-            except Exception:
-                existing = []
-
-        # Build lookup of existing records by (field_name, MQmanager) to preserve user edits
-        existing_keys = {
-            (r.get('field_name', ''), r.get('MQmanager', ''))
-            for r in existing
-        }
-
-        # Merge: keep all existing records, append only genuinely new ones
-        new_count = 0
-        for record in extracted:
-            key = (record['field_name'], record['MQmanager'])
-            if key not in existing_keys:
-                # Add user-fillable fields with blank defaults
-                record['Application'] = ''
-                record['Org'] = ''
-                record['Validity'] = ''
-                existing.append(record)
-                existing_keys.add(key)
-                new_count += 1
-
-        # Save merged result back to input file
-        save_json(existing, augmentation_file)
-        if new_count > 0:
-            logger.info(f"  Added {new_count} new entries to {augmentation_file}")
-
-        return existing
 
     def _send_notification(self, success: bool, error_message: str = None):
         """Send email notification about pipeline completion."""
@@ -467,7 +378,6 @@ class MQCMDBOrchestrator:
                 success=success,
                 summary=summary,
                 error_message=error_message,
-                report_file=self._consolidated_report_file,
             )
 
             if result:
@@ -492,4 +402,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

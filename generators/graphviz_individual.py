@@ -4,14 +4,7 @@
 from typing import Dict
 from pathlib import Path
 from datetime import datetime
-<<<<<<< HEAD
 from utils.common import lighten_color
-=======
-from utils.common import lighten_color, darken_color
-from utils.logging_config import get_logger
-
-logger = get_logger("generators.graphviz_individual")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
 
 class IndividualDiagramGenerator:
@@ -247,51 +240,14 @@ class IndividualDiagramGenerator:
     ]"""
  
     def _find_directorate(self, mqmanager: str) -> str:
-        """Find directorate for MQmanager (case-insensitive)."""
-        mqmgr_upper = mqmanager.upper()
+        """Find directorate for MQmanager."""
         for directorate, mqmanagers in self.data.items():
             if mqmanager in mqmanagers:
                 return directorate
-            # Fallback: case-insensitive match
-            for key in mqmanagers:
-                if key.upper() == mqmgr_upper:
-                    return directorate
         return "Unknown"
  
-<<<<<<< HEAD
     def generate_all(self, output_dir: Path) -> int:
         """Generate all individual diagrams."""
-=======
-    def generate_all(self, output_dir: Path, workers: int = None) -> int:
-        """
-        Generate all individual MQ manager diagrams.
-
-        Args:
-            output_dir: Target directory for output files.
-            workers: Number of parallel workers. Sequential if None or 1.
-
-        Returns:
-            Number of diagrams generated.
-        """
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Collect all (directorate, mqmanager, info) tuples
-        items = []
-        for directorate, mqmanagers in self.data.items():
-            for mqmanager, info in mqmanagers.items():
-                items.append((directorate, mqmanager, info))
-
-        if not items:
-            return 0
-
-        if workers and workers > 1:
-            return self._generate_parallel(items, output_dir, workers)
-        return self._generate_sequential(items, output_dir)
-
-    def _generate_single(self, directorate: str, mqmanager: str,
-                         info: Dict, output_dir: Path) -> bool:
-        """Generate DOT and PDF for a single MQ manager. Thread-safe."""
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         from utils.common import sanitize_id
         from generators.graphviz_topology import GraphVizTopologyGenerator
 
@@ -310,39 +266,3 @@ class IndividualDiagramGenerator:
                 count += 1
 
         return count
-
-<<<<<<< HEAD
-=======
-        dot_file.write_text(dot_content, encoding='utf-8')
-        GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)
-        return True
-
-    def _generate_sequential(self, items: list, output_dir: Path) -> int:
-        """Generate diagrams one at a time."""
-        count = 0
-        for directorate, mqmanager, info in items:
-            if self._generate_single(directorate, mqmanager, info, output_dir):
-                count += 1
-        return count
-
-    def _generate_parallel(self, items: list, output_dir: Path, workers: int) -> int:
-        """Generate diagrams using a thread pool for I/O-bound GraphViz calls."""
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        count = 0
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {
-                executor.submit(self._generate_single, d, m, i, output_dir): m
-                for d, m, i in items
-            }
-            for future in as_completed(futures):
-                try:
-                    if future.result():
-                        count += 1
-                except Exception as exc:
-                    mqmgr = futures[future]
-                    logger.warning(f"  ⚠ Individual diagram failed for {mqmgr}: {exc}")
-
-        return count
-
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912

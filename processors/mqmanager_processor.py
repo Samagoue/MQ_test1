@@ -1,17 +1,7 @@
 
 """
-MQ Manager Processor
-
-<<<<<<< HEAD
-Parses MQ CMDB asset records to extract queue manager names and
-determine sender/receiver relationships from the Role field.
-=======
-Parses CMDB asset records to build the directorate-level MQ topology.
-Each record contains an MQ manager name, an asset string, and a Role
-(SENDER/RECEIVER). The processor extracts connection pairs by matching
-known MQ manager names inside asset strings and tracks queue counts
-(QLocal, QRemote, QAlias) per manager.
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+MQ Manager Processor - Based on ACTUAL Working Logic
+Uses the original asset-based parsing that extracts MQ manager names from asset strings.
 """
 
 from typing import Dict, List, Optional
@@ -22,11 +12,7 @@ logger = get_logger("processors.mqmanager")
 
 
 class MQManagerProcessor:
-<<<<<<< HEAD
-    """Process MQ CMDB assets to extract queue manager relationships."""
-=======
-    """Process MQ CMDB assets using the original working logic."""
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+    """Process MQ CMDB assets."""
  
     def __init__(self, raw_data: List[Dict], field_mappings: Dict[str, str]):
         """Initialize processor with raw data and field mappings."""
@@ -42,13 +28,7 @@ class MQManagerProcessor:
         # Collections for processing
         self.valid_mqmanagers = set()
         self.mqmanager_to_directorate = {}
-<<<<<<< HEAD
-=======
-        self.canonical_mqmanagers = {}  # UPPER -> canonical name from raw data
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
-        self.augmentation_records = []
-
         self.stats = {
             'total_records': len(self.raw_data),
             'processed_sender': 0,
@@ -101,42 +81,25 @@ class MQManagerProcessor:
     def _find_mqmanager_in_string(self, text: str, exclude_mqmanager: str = "") -> Optional[str]:
         """
         Check if any valid MQmanager name exists in the text.
-<<<<<<< HEAD
         Returns the MQmanager name if found, None otherwise.
-=======
-        Returns the canonical MQmanager name if found, None otherwise.
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         """
         if not text:
             return None
      
         text_upper = text.upper()
         exclude_upper = exclude_mqmanager.upper()
-<<<<<<< HEAD
      
-=======
-
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         # Split by dots and check each part
         parts = text.split('.')
         for part in parts:
             part_upper = part.upper()
             if part_upper in self.valid_mqmanagers and part_upper != exclude_upper:
-<<<<<<< HEAD
                 return part
      
         # Check if entire string matches
         if text_upper in self.valid_mqmanagers and text_upper != exclude_upper:
             return text
      
-=======
-                return self.canonical_mqmanagers.get(part_upper, part)
-
-        # Check if entire string matches
-        if text_upper in self.valid_mqmanagers and text_upper != exclude_upper:
-            return self.canonical_mqmanagers.get(text_upper, text)
-
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         return None
  
     def _build_index(self):
@@ -155,12 +118,6 @@ class MQManagerProcessor:
             if mqmanager:
                 mqmanager_upper = mqmanager.upper()
                 self.valid_mqmanagers.add(mqmanager_upper)
-<<<<<<< HEAD
-=======
-                # Store canonical name (first occurrence wins)
-                if mqmanager_upper not in self.canonical_mqmanagers:
-                    self.canonical_mqmanagers[mqmanager_upper] = mqmanager
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
                 directorate = self._normalize_value(record.get(directorate_field, ''))
                 if not directorate:
                     directorate = "Unknown"
@@ -171,14 +128,10 @@ class MQManagerProcessor:
  
     def process_assets(self) -> Dict:
         """
-        Process all assets and extract sender/receiver relationships.
+        Process all assets and extract relationships - ORIGINAL WORKING LOGIC.
         Returns: {directorate: {mqmanager: {...}}}
         """
-<<<<<<< HEAD
         logger.info("\nProcessing MQ CMDB assets...")
-=======
-        logger.info("Processing MQ CMDB assets...")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
         # Build index first
         self._build_index()
@@ -201,7 +154,6 @@ class MQManagerProcessor:
         asset_type_field = self.field_mappings.get('asset_type', 'asset_type')
         directorate_field = self.field_mappings.get('directorate', 'directorate')
         role_field = self.field_mappings.get('role', 'Role')
-        extrainfo_field = self.field_mappings.get('extrainfo', 'extrainfo')
      
         # Second pass: process each record
         for record in self.raw_data:
@@ -213,7 +165,6 @@ class MQManagerProcessor:
             asset_type = self._normalize_value(record.get(asset_type_field, '')).lower()
             directorate = self._normalize_value(record.get(directorate_field, ''))
             role = self._normalize_value(record.get(role_field, '')).upper()
-            extrainfo = self._normalize_value(record.get(extrainfo_field, ''))
          
             if not mqmanager:
                 continue
@@ -260,13 +211,6 @@ class MQManagerProcessor:
                         # No MQmanager found -> Outbound_Extra
                         directorate_data[directorate][mqmanager]['outbound_extra'].add(remaining)
                         self.stats['outbound_extra_found'] += 1
-                        self.augmentation_records.append({
-                            'field_name': remaining,
-                            'asset': asset,
-                            'extrainfo': extrainfo,
-                            'MQmanager': mqmanager,
-                            'directorate': directorate,
-                        })
 
             elif 'RECEIVER' in role and asset:
                 self.stats['processed_receiver'] += 1
@@ -291,13 +235,6 @@ class MQManagerProcessor:
                         # No MQmanager found -> Inbound_Extra
                         directorate_data[directorate][mqmanager]['inbound_extra'].add(remaining)
                         self.stats['inbound_extra_found'] += 1
-                        self.augmentation_records.append({
-                            'field_name': remaining,
-                            'asset': asset,
-                            'extrainfo': extrainfo,
-                            'MQmanager': mqmanager,
-                            'directorate': directorate,
-                        })
      
         return directorate_data
  
@@ -328,7 +265,7 @@ class MQManagerProcessor:
         return result
  
     def print_stats(self):
-        """Log processing statistics."""
+        """Print processing statistics."""
         logger.info("\n" + "=" * 70)
         logger.info("PROCESSING STATISTICS")
         logger.info("=" * 70)
@@ -341,8 +278,3 @@ class MQManagerProcessor:
         logger.info(f"Outbound_Extra:       {self.stats['outbound_extra_found']}")
         logger.info("=" * 70)
 
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912

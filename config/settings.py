@@ -1,3 +1,4 @@
+
 """Configuration settings for MQ CMDB automation system."""
 
 import random
@@ -136,6 +137,8 @@ class Config:
     ORG_HIERARCHY_JSON = INPUT_DIR / "org_hierarchy.json"
     APP_TO_QMGR_JSON = INPUT_DIR / "app_to_qmgr.json"
     GATEWAYS_JSON = INPUT_DIR / "gateways.json"
+    MQMANAGER_ALIASES_JSON = INPUT_DIR / "mqmanager_aliases.json"
+    EXTERNAL_APPS_JSON = INPUT_DIR / "external_apps.json"
  
     # ==================== DATABASE ====================
     DEFAULT_PROFILE = "production"
@@ -145,16 +148,14 @@ class Config:
     DEFAULT_FORMAT = "json"
     LOG_RETENTION_DAYS = 7
 
-
     # ==================== BANNER ====================
     BANNER_CONFIG = {
         "art_text": "MQ CMDB",
         "title": "MQ CMDB HIERARCHICAL AUTOMATION SYSTEM",
-        "subtitle": "Processes IBM MQ CMDB data and generates:\n\t• Hierarchical organization topology diagrams\n\t• Application-focused connection diagrams\n\t• Individual MQ manager connection diagrams\n\t• JSON data with full organizational enrichment",
+        "subtitle": "Processes IBM MQ CMDB data and generates:\n• Hierarchical organization topology diagrams\n• Application-focused connection diagrams\n• Individual MQ manager connection diagrams\n• JSON data with full organizational enrichment",
         "version": "1.0",
     }
-   
-   
+
     # Output Cleanup Settings
     ENABLE_OUTPUT_CLEANUP = True       # Enable automatic cleanup of old output files
     OUTPUT_RETENTION_DAYS = 30         # Delete output files older than this many days
@@ -167,6 +168,9 @@ class Config:
         "exports/mqcmdb_inventory_*.xlsx",
         "exports/EA_Documentation_*.txt"
     ]
+
+    # Parallel Processing
+    PARALLEL_WORKERS = None  # None = auto (min(4, cpu_count)); override with --workers or MQCMDB_WORKERS env var
 
     # Multi-Format Export Settings
     EXPORT_SVG = True  # Export diagrams to SVG format
@@ -318,11 +322,7 @@ class Config:
     ASSET_TYPE_REMOTE = "remote"
     ASSET_TYPE_ALIAS = "alias"
  
-<<<<<<< HEAD
-    # Role field values (SENDER / RECEIVER)
-=======
-    # Role field values for MQ manager communication direction
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+    # Role field values
     ROLE_SENDER = "SENDER"
     ROLE_RECEIVER = "RECEIVER"
  
@@ -354,4 +354,5 @@ class Config:
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return cls.LOGS_DIR / f"{prefix}_{timestamp}.log"
+
 

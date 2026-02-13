@@ -1,12 +1,7 @@
 
 """
-Hierarchical GraphViz Topology Generator
-
-Produces the main DOT diagram with the full organizational hierarchy:
-Organization -> Department -> Business Owner -> Application -> MQ Manager.
-Supports gradient fills, clickable SVG nodes, gateway clusters, and
-automatic connection classification (internal, cross-dept, cross-org,
-bidirectional).
+Hierarchical GraphViz Generator - Exact Match to Example
+Generates the main topology diagram with Organization → Department → Biz_Ownr → Application → MQ Manager
 """
 
 import subprocess
@@ -14,7 +9,7 @@ import shutil
 from pathlib import Path
 from typing import Dict
 from datetime import datetime
-from utils.common import lighten_color, darken_color, sanitize_id
+from utils.common import lighten_color, darken_color
 from utils.logging_config import get_logger
 
 logger = get_logger("generators.graphviz_hierarchical")
@@ -46,28 +41,11 @@ class HierarchicalGraphVizGenerator:
         self.data = data
         self.config = config
         self.all_connections = []
-        self.mqmgr_lookup = {}       # canonical_name -> info
-        self._canonical_names = {}   # UPPER_NAME -> canonical_name
-
-        # Pre-build canonical name index for case-insensitive edge resolution
-        self._build_canonical_index()
+        self.mqmgr_lookup = {}
 
         # Generate color mapping for departments
         self.department_colors = self._generate_department_color_mapping()
  
-<<<<<<< HEAD
-=======
-    def _build_canonical_index(self):
-        """Build UPPER -> canonical name mapping for all MQ managers."""
-        for org_name, org_data in self.data.items():
-            departments = org_data.get('_departments', {})
-            for dept_name, biz_owners in departments.items():
-                for biz_ownr, applications in biz_owners.items():
-                    for app_name, mqmanagers in applications.items():
-                        for mqmgr_name in mqmanagers:
-                            self._canonical_names[mqmgr_name.upper()] = mqmgr_name
-
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def generate(self) -> str:
         """Generate complete DOT content."""
         sections = [
@@ -106,7 +84,6 @@ class HierarchicalGraphVizGenerator:
     ]
 """
  
-<<<<<<< HEAD
     def _sanitize_id(self, name: str) -> str:
         """Sanitize name for GraphViz ID."""
         import re
@@ -115,8 +92,6 @@ class HierarchicalGraphVizGenerator:
             sanitized = '_' + sanitized
         return sanitized or 'node'
 
-=======
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _generate_department_color_mapping(self) -> Dict[str, Dict[str, str]]:
         """Generate unique colors for each department across all organizations."""
         from config.settings import generate_department_colors
@@ -169,7 +144,7 @@ class HierarchicalGraphVizGenerator:
  
     def _generate_organization(self, org_name: str, org_data: Dict, org_type: str) -> str:
         """Generate a single organization cluster."""
-        org_id = sanitize_id(org_name)
+        org_id = self._sanitize_id(org_name)
         departments = org_data.get('_departments', {})
      
         # Choose colors
@@ -224,7 +199,7 @@ class HierarchicalGraphVizGenerator:
  
     def _generate_department(self, dept_name: str, biz_owners: Dict, colors: Dict, org_type: str) -> str:
         """Generate department cluster."""
-        dept_id = sanitize_id(dept_name)
+        dept_id = self._sanitize_id(dept_name)
 
         # Create gradient fill for department
         dept_bg = colors["dept_bg"]
@@ -253,7 +228,7 @@ class HierarchicalGraphVizGenerator:
  
     def _generate_biz_owner(self, biz_ownr: str, applications: Dict, colors: Dict, org_type: str) -> str:
         """Generate business owner cluster."""
-        biz_id = sanitize_id(biz_ownr)
+        biz_id = self._sanitize_id(biz_ownr)
 
         # Create gradient fill for business owner
         biz_bg = colors["biz_bg"]
@@ -287,7 +262,7 @@ class HierarchicalGraphVizGenerator:
  
     def _generate_application(self, app_name: str, mqmanagers: Dict, colors: Dict, org_type: str) -> str:
         """Generate application or gateway cluster."""
-        app_id = sanitize_id(app_name)
+        app_id = self._sanitize_id(app_name)
 
         # Check if this is a gateway
         is_gateway = app_name.startswith("Gateway (")
@@ -346,11 +321,7 @@ class HierarchicalGraphVizGenerator:
  
     def _generate_mqmanager_node(self, mqmanager: str, mq_data: Dict, colors: Dict, indent: str) -> str:
         """Generate MQ manager node - EXACT format from example."""
-<<<<<<< HEAD
         qm_id = self._sanitize_id(mqmanager)
-=======
-        qm_id = sanitize_id(mqmanager)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
         qlocal = mq_data.get('qlocal_count', 0)
         qremote = mq_data.get('qremote_count', 0)
@@ -363,11 +334,7 @@ class HierarchicalGraphVizGenerator:
         inbound_count = len(inbound) + len(inbound_extra)
         outbound_count = len(outbound) + len(outbound_extra)
      
-<<<<<<< HEAD
         # Store lookup info
-=======
-        # Store lookup info (canonical name as key + uppercase alias for resolution)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         self.mqmgr_lookup[mqmanager] = {
             'Organization': mq_data.get('Organization', ''),
             'Department': mq_data.get('Department', ''),
@@ -375,21 +342,12 @@ class HierarchicalGraphVizGenerator:
             'Application': mq_data.get('Application', ''),
             'Org_Type': mq_data.get('Org_Type', 'Internal')
         }
-<<<<<<< HEAD
      
         # Store all connections (both regular and extra)
-=======
-        self._canonical_names[mqmanager.upper()] = mqmanager
-
-        # Store all connections — resolve targets to canonical names so
-        # edge IDs match the node IDs created from hierarchy keys.
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         for target in outbound:
-            canonical_target = self._canonical_names.get(target.upper(), target)
-            self.all_connections.append({'from': mqmanager, 'to': canonical_target})
+            self.all_connections.append({'from': mqmanager, 'to': target})
         for target in outbound_extra:
-            canonical_target = self._canonical_names.get(target.upper(), target)
-            self.all_connections.append({'from': mqmanager, 'to': canonical_target})
+            self.all_connections.append({'from': mqmanager, 'to': target})
 
         # Build node output
         node_lines = []
@@ -489,11 +447,8 @@ class HierarchicalGraphVizGenerator:
         processed_pairs = set()
 
         for conn in self.all_connections:
-            # Use canonical names for lookup (handles any residual case mismatches)
-            from_canonical = self._canonical_names.get(conn['from'].upper(), conn['from'])
-            to_canonical = self._canonical_names.get(conn['to'].upper(), conn['to'])
-            from_info = self.mqmgr_lookup.get(from_canonical, {})
-            to_info = self.mqmgr_lookup.get(to_canonical, {})
+            from_info = self.mqmgr_lookup.get(conn['from'], {})
+            to_info = self.mqmgr_lookup.get(conn['to'], {})
 
             from_org = from_info.get('Organization', '')
             from_dept = from_info.get('Department', '')
@@ -536,32 +491,32 @@ class HierarchicalGraphVizGenerator:
         if internal_dept:
             lines.append("    /* Internal Department - solid blue */")
             for conn in internal_dept:
-                from_id = sanitize_id(conn['from'])
-                to_id = sanitize_id(conn['to'])
+                from_id = self._sanitize_id(conn['from'])
+                to_id = self._sanitize_id(conn['to'])
                 lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["same_dept"]}" penwidth=2.0 dir=both arrowhead={conn_arrows["same_dept"]} arrowtail={conn_tails["same_dept"]} weight=3]')
             lines.append("")
 
         if cross_dept:
             lines.append("    /* Cross-Department - dashed coral */")
             for conn in cross_dept:
-                from_id = sanitize_id(conn['from'])
-                to_id = sanitize_id(conn['to'])
+                from_id = self._sanitize_id(conn['from'])
+                to_id = self._sanitize_id(conn['to'])
                 lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_dept"]}" penwidth=2.2 style=dashed dir=both arrowhead={conn_arrows["cross_dept"]} arrowtail={conn_tails["cross_dept"]} weight=2]')
             lines.append("")
 
         if cross_org_external:
             lines.append("    /* Cross-Organization / External - dashed purple */")
             for conn in cross_org_external:
-                from_id = sanitize_id(conn['from'])
-                to_id = sanitize_id(conn['to'])
+                from_id = self._sanitize_id(conn['from'])
+                to_id = self._sanitize_id(conn['to'])
                 lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["cross_org"]}" penwidth=2.2 style=dashed dir=both arrowhead={conn_arrows["cross_org"]} arrowtail={conn_tails["cross_org"]} weight=1]')
             lines.append("")
 
         if bidirectional:
             lines.append("    /* Bidirectional - teal, bold, dir=both */")
             for conn in bidirectional:
-                from_id = sanitize_id(conn['from'])
-                to_id = sanitize_id(conn['to'])
+                from_id = self._sanitize_id(conn['from'])
+                to_id = self._sanitize_id(conn['to'])
                 lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold dir=both arrowhead={conn_arrows["bidirectional"]} arrowtail={conn_tails["bidirectional"]} weight=1]')
             lines.append("")
 
@@ -667,6 +622,5 @@ class HierarchicalGraphVizGenerator:
             logger.info(f"✓ PDF generated: {pdf_file}")
             return True
         except subprocess.CalledProcessError as e:
-            logger.warning(f"✗ PDF generation failed: {e}")
+            logger.error(f"✗ PDF generation failed: {e}")
             return False
-

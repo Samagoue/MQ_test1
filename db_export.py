@@ -136,7 +136,7 @@ def execute_and_save_query(db_conn: DatabaseConnection, query: str,
         return True
 
     except Exception as e:
-        logger.exception(f"Query executio failed: {e}")
+        logger.exception(f"Query execution failed: {e}")
         return False
 
 
@@ -180,8 +180,8 @@ def main():
     """Main entry point."""
     setup_utf8_output()
     from config.settings import Config
-    setup_logging(log_prefix="mqcmdb", banner_config=Config.BANNER_CONFIG)
-   
+    setup_logging(banner_config=Config.BANNER_CONFIG)
+
     parser = argparse.ArgumentParser(
         description='Export MariaDB data to JSON',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -259,5 +259,3 @@ Examples:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

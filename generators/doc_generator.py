@@ -1097,8 +1097,3 @@ class EADocumentationGenerator:
             "*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* Internal",
             "{panel}"
         ]
-
-<<<<<<< HEAD
-
-=======
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912

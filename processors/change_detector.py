@@ -13,10 +13,8 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from datetime import datetime
 from utils.file_io import load_json, save_json
-from utils.common import iter_mqmanagers
 from utils.logging_config import get_logger
 
-logger = get_logger("processors.change_detector")
 logger = get_logger("processors.change_detector")
 
 
@@ -74,7 +72,19 @@ class ChangeDetector:
 
     def _extract_mqmanagers(self, data: Dict) -> Dict[str, Dict]:
         """Extract all MQ managers from hierarchical data structure."""
-        return dict(iter_mqmanagers(data))
+        mqmanagers = {}
+
+        for org_name, org_data in data.items():
+            if not isinstance(org_data, dict) or '_departments' not in org_data:
+                continue
+
+            for dept_name, dept_data in org_data['_departments'].items():
+                for biz_ownr, applications in dept_data.items():
+                    for app_name, mqmgr_dict in applications.items():
+                        for mqmgr_name, mqmgr_data in mqmgr_dict.items():
+                            mqmanagers[mqmgr_name] = mqmgr_data
+
+        return mqmanagers
 
     def _detect_mqmanager_changes(self, current: Dict, baseline: Dict):
         """Detect added, removed, and modified MQ managers."""
@@ -637,5 +647,4 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
         f.write(html)
 
     logger.info(f"✓ Change report generated: {output_file}")
-
 

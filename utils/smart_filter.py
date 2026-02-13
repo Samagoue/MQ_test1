@@ -80,28 +80,15 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
     """
     Generate all filtered diagram views automatically.
 
-    Creates DOT files and attempts SVG/PDF export for each view.
-
     Args:
         enriched_data: Full enriched MQ CMDB data
         output_dir: Directory for filtered diagrams
         Config: Configuration object
-
-    Returns:
-        Number of DOT diagrams generated.
     """
     from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
-    from utils.export_formats import export_dot_to_svg
 
     output_dir.mkdir(exist_ok=True)
     generated_count = 0
-
-    def _generate_view(data: Dict, dot_file: Path):
-        """Generate DOT, SVG, and PDF for a filtered view."""
-        gen = HierarchicalGraphVizGenerator(data, Config)
-        gen.save_to_file(dot_file)
-        export_dot_to_svg(dot_file)
-        gen.generate_pdf(dot_file, dot_file.with_suffix('.pdf'))
 
     # 1. Per-Organization Diagrams
     for org_name in enriched_data.keys():
@@ -109,28 +96,45 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
         if org_data:
             sanitized_name = org_name.replace(' ', '_').replace('/', '_')
             dot_file = output_dir / f"org_{sanitized_name}.dot"
-            _generate_view(org_data, dot_file)
-            generated_count += 1
+
+            gen = HierarchicalGraphVizGenerator(org_data, Config)
+            gen.save_to_file(dot_file)
+
+            pdf_file = dot_file.with_suffix('.pdf')
+            if gen.generate_pdf(dot_file, pdf_file):
+                generated_count += 1
 
     # 2. Gateways-Only Diagram
     gateway_data = filter_gateways_only(enriched_data)
     if gateway_data:
         dot_file = output_dir / "gateways_only.dot"
-        _generate_view(gateway_data, dot_file)
-        generated_count += 1
+        gen = HierarchicalGraphVizGenerator(gateway_data, Config)
+        gen.save_to_file(dot_file)
+
+        pdf_file = dot_file.with_suffix('.pdf')
+        if gen.generate_pdf(dot_file, pdf_file):
+            generated_count += 1
 
     # 3. Internal Gateways Only
     internal_gw_data = filter_gateways_only(enriched_data, scope='Internal')
     if internal_gw_data:
         dot_file = output_dir / "gateways_internal.dot"
-        _generate_view(internal_gw_data, dot_file)
-        generated_count += 1
+        gen = HierarchicalGraphVizGenerator(internal_gw_data, Config)
+        gen.save_to_file(dot_file)
+
+        pdf_file = dot_file.with_suffix('.pdf')
+        if gen.generate_pdf(dot_file, pdf_file):
+            generated_count += 1
 
     # 4. External Gateways Only
     external_gw_data = filter_gateways_only(enriched_data, scope='External')
     if external_gw_data:
         dot_file = output_dir / "gateways_external.dot"
-        _generate_view(external_gw_data, dot_file)
-        generated_count += 1
+        gen = HierarchicalGraphVizGenerator(external_gw_data, Config)
+        gen.save_to_file(dot_file)
+
+        pdf_file = dot_file.with_suffix('.pdf')
+        if gen.generate_pdf(dot_file, pdf_file):
+            generated_count += 1
 
     return generated_count

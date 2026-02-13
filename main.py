@@ -23,25 +23,27 @@ logger = get_logger("main")
 def print_banner():
     """Print application banner."""
     banner = """
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║                                                                      ║
+    ║       ███╗   ███╗ ██████╗     ██████╗███╗   ███╗██████╗ ██████╗      ║
+    ║       ████╗ ████║██╔═══██╗   ██╔════╝████╗ ████║██╔══██╗██╔══██╗     ║
+    ║       ██╔████╔██║██║   ██║   ██║     ██╔████╔██║██║  ██║██████╔╝     ║
+    ║       ██║╚██╔╝██║██║▄▄ ██║   ██║     ██║╚██╔╝██║██║  ██║██╔══██╗     ║
+    ║       ██║ ╚═╝ ██║╚██████╔╝   ╚██████╗██║ ╚═╝ ██║██████╔╝██████╔╝     ║
+    ║       ╚═╝     ╚═╝ ╚══▀▀═╝     ╚═════╝╚═╝     ╚═╝╚═════╝ ╚═════╝      ║
+    ║                                                                      ║
+    ║        MQ CMDB HIERARCHICAL AUTOMATION SYSTEM                        ║
+    ║        Version 1.0                                                   ║
+    ║        Processes IBM MQ CMDB data and generates:                     ║
+    ║        • Hierarchical organization topology diagrams                 ║
+    ║        • Application-focused connection diagrams                     ║
+    ║        • Individual MQ manager connection diagrams                   ║
+    ║        • JSON data with full organizational enrichment               ║
+    ║                                                                      ║
+    ║        Started: 2026-02-12 08:09:33                                  ║
+    ║                                                                      ║
+    ╚══════════════════════════════════════════════════════════════════════╝
 
-    ╔════════════════════════════════════════════════════════════════════╗
-    ║                                                                    ║
-    ║       ███╗   ███╗ ██████╗      ██████╗███╗   ███╗██████╗ ██████╗   ║
-    ║       ████╗ ████║██╔═══██╗    ██╔════╝████╗ ████║██╔══██╗██╔══██╗  ║
-    ║       ██╔████╔██║██║   ██║    ██║     ██╔████╔██║██████╔╝██████╔╝  ║
-    ║       ██║╚██╔╝██║██║   ██║    ██║     ██║╚██╔╝██║██╔══██╗██╔══██╗  ║
-    ║       ██║ ╚═╝ ██║╚██████╔╝    ╚██████╗██║ ╚═╝ ██║██████╔╝██║  ██║  ║
-    ║       ╚═╝     ╚═╝ ╚═════╝      ╚═════╝╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝  ║
-    ║        MQ CMDB HIERARCHICAL AUTOMATION SYSTEM                      ║
-    ║        Version 1.0                                                 ║
-    ║                                                                    ║
-    ║        Processes IBM MQ CMDB data and generates:                   ║
-    ║        • Hierarchical organization topology diagrams               ║
-    ║        • Application-focused connection diagrams                   ║
-    ║        • Individual MQ manager connection diagrams                 ║
-    ║        • JSON data with full organizational enrichment             ║
-    ║                                                                    ║
-    ╚════════════════════════════════════════════════════════════════════╝
     """
     logger.info(banner)
 
@@ -87,40 +89,40 @@ def check_prerequisites():
     """Check if prerequisites are met."""
     import shutil
     from config.settings import Config
- 
+
     issues = []
     warnings = []
- 
+
     # Check GraphViz (warning only, not blocking)
     if not shutil.which('dot') and not shutil.which('sfdp'):
         warnings.append("GraphViz not found - DOT files will be created but PDFs will be skipped")
         warnings.append("  Install from: https://graphviz.org/download/")
- 
+
     # Check required input files
     if not Config.INPUT_JSON.exists():
         issues.append(f"Required file not found: {Config.INPUT_JSON}")
- 
+
     if not Config.ORG_HIERARCHY_JSON.exists():
         issues.append(f"Required file not found: {Config.ORG_HIERARCHY_JSON}")
- 
+
     if not Config.APP_TO_QMGR_JSON.exists():
         issues.append(f"Required file not found: {Config.APP_TO_QMGR_JSON}")
- 
+
     # Display warnings
     if warnings:
-        logger.warning("\n⚠ WARNINGS:\n")
+        logger.warning("\nWARNINGS:\n")
         for warning in warnings:
             logger.warning(f"  ! {warning}")
         logger.info("")
- 
+
     # Display blocking issues
     if issues:
-        logger.error("\n⚠ PREREQUISITES NOT MET:\n")
+        logger.error("\nPREREQUISITES NOT MET:\n")
         for issue in issues:
             logger.error(f"  ✗ {issue}")
         logger.info("\nPlease resolve these issues before running the pipeline.\n")
         return False
- 
+
     return True
 
 
@@ -128,34 +130,37 @@ def main():
     """Main entry point."""
     # Handle help argument
     if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h', 'help']:
+        setup_logging(banner_config={"enabled": False})
         print_usage()
         return 0
- 
+
+    # Initialize logging
+    from config.settings import Config
+    verbose = '--verbose' in sys.argv or '-v' in sys.argv
+    setup_logging(verbose=verbose, banner_config=Config.BANNER_CONFIG)
+
     # Print banner
     print_banner()
- 
+
     # Check prerequisites
     logger.info("Checking prerequisites...")
     if not check_prerequisites():
         return 1
- 
+
     logger.info("✓ All prerequisites met\n")
- 
+
     # Run pipeline
     try:
         orchestrator = MQCMDBOrchestrator()
         orchestrator.run_full_pipeline()
         return 0
- 
+
     except KeyboardInterrupt:
-        logger.warning("\n\n⚠ Pipeline interrupted by user")
+        logger.warning("\n\nPipeline interrupted by user")
         return 130
- 
+
     except Exception as e:
-        # safe_print(f"\n✗ FATAL ERROR: {e}")
-        # import traceback
-        # traceback.print_exc()
-        logger.error(f"\n✗ FATAL ERROR: {e}")
+        logger.error(f"\nFATAL ERROR: {e}")
         logger.exception("Fatal pipeline error")
         return 1
 

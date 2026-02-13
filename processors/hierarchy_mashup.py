@@ -1,8 +1,4 @@
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 """
 Mashup processor to enrich MQ data with organizational hierarchy and application info.
 """
@@ -12,10 +8,6 @@ from typing import Dict
 from utils.logging_config import get_logger
 
 logger = get_logger("processors.hierarchy_mashup")
-<<<<<<< HEAD
-=======
-
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
 class HierarchyMashup:
     """Enrich MQ data with organizational hierarchy and application information."""
@@ -33,30 +25,18 @@ class HierarchyMashup:
         from utils.file_io import load_json
 
         if not filepath.exists():
-<<<<<<< HEAD
-            logger.warning(f"{filepath} not found, using default hierarchy.")
-=======
-            logger.warning(f"⚠ {filepath} not found. Using default hierarchy.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: {filepath} not found. Using default hierarchy.")
             return {}
 
         try:
             data = load_json(filepath)
         except Exception as e:
-<<<<<<< HEAD
-            logger.warning(f"Failed to load {filepath}: {e}. Using default hierarchy.")
-=======
-            logger.warning(f"⚠ Failed to load {filepath}: {e}. Using default hierarchy.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: Failed to load {filepath}: {e}. Using default hierarchy.")
             return {}
 
         # Validate that data is a list
         if not isinstance(data, list):
-<<<<<<< HEAD
-            logger.warning(f"{filepath} should contain a JSON array. Using default hierarchy.")
-=======
-            logger.warning(f"⚠ {filepath} should contain a JSON array. Using default hierarchy.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: {filepath} should contain a JSON array. Using default hierarchy.")
             return {}
 
         hierarchy = {}
@@ -64,11 +44,7 @@ class HierarchyMashup:
         for idx, record in enumerate(data):
             # Validate each record is a dictionary
             if not isinstance(record, dict):
-<<<<<<< HEAD
-                logger.warning(f"Record {idx} in {filepath} is not a valid object, skipping.")
-=======
-                logger.warning(f"⚠ Record {idx} in {filepath} is not a valid object, skipping.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+                logger.warning(f"⚠ Warning: Record {idx} in {filepath} is not a valid object, skipping.")
                 continue
 
             biz_ownr = str(record.get('Biz_Ownr', '')).strip()
@@ -87,30 +63,18 @@ class HierarchyMashup:
         from utils.file_io import load_json
 
         if not filepath.exists():
-<<<<<<< HEAD
-            logger.warning(f"{filepath} not found, using default app mappings.")
-=======
-            logger.warning(f"⚠ {filepath} not found. Using default app mappings.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: {filepath} not found. Using default app mappings.")
             return {}
 
         try:
             data = load_json(filepath)
         except Exception as e:
-<<<<<<< HEAD
-            logger.warning(f"Failed to load {filepath}: {e}. Using default app mappings.")
-=======
-            logger.warning(f"⚠ Failed to load {filepath}: {e}. Using default app mappings.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: Failed to load {filepath}: {e}. Using default app mappings.")
             return {}
 
         # Validate that data is a list
         if not isinstance(data, list):
-<<<<<<< HEAD
-            logger.warning(f"{filepath} should contain a JSON array. Using default app mappings.")
-=======
-            logger.warning(f"⚠ {filepath} should contain a JSON array. Using default app mappings.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: {filepath} should contain a JSON array. Using default app mappings.")
             return {}
 
         mapping = {}
@@ -118,11 +82,7 @@ class HierarchyMashup:
         for idx, record in enumerate(data):
             # Validate each record is a dictionary
             if not isinstance(record, dict):
-<<<<<<< HEAD
-                logger.warning(f"Record {idx} in {filepath} is not a valid object, skipping.")
-=======
-                logger.warning(f"⚠ Record {idx} in {filepath} is not a valid object, skipping.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+                logger.warning(f"⚠ Warning: Record {idx} in {filepath} is not a valid object, skipping.")
                 continue
 
             qmgr_name = str(record.get('QmgrName', '')).strip()
@@ -137,30 +97,18 @@ class HierarchyMashup:
 
         if filepath is None or not filepath.exists():
             if filepath is not None:
-<<<<<<< HEAD
-                logger.warning(f"{filepath} not found, no gateway mappings loaded.")
-=======
-                logger.warning(f"⚠ {filepath} not found. No gateway mappings loaded.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+                logger.warning(f"⚠ Warning: {filepath} not found. No gateway mappings loaded.")
             return {}
 
         try:
             data = load_json(filepath)
         except Exception as e:
-<<<<<<< HEAD
-            logger.warning(f"Failed to load {filepath}: {e}. No gateway mappings loaded.")
-=======
-            logger.warning(f"⚠ Failed to load {filepath}: {e}. No gateway mappings loaded.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: Failed to load {filepath}: {e}. No gateway mappings loaded.")
             return {}
 
         # Validate that data is a list
         if not isinstance(data, list):
-<<<<<<< HEAD
-            logger.warning(f"{filepath} should contain a JSON array. No gateway mappings loaded.")
-=======
-            logger.warning(f"⚠ {filepath} should contain a JSON array. No gateway mappings loaded.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+            logger.warning(f"⚠ Warning: {filepath} should contain a JSON array. No gateway mappings loaded.")
             return {}
 
         mapping = {}
@@ -168,11 +116,7 @@ class HierarchyMashup:
         for idx, record in enumerate(data):
             # Validate each record is a dictionary
             if not isinstance(record, dict):
-<<<<<<< HEAD
-                logger.warning(f"Record {idx} in {filepath} is not a valid object, skipping.")
-=======
-                logger.warning(f"⚠ Record {idx} in {filepath} is not a valid object, skipping.")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+                logger.warning(f"⚠ Warning: Record {idx} in {filepath} is not a valid object, skipping.")
                 continue
 
             qmgr_name = str(record.get('QmgrName', '')).strip()
@@ -276,5 +220,3 @@ class HierarchyMashup:
                     }
      
         return enriched
-
-
