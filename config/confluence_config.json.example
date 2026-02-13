@@ -1,0 +1,17 @@
+{
+    "_comment": "Confluence API configuration. Copy to confluence_config.json and fill in your values.",
+    "base_url": "https://confluence.example.com",
+    "personal_access_token": "your-personal-access-token-here",
+    "certificate_path": "/path/to/client-certificate.pem",
+    "verify_ssl": true,
+    "space_key": "MYSPACE",
+    "page_id": "123456789",
+    "page_title": "MQ Integration Architecture",
+    "timeout": 30,
+    "attach_diagrams": false,
+    "diagram_pages": {
+        "_comment": "Map application names to their Confluence page IDs. Each app diagram SVG is attached to its own page.",
+        "MyApp1": "111111111",
+        "MyApp2": "222222222"
+    }
+}

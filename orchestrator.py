@@ -258,6 +258,7 @@ class MQCMDBOrchestrator:
 
             # EA Documentation Generation
             logger.info("\n[12/14] Generating Enterprise Architecture documentation...")
+            confluence_doc = None
             try:
                 ea_doc_gen = EADocumentationGenerator(enriched_data)
                 confluence_doc = Config.EXPORTS_DIR / f"EA_Documentation_{timestamp}.txt"
@@ -267,6 +268,44 @@ class MQCMDBOrchestrator:
             except Exception as e:
                 logger.warning(f"⚠ EA documentation generation failed: {e}")
                 self._pipeline_errors.append(f"EA documentation: {e}")
+
+            # Confluence Publishing
+            if Config.ENABLE_CONFLUENCE_PUBLISH:
+                logger.info("\n[12.5/14] Publishing to Confluence...")
+                try:
+                    from utils.confluence_shim import is_configured, attach_diagrams_enabled, publish_ea_documentation, publish_application_diagrams
+
+                    if is_configured():
+                        # Publish the EA documentation markup page
+                        if confluence_doc and confluence_doc.exists():
+                            result = publish_ea_documentation(
+                                doc_file=str(confluence_doc),
+                                version_comment=f"Pipeline run {timestamp}",
+                            )
+                            if result:
+                                logger.info(f"✓ EA documentation published to Confluence (page {result.get('id', 'N/A')})")
+                            else:
+                                logger.warning("⚠ Confluence page update returned no result")
+                                self._pipeline_errors.append("Confluence: page update returned no result")
+                        else:
+                            logger.warning("⚠ No EA documentation file to publish")
+
+                        # Attach application diagram SVGs to per-app pages (only when enabled)
+                        if attach_diagrams_enabled():
+                            diagram_summary = publish_application_diagrams(
+                                comment=f"Pipeline run {timestamp}",
+                            )
+                            if diagram_summary["attached"] > 0:
+                                logger.info(f"✓ Attached {diagram_summary['attached']} application diagram(s) to Confluence")
+                            if diagram_summary["errors"] > 0:
+                                logger.warning(f"⚠ {diagram_summary['errors']} diagram attachment(s) failed")
+                                self._pipeline_errors.append(f"Confluence: {diagram_summary['errors']} diagram attachment(s) failed")
+                    else:
+                        logger.info("⚠ Confluence not configured - skipping publish")
+                        logger.info("  → Configure config/confluence_config.json to enable")
+                except Exception as e:
+                    logger.warning(f"⚠ Confluence publishing failed: {e}")
+                    self._pipeline_errors.append(f"Confluence publishing: {e}")
 
             # Final Summary
             logger.info("\n[13/14] Pipeline Summary")

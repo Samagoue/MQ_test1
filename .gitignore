@@ -48,6 +48,8 @@ credentials/
 .env
 *.ini
 !email_config.ini.example
+config/confluence_config.json
+!config/confluence_config.json.example
 
 # IDE
 .vscode/

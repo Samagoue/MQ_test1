@@ -185,6 +185,10 @@ class Config:
     # Gateway Analytics Settings
     ENABLE_GATEWAY_ANALYTICS = True  # Enable gateway analytics reports
 
+    # Confluence Publishing Settings
+    ENABLE_CONFLUENCE_PUBLISH = True   # Enable auto-publish to Confluence after doc generation
+    CONFLUENCE_CONFIG_FILE = BASE_DIR / "config" / "confluence_config.json"
+
     # Deduplication
     DEDUP_ASSET_FIELD = "asset"
     DEDUP_IGNORE_TYPE = "QCluster"
