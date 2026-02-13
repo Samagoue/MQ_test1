@@ -2,7 +2,7 @@
 Confluence integration shim for the MQ CMDB project.
 
 Loads project-specific configuration from config/confluence_config.json
-and delegates to the generic scripts.common.confluence_client.
+and delegates to the generic confluence_client in the shared scripts directory.
 
 Usage:
     from utils.confluence_shim import publish_ea_documentation, publish_application_diagrams
@@ -15,6 +15,7 @@ Usage:
 """
 
 import os
+import sys
 import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -22,6 +23,11 @@ from typing import Optional, List, Dict, Any
 from utils.logging_config import get_logger
 
 logger = get_logger("utils.confluence_shim")
+
+# Shared scripts directory (same convention as logging_config.py)
+_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", r"C:/Users/BABED2P/Documents/WORKSPACE/Scripts")
+if _SHARED_SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SHARED_SCRIPTS_DIR)
 
 # Resolve paths relative to project root
 _PROJECT_ROOT = Path(__file__).parent.parent
@@ -80,7 +86,7 @@ def _load_config() -> Dict[str, Any]:
 
 def _get_client():
     """Create a ConfluenceClient from project config."""
-    from scripts.common.confluence_client import ConfluenceClient
+    from confluence_client import ConfluenceClient
 
     config = _load_config()
 
@@ -137,7 +143,7 @@ def publish_ea_documentation(
     Returns:
         Updated page data dict, or None on failure
     """
-    from scripts.common.confluence_client import ConfluenceError
+    from confluence_client import ConfluenceError
 
     try:
         client, config = _get_client()
@@ -200,7 +206,7 @@ def publish_application_diagrams(
     Returns:
         Dict with "attached", "skipped", and "errors" counts
     """
-    from scripts.common.confluence_client import ConfluenceError
+    from confluence_client import ConfluenceError
 
     summary = {"attached": 0, "skipped": 0, "errors": 0, "details": []}
 
