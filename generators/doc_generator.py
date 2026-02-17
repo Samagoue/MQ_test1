@@ -478,42 +478,52 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         )
         lines.extend([
             "",
-            "{toc}",
-            "",
             "----",
             "",
         ])
         return lines
 
     def _generate_toc(self) -> List[str]:
-        """Generate two-column navigation panel."""
+        """Generate table of contents as a styled navigation panel."""
         nav_content = [
             "{section}",
             "{column:width=50%}",
-            "* [1. Architecture Vision|#architecture-vision]",
-            "* [2. Stakeholder Analysis|#stakeholder-analysis]",
-            "* [3. Architecture Principles|#architecture-principles]",
-            "* [4. Business Architecture|#business-architecture]",
-            "* [5. Data Architecture|#data-architecture]",
-            "* [6. Application Architecture|#application-architecture]",
+            "",
+            "h5. Architecture Foundation",
+            "||  ||  ||",
+            f"| *1* | [Architecture Vision|#architecture-vision] |",
+            f"| *2* | [Stakeholder Analysis|#stakeholder-analysis] |",
+            f"| *3* | [Architecture Principles|#architecture-principles] |",
+            "",
+            "h5. Architecture Domains",
+            "||  ||  ||",
+            f"| *4* | [Business Architecture|#business-architecture] |",
+            f"| *5* | [Data Architecture|#data-architecture] |",
+            f"| *6* | [Application Architecture|#application-architecture] |",
             "{column}",
             "{column:width=50%}",
-            "* [7. Technology Architecture|#technology-architecture]",
-            "* [8. Integration Patterns|#integration-patterns]",
-            "* [9. Gap Analysis|#gap-analysis]",
-            "* [10. Risk Assessment|#risk-assessment]",
-            "* [11. Architecture Roadmap|#architecture-roadmap]",
-            "* [12. Appendices|#appendices]",
+            "",
+            "h5. Infrastructure & Patterns",
+            "||  ||  ||",
+            f"| *7* | [Technology Architecture|#technology-architecture] |",
+            f"| *8* | [Integration Patterns|#integration-patterns] |",
+            "",
+            "h5. Governance & Planning",
+            "||  ||  ||",
+            f"| *9*  | [Gap Analysis|#gap-analysis] |",
+            f"| *10* | [Risk Assessment|#risk-assessment] |",
+            f"| *11* | [Architecture Roadmap|#architecture-roadmap] |",
+            f"| *12* | [Appendices|#appendices] |",
             "{column}",
             "{section}",
         ]
         lines = self._styled_panel(
-            "Quick Navigation",
+            "Table of Contents",
             nav_content,
-            bg_color="#e6f0fa",
-            title_bg="#2d3e50",
+            bg_color="#f7f9fb",
+            title_bg="#1a3c5e",
             title_color="#ffffff",
-            border_color="#c1c7d0",
+            border_color="#1a3c5e",
         )
         lines.append("")
         return lines
@@ -746,13 +756,16 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         for org_name, org_info in sorted(self.stats['organizations'].items()):
             org_type_label = self._status_lozenge("Internal", "Green") if org_info['type'] == 'Internal' else self._status_lozenge("External", "Blue")
+            org_type_text = "Internal" if org_info['type'] == 'Internal' else "External"
             org_table = [
+                f"*Type:* {org_type_label}",
+                "",
                 "||Metric||Value||",
                 f"|Departments|{len(org_info['departments'])}|",
                 f"|Applications|{len(org_info['applications'])}|",
                 f"|MQ Managers|{org_info['mqmanagers']}|",
             ]
-            lines.extend(self._expandable(f"{org_name} {org_type_label}", org_table))
+            lines.extend(self._expandable(f"{org_name} ({org_type_text})", org_table))
             lines.append("")
 
         lines.extend([
