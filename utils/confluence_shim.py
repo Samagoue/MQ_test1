@@ -287,15 +287,27 @@ def _sanitize_filename(name: str) -> str:
 #  Confluence → local JSON sync (input file management)
 # ------------------------------------------------------------------ #
 
-def _parse_html_table(html_body: str) -> List[Dict[str, str]]:
-    """Parse the first HTML table in a Confluence storage-format page body.
+def _parse_html_table(
+    html_body: str,
+    required_header: Optional[str] = None,
+) -> List[Dict[str, str]]:
+    """Parse an HTML table from a Confluence storage-format page body.
 
     Extracts ``<th>`` cells as column headers and ``<td>`` cells as row
     values.  Returns a list of dicts (one per data row), keyed by header
     names.  Works with any number of columns.
 
+    When *required_header* is given (e.g. ``"QmgrName"``), the parser
+    collects all tables on the page and returns data from the first table
+    whose headers contain that column.  This allows pages to have
+    decorative or reference tables alongside the data table.
+
+    When *required_header* is ``None``, the first table is used.
+
     Args:
         html_body: Confluence page body in storage (XHTML) format
+        required_header: Optional column name that must be present in
+            the target table's header row
 
     Returns:
         List of row dicts, e.g. [{"QmgrName": "QM_01", "Application": "MyApp"}]
@@ -305,8 +317,9 @@ def _parse_html_table(html_body: str) -> List[Dict[str, str]]:
     class _TableParser(HTMLParser):
         def __init__(self):
             super().__init__()
-            self.headers: List[str] = []
-            self.rows: List[List[str]] = []
+            self.tables: List[dict] = []      # [{"headers": [...], "rows": [[...]]}]
+            self._current_headers: List[str] = []
+            self._current_rows: List[List[str]] = []
             self._current_row: List[str] = []
             self._current_cell: List[str] = []
             self._in_th = False
@@ -317,6 +330,8 @@ def _parse_html_table(html_body: str) -> List[Dict[str, str]]:
             tag = tag.lower()
             if tag == "table":
                 self._in_table = True
+                self._current_headers = []
+                self._current_rows = []
             elif self._in_table and tag == "th":
                 self._in_th = True
                 self._current_cell = []
@@ -328,14 +343,19 @@ def _parse_html_table(html_body: str) -> List[Dict[str, str]]:
             tag = tag.lower()
             if tag == "table":
                 self._in_table = False
+                if self._current_headers:
+                    self.tables.append({
+                        "headers": self._current_headers,
+                        "rows": self._current_rows,
+                    })
             elif tag == "th" and self._in_th:
                 self._in_th = False
-                self.headers.append("".join(self._current_cell).strip())
+                self._current_headers.append("".join(self._current_cell).strip())
             elif tag == "td" and self._in_td:
                 self._in_td = False
                 self._current_row.append("".join(self._current_cell).strip())
             elif tag == "tr" and self._current_row:
-                self.rows.append(self._current_row)
+                self._current_rows.append(self._current_row)
                 self._current_row = []
 
         def handle_data(self, data):
@@ -345,13 +365,26 @@ def _parse_html_table(html_body: str) -> List[Dict[str, str]]:
     parser = _TableParser()
     parser.feed(html_body)
 
-    if not parser.headers:
+    if not parser.tables:
         return []
 
+    # Select the right table
+    table = None
+    if required_header:
+        for t in parser.tables:
+            if required_header in t["headers"]:
+                table = t
+                break
+        if table is None:
+            logger.warning(f"No table with header '{required_header}' found on page")
+            return []
+    else:
+        table = parser.tables[0]
+
     result = []
-    for row in parser.rows:
-        if len(row) == len(parser.headers):
-            result.extend(_expand_csv_row(parser.headers, row))
+    for row in table["rows"]:
+        if len(row) == len(table["headers"]):
+            result.extend(_expand_csv_row(table["headers"], row))
     return result
 
 
@@ -386,17 +419,27 @@ def _expand_csv_row(headers: List[str], row: List[str]) -> List[Dict[str, str]]:
     return rows
 
 
-def sync_confluence_table(page_id: str, output_path: str) -> bool:
+def sync_confluence_table(
+    page_id: str,
+    output_path: str,
+    required_header: Optional[str] = None,
+) -> bool:
     """Fetch a Confluence page table and write it as a JSON array.
 
     This is the generic building block for syncing any Confluence table
-    page to a local JSON input file.  The page should contain a single
-    table whose header row (``<th>``) matches the JSON keys expected by
-    the downstream consumer.
+    page to a local JSON input file.  The page should contain a table
+    whose header row (``<th>``) matches the JSON keys expected by the
+    downstream consumer.
+
+    When *required_header* is given, the parser selects the table whose
+    headers contain that column — useful when the page has additional
+    reference or decorative tables.
 
     Args:
         page_id: Confluence page ID containing the table
         output_path: Local file path to write the JSON array to
+        required_header: Optional column name to identify the correct
+            table (e.g. ``"QmgrName"``)
 
     Returns:
         True on success, False on failure (existing file is preserved)
@@ -406,7 +449,7 @@ def sync_confluence_table(page_id: str, output_path: str) -> bool:
     try:
         client, _config = _get_client()
         html_body = client.get_page_body(page_id)
-        rows = _parse_html_table(html_body)
+        rows = _parse_html_table(html_body, required_header=required_header)
 
         if not rows:
             logger.warning(f"No table data found on Confluence page {page_id} — keeping existing file")
@@ -470,6 +513,7 @@ def sync_input_files() -> Dict[str, Any]:
             continue
         page_id = page_config.get("page_id", "")
         output_file = page_config.get("output_file", "")
+        required_header = page_config.get("required_header")
 
         if not page_id or not output_file:
             logger.info(f"  Skipping '{name}': missing page_id or output_file")
@@ -481,7 +525,7 @@ def sync_input_files() -> Dict[str, Any]:
         if not output_path.is_absolute():
             output_path = _PROJECT_ROOT / output_path
 
-        if sync_confluence_table(page_id, str(output_path)):
+        if sync_confluence_table(page_id, str(output_path), required_header=required_header):
             summary["synced"] += 1
         else:
             summary["errors"] += 1
