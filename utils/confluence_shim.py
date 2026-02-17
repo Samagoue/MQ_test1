@@ -12,6 +12,10 @@ Usage:
 
     # Attach each application SVG to its own Confluence page (per diagram_pages mapping)
     publish_application_diagrams()
+
+    # Sync input files from Confluence pages before pipeline runs
+    from utils.confluence_shim import sync_input_files
+    sync_input_files()
 """
 
 import os
@@ -277,3 +281,176 @@ def _sanitize_filename(name: str) -> str:
     sanitized = re.sub(r'\s+', '_', sanitized)
     sanitized = re.sub(r'_+', '_', sanitized)
     return sanitized.strip('_')
+
+
+# ------------------------------------------------------------------ #
+#  Confluence → local JSON sync (input file management)
+# ------------------------------------------------------------------ #
+
+def _parse_html_table(html_body: str) -> List[Dict[str, str]]:
+    """Parse the first HTML table in a Confluence storage-format page body.
+
+    Extracts ``<th>`` cells as column headers and ``<td>`` cells as row
+    values.  Returns a list of dicts (one per data row), keyed by header
+    names.  Works with any number of columns.
+
+    Args:
+        html_body: Confluence page body in storage (XHTML) format
+
+    Returns:
+        List of row dicts, e.g. [{"QmgrName": "QM_01", "Application": "MyApp"}]
+    """
+    from html.parser import HTMLParser
+
+    class _TableParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.headers: List[str] = []
+            self.rows: List[List[str]] = []
+            self._current_row: List[str] = []
+            self._current_cell: List[str] = []
+            self._in_th = False
+            self._in_td = False
+            self._in_table = False
+
+        def handle_starttag(self, tag, attrs):
+            tag = tag.lower()
+            if tag == "table":
+                self._in_table = True
+            elif self._in_table and tag == "th":
+                self._in_th = True
+                self._current_cell = []
+            elif self._in_table and tag == "td":
+                self._in_td = True
+                self._current_cell = []
+
+        def handle_endtag(self, tag):
+            tag = tag.lower()
+            if tag == "table":
+                self._in_table = False
+            elif tag == "th" and self._in_th:
+                self._in_th = False
+                self.headers.append("".join(self._current_cell).strip())
+            elif tag == "td" and self._in_td:
+                self._in_td = False
+                self._current_row.append("".join(self._current_cell).strip())
+            elif tag == "tr" and self._current_row:
+                self.rows.append(self._current_row)
+                self._current_row = []
+
+        def handle_data(self, data):
+            if self._in_th or self._in_td:
+                self._current_cell.append(data)
+
+    parser = _TableParser()
+    parser.feed(html_body)
+
+    if not parser.headers:
+        return []
+
+    result = []
+    for row in parser.rows:
+        if len(row) == len(parser.headers):
+            result.append(dict(zip(parser.headers, row)))
+    return result
+
+
+def sync_confluence_table(page_id: str, output_path: str) -> bool:
+    """Fetch a Confluence page table and write it as a JSON array.
+
+    This is the generic building block for syncing any Confluence table
+    page to a local JSON input file.  The page should contain a single
+    table whose header row (``<th>``) matches the JSON keys expected by
+    the downstream consumer.
+
+    Args:
+        page_id: Confluence page ID containing the table
+        output_path: Local file path to write the JSON array to
+
+    Returns:
+        True on success, False on failure (existing file is preserved)
+    """
+    from confluence_client import ConfluenceError
+
+    try:
+        client, _config = _get_client()
+        html_body = client.get_page_body(page_id)
+        rows = _parse_html_table(html_body)
+
+        if not rows:
+            logger.warning(f"No table data found on Confluence page {page_id} — keeping existing file")
+            return False
+
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(rows, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"  Synced {len(rows)} records from page {page_id} → {output_path}")
+        return True
+
+    except ConfluenceError as e:
+        logger.warning(f"  Confluence API error syncing page {page_id}: {e} — keeping existing file")
+        return False
+    except Exception as e:
+        logger.warning(f"  Failed to sync page {page_id}: {e} — keeping existing file")
+        return False
+
+
+def sync_input_files() -> Dict[str, Any]:
+    """Sync all configured input files from Confluence pages.
+
+    Reads the ``input_pages`` mapping from ``confluence_config.json`` and
+    fetches each table page, writing the result to the configured local
+    file path.  Non-blocking: failures are logged and skipped so the
+    pipeline can continue with existing local files.
+
+    Config example::
+
+        "input_pages": {
+            "app_to_qmgr": {
+                "page_id": "123456",
+                "output_file": "input/app_to_qmgr.json"
+            },
+            "gateways": {
+                "page_id": "789012",
+                "output_file": "input/gateways.json"
+            }
+        }
+
+    Returns:
+        Summary dict with "synced", "skipped", and "errors" counts
+    """
+    summary = {"synced": 0, "skipped": 0, "errors": 0}
+
+    try:
+        config = _load_config()
+    except (ValueError, FileNotFoundError):
+        logger.warning("Confluence not configured — skipping input file sync")
+        return summary
+
+    input_pages = config.get("input_pages", {})
+    if not input_pages:
+        logger.info("  No input_pages configured — skipping sync")
+        return summary
+
+    for name, page_config in input_pages.items():
+        page_id = page_config.get("page_id", "")
+        output_file = page_config.get("output_file", "")
+
+        if not page_id or not output_file:
+            logger.info(f"  Skipping '{name}': missing page_id or output_file")
+            summary["skipped"] += 1
+            continue
+
+        # Resolve relative paths against project root
+        output_path = Path(output_file)
+        if not output_path.is_absolute():
+            output_path = _PROJECT_ROOT / output_path
+
+        if sync_confluence_table(page_id, str(output_path)):
+            summary["synced"] += 1
+        else:
+            summary["errors"] += 1
+
+    return summary

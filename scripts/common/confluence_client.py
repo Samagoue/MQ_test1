@@ -106,6 +106,22 @@ class ConfluenceClient:
         resp = self._request("GET", url, params=params)
         return resp.json()
 
+    def get_page_body(self, page_id: str) -> str:
+        """
+        Get the storage-format (XHTML) body of a Confluence page.
+
+        Args:
+            page_id: The Confluence page ID
+
+        Returns:
+            The page body as an XHTML string
+
+        Raises:
+            ConfluenceError: On API failure
+        """
+        page = self.get_page(page_id, expand="body.storage")
+        return page["body"]["storage"]["value"]
+
     def get_page_by_title(self, space_key: str, title: str) -> Optional[Dict[str, Any]]:
         """
         Find a page by space key and title.

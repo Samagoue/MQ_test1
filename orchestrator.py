@@ -86,6 +86,16 @@ class MQCMDBOrchestrator:
             logger.info("\n[3/14] Converting to JSON structure...")
             json_output = processor.convert_to_json(directorate_data)
 
+            # Sync input files from Confluence (if configured)
+            from utils.confluence_shim import is_configured, sync_input_files
+            if is_configured():
+                logger.info("\n[3.5/14] Syncing input files from Confluence...")
+                sync_result = sync_input_files()
+                if sync_result["synced"] > 0:
+                    logger.info(f"✓ Synced {sync_result['synced']} input file(s) from Confluence")
+                if sync_result["errors"] > 0:
+                    logger.warning(f"⚠ {sync_result['errors']} input file(s) failed to sync — using existing local files")
+
             # Mashup with hierarchy
             logger.info("\n[4/14] Enriching with organizational hierarchy...")
             mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON)
