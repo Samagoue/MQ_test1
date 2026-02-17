@@ -435,6 +435,8 @@ def sync_input_files() -> Dict[str, Any]:
         return summary
 
     for name, page_config in input_pages.items():
+        if not isinstance(page_config, dict):
+            continue
         page_id = page_config.get("page_id", "")
         output_file = page_config.get("output_file", "")
 
