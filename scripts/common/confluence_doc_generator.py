@@ -111,8 +111,28 @@ class ConfluenceDocGenerator(ABC):
     #  Post-processing
     # ------------------------------------------------------------------ #
 
-    # Matches a data row: starts with | but NOT ||
-    _DATA_ROW_RE = re.compile(r"^\|(?!\|)")
+    # Header rows use || for ALL separators: ||Col1||Col2||Col3||
+    # After stripping the leading ||, the rest should contain NO single | (only ||)
+    _HEADER_ROW_RE = re.compile(r"^\|\|.+\|\|$")
+
+    @staticmethod
+    def _is_header_row(line: str) -> bool:
+        """Return True if *line* is a Confluence table header row.
+
+        Header rows use ``||`` for ALL cell separators, e.g.
+        ``||Col1||Col2||Col3||``.  A data row with an empty first cell
+        like ``||val|val|`` starts with ``||`` but uses single ``|``
+        for the remaining separators, so it is NOT a header row.
+        """
+        if not line.startswith("||") or not line.endswith("||"):
+            return False
+        # Strip leading/trailing || and check that every remaining
+        # cell boundary is also ||.  If any single | exists between
+        # cells, it's a data row with an empty first cell.
+        inner = line[2:-2]
+        # Replace all || with a placeholder, then check for leftover |
+        stripped = inner.replace("||", "\x00")
+        return "|" not in stripped
 
     @staticmethod
     def _sanitize_table_rows(doc: List[str]) -> List[str]:
@@ -123,15 +143,26 @@ class ConfluenceDocGenerator(ABC):
         which shifts all subsequent columns.  This method replaces every
         interior ``||`` in data rows with ``| |`` (a space-filled cell),
         leaving header rows (``||Col||Col||``) untouched.
+
+        Also handles the edge case where the *first* cell is empty,
+        causing the row to start with ``||`` — which looks like a header
+        but is distinguished by having single ``|`` separators elsewhere.
         """
         sanitized = []
         for line in doc:
-            if ConfluenceDocGenerator._DATA_ROW_RE.match(line) and "||" in line:
-                # Replace every interior || with | | (repeat for consecutive empty cells)
-                tail = line[1:]
-                while "||" in tail:
-                    tail = tail.replace("||", "| |")
-                line = line[0] + tail
+            if not line.startswith("|") or "||" not in line:
+                sanitized.append(line)
+                continue
+
+            if ConfluenceDocGenerator._is_header_row(line):
+                sanitized.append(line)
+                continue
+
+            # Data row with at least one empty cell — replace || with | |
+            tail = line[1:]
+            while "||" in tail:
+                tail = tail.replace("||", "| |")
+            line = line[0] + tail
             sanitized.append(line)
         return sanitized
 
