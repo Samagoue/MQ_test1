@@ -351,8 +351,39 @@ def _parse_html_table(html_body: str) -> List[Dict[str, str]]:
     result = []
     for row in parser.rows:
         if len(row) == len(parser.headers):
-            result.append(dict(zip(parser.headers, row)))
+            result.extend(_expand_csv_row(parser.headers, row))
     return result
+
+
+def _expand_csv_row(headers: List[str], row: List[str]) -> List[Dict[str, str]]:
+    """Expand a row with comma-delimited cell values into multiple rows.
+
+    If any cell contains commas, it is split and a separate row is
+    produced for each value.  Non-comma cells are duplicated across all
+    expanded rows.  When multiple cells contain commas, the cartesian
+    product is produced.
+
+    Examples::
+
+        headers: ["QmgrName", "Application"]
+        row:     ["QM_01, QM_02, QM_03", "MyApp"]
+        result:  [{"QmgrName": "QM_01", "Application": "MyApp"},
+                  {"QmgrName": "QM_02", "Application": "MyApp"},
+                  {"QmgrName": "QM_03", "Application": "MyApp"}]
+    """
+    from itertools import product
+
+    split_values = []
+    for val in row:
+        if "," in val:
+            split_values.append([v.strip() for v in val.split(",") if v.strip()])
+        else:
+            split_values.append([val])
+
+    rows = []
+    for combo in product(*split_values):
+        rows.append(dict(zip(headers, combo)))
+    return rows
 
 
 def sync_confluence_table(page_id: str, output_path: str) -> bool:
