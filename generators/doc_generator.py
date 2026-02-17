@@ -13,18 +13,34 @@ Generates comprehensive EA documentation following TOGAF framework:
 - Architecture Roadmap & Recommendations
 
 Reference: TOGAF 9.2 Architecture Content Framework
+
+Subclasses ``ConfluenceDocGenerator`` — loaded from the shared scripts
+directory in production, falling back to the local ``scripts/common/``
+copy during development.
 """
 
+import os
+import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List, Tuple
 from datetime import datetime
 from collections import defaultdict
 from utils.logging_config import get_logger
 
+# Shared scripts directory (same convention as confluence_shim.py)
+_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", r"C:/Users/BABED2P/Documents/WORKSPACE/Scripts")
+if _SHARED_SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SHARED_SCRIPTS_DIR)
+
+try:
+    from confluence_doc_generator import ConfluenceDocGenerator
+except ImportError:
+    from scripts.common.confluence_doc_generator import ConfluenceDocGenerator
+
 logger = get_logger("generators.doc_generator")
 
 
-class EADocumentationGenerator:
+class EADocumentationGenerator(ConfluenceDocGenerator):
     """Generate TOGAF-aligned Enterprise Architecture documentation for MQ CMDB topology."""
 
     def __init__(self, enriched_data: Dict):
@@ -393,98 +409,51 @@ class EADocumentationGenerator:
         return maturity
 
     # ------------------------------------------------------------------ #
-    #  Confluence markup helpers
+    #  Backward-compatible aliases for base class markup helpers
     # ------------------------------------------------------------------ #
 
-    @staticmethod
-    def _styled_panel(
-        title: str,
-        content_lines: List[str],
-        bg_color: str = "#f7f9fb",
-        title_bg: str = "#2d3e50",
-        title_color: str = "#fff",
-        border_color: str = "#c1c7d0",
-    ) -> List[str]:
-        """Return a Confluence panel with a styled title bar."""
+    _styled_panel = staticmethod(ConfluenceDocGenerator.styled_panel)
+    _status_lozenge = staticmethod(ConfluenceDocGenerator.status_lozenge)
+    _expandable = staticmethod(ConfluenceDocGenerator.expandable)
+
+    # ------------------------------------------------------------------ #
+    #  ConfluenceDocGenerator abstract method implementations
+    # ------------------------------------------------------------------ #
+
+    def build_header(self) -> List[str]:
+        return self._generate_document_header()
+
+    def build_toc(self) -> List[str]:
+        return self._generate_toc()
+
+    def get_sections(self) -> List[Tuple[str, Callable[[], List[str]]]]:
         return [
-            f"{{panel:title={title}|bgColor={bg_color}|titleBGColor={title_bg}"
-            f"|titleColor={title_color}|borderColor={border_color}|borderStyle=solid}}",
-            *content_lines,
-            "{panel}",
+            ("Architecture Vision",      self._generate_architecture_vision),
+            ("Stakeholder Analysis",     self._generate_stakeholder_analysis),
+            ("Architecture Principles",  self._generate_architecture_principles),
+            ("Business Architecture",    self._generate_business_architecture),
+            ("Data Architecture",        self._generate_data_architecture),
+            ("Application Architecture", self._generate_application_architecture),
+            ("Technology Architecture",  self._generate_technology_architecture),
+            ("Integration Patterns",     self._generate_integration_patterns),
+            ("Gap Analysis",             self._generate_gap_analysis),
+            ("Risk Assessment",          self._generate_risk_assessment),
+            ("Architecture Roadmap",     self._generate_roadmap),
+            ("Appendices",               self._generate_appendices),
         ]
 
-    @staticmethod
-    def _status_lozenge(label: str, colour: str = "Green") -> str:
-        """Return a Confluence status lozenge macro string.
+    def build_footer(self) -> List[str]:
+        return self._generate_footer()
 
-        ``colour`` must be one of: Green, Yellow, Red, Blue, Grey.
-        """
-        return f"{{status:colour={colour}|title={label}}}"
+    # ------------------------------------------------------------------ #
+    #  Public API (backward-compatible entry point)
+    # ------------------------------------------------------------------ #
 
-    @staticmethod
-    def _expandable(title: str, content_lines: List[str]) -> List[str]:
-        """Wrap *content_lines* in an expand/collapse macro."""
-        return [
-            f"{{expand:title={title}}}",
-            *content_lines,
-            "{expand}",
-        ]
-
-    def generate_confluence_markup(self, output_file: Path):
+    def generate_confluence_markup(self, output_file: Path) -> bool:
         """Generate comprehensive TOGAF-aligned Confluence documentation."""
-        doc = []
-
-        # Document Header
-        doc.extend(self._generate_document_header())
-
-        # Table of Contents
-        doc.extend(self._generate_toc())
-
-        # 1. Architecture Vision
-        doc.extend(self._generate_architecture_vision())
-
-        # 2. Stakeholder Analysis
-        doc.extend(self._generate_stakeholder_analysis())
-
-        # 3. Architecture Principles
-        doc.extend(self._generate_architecture_principles())
-
-        # 4. Business Architecture
-        doc.extend(self._generate_business_architecture())
-
-        # 5. Information Systems Architecture - Data
-        doc.extend(self._generate_data_architecture())
-
-        # 6. Information Systems Architecture - Application
-        doc.extend(self._generate_application_architecture())
-
-        # 7. Technology Architecture
-        doc.extend(self._generate_technology_architecture())
-
-        # 8. Integration Patterns & Standards
-        doc.extend(self._generate_integration_patterns())
-
-        # 9. Gap Analysis & Opportunities
-        doc.extend(self._generate_gap_analysis())
-
-        # 10. Risk Assessment (RAID)
-        doc.extend(self._generate_risk_assessment())
-
-        # 11. Architecture Roadmap
-        doc.extend(self._generate_roadmap())
-
-        # 12. Appendices
-        doc.extend(self._generate_appendices())
-
-        # Footer
-        doc.extend(self._generate_footer())
-
-        # Write file
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(doc))
-
+        result = self.generate(output_file)
         logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
-        return True
+        return result
 
     def _generate_document_header(self) -> List[str]:
         """Generate document control header."""
