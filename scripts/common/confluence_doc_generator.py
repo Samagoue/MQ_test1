@@ -25,6 +25,7 @@ Usage::
 """
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Callable, List, Tuple
@@ -107,6 +108,34 @@ class ConfluenceDocGenerator(ABC):
         ...
 
     # ------------------------------------------------------------------ #
+    #  Post-processing
+    # ------------------------------------------------------------------ #
+
+    # Matches a data row: starts with | but NOT ||
+    _DATA_ROW_RE = re.compile(r"^\|(?!\|)")
+
+    @staticmethod
+    def _sanitize_table_rows(doc: List[str]) -> List[str]:
+        """Fix empty cells in Confluence table data rows.
+
+        In Confluence wiki markup ``||`` denotes a header-cell separator.
+        When a dynamic value is empty the row contains an accidental ``||``
+        which shifts all subsequent columns.  This method replaces every
+        interior ``||`` in data rows with ``| |`` (a space-filled cell),
+        leaving header rows (``||Col||Col||``) untouched.
+        """
+        sanitized = []
+        for line in doc:
+            if ConfluenceDocGenerator._DATA_ROW_RE.match(line) and "||" in line:
+                # Replace every interior || with | | (repeat for consecutive empty cells)
+                tail = line[1:]
+                while "||" in tail:
+                    tail = tail.replace("||", "| |")
+                line = line[0] + tail
+            sanitized.append(line)
+        return sanitized
+
+    # ------------------------------------------------------------------ #
     #  Document assembly (template method)
     # ------------------------------------------------------------------ #
 
@@ -125,6 +154,8 @@ class ConfluenceDocGenerator(ABC):
             doc.extend(section_callable())
 
         doc.extend(self.build_footer())
+
+        doc = self._sanitize_table_rows(doc)
 
         output_path = Path(output_file)
         with open(output_path, "w", encoding="utf-8") as f:
