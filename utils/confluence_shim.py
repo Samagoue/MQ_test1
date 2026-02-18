@@ -324,6 +324,15 @@ def publish_app_documentation(
         parent_page_id = config.get("app_docs_parent_page_id", "") or config.get("page_id", "")
         space_key = config.get("space_key", "")
 
+        # If we have a parent page but no space_key, fetch it from the page itself
+        if parent_page_id and not space_key:
+            try:
+                parent_page = client.get_page(parent_page_id, expand="space")
+                space_key = parent_page.get("space", {}).get("key", "")
+                logger.info(f"  Resolved space_key '{space_key}' from parent page {parent_page_id}")
+            except Exception as e:
+                logger.warning(f"  Could not resolve space_key from page {parent_page_id}: {e}")
+
         if parent_page_id and space_key:
             # ---- Auto-create mode: create/update child pages under parent ----
             logger.info(f"  Auto-create mode: parent page {parent_page_id}, space {space_key}")
