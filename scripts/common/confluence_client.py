@@ -144,6 +144,31 @@ class ConfluenceClient:
         results = resp.json().get("results", [])
         return results[0] if results else None
 
+    def get_child_pages(self, page_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all child pages of a given page.
+
+        Args:
+            page_id: The parent page ID
+
+        Returns:
+            List of child page dicts (each with 'id', 'title', etc.)
+        """
+        url = f"{self.api_url}/content/{page_id}/child/page"
+        results = []
+        start = 0
+        limit = 50
+
+        while True:
+            resp = self._request("GET", url, params={"start": start, "limit": limit})
+            data = resp.json()
+            results.extend(data.get("results", []))
+            if data.get("size", 0) < limit:
+                break
+            start += limit
+
+        return results
+
     def get_attachments(self, page_id: str) -> List[Dict[str, Any]]:
         """
         List all attachments on a page.

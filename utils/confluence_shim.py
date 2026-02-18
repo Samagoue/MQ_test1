@@ -292,67 +292,123 @@ def publish_app_documentation(
 ) -> Dict[str, Any]:
     """Publish per-application EA documentation to Confluence pages.
 
-    Uses the ``diagram_pages`` mapping in config to find the Confluence
-    page for each application.  Generates wiki markup via
-    ``ApplicationDocGenerator`` and updates the page body.
+    For each application in the enriched data, a child page is created
+    (or updated if it already exists) under the parent page specified
+    by ``app_docs_parent_page_id`` in config.  The parent page is
+    typically the same page used for the main EA documentation.
 
-    The SVG diagram attachment is handled separately by
-    ``publish_application_diagrams()`` — both use the same pages.
+    Page titles follow the pattern ``EA_<AppName>``.
+
+    If ``app_docs_parent_page_id`` is not set, the function falls back
+    to using the ``diagram_pages`` mapping (manual page-per-app config).
 
     Args:
         enriched_data: The enriched hierarchical MQ CMDB data
         version_comment: Optional version history comment
 
     Returns:
-        Dict with "published", "skipped", and "errors" counts
+        Dict with "published", "created", "skipped", and "errors" counts
     """
     from confluence_client import ConfluenceError
     from generators.app_doc_generator import ApplicationDocGenerator
 
-    summary = {"published": 0, "skipped": 0, "errors": 0}
+    summary = {"published": 0, "created": 0, "skipped": 0, "errors": 0}
 
     try:
         client, config = _get_client()
 
-        page_map = config.get("diagram_pages", {})
-        page_map = {k: v for k, v in page_map.items() if not k.startswith("_")}
-
-        if not page_map:
-            logger.warning("No diagram_pages mapping configured — skipping app doc publish")
-            return summary
-
         doc_gen = ApplicationDocGenerator(enriched_data)
         comment = version_comment or "Auto-updated by MQ CMDB pipeline"
-
         known_apps = doc_gen.get_known_apps()
-        logger.info(f"  {len(known_apps)} application(s) in data, {len(page_map)} configured in diagram_pages")
-        logger.info(f"  Config app names: {list(page_map.keys())}")
-        logger.info(f"  Known data apps:  {known_apps[:15]}" + (f" ... +{len(known_apps)-15} more" if len(known_apps) > 15 else ""))
 
-        for app_name, page_id in page_map.items():
-            markup = doc_gen.generate_app_page(app_name)
-            if not markup:
-                logger.warning(
-                    f"  No data for '{app_name}' — skipping. "
-                    f"Known apps: {', '.join(known_apps[:10])}"
-                    + (f" ... and {len(known_apps)-10} more" if len(known_apps) > 10 else "")
-                )
-                summary["skipped"] += 1
-                continue
+        parent_page_id = config.get("app_docs_parent_page_id", "")
+        space_key = config.get("space_key", "")
 
-            try:
-                client.update_page(
-                    page_id=page_id,
-                    title=f"EA_{app_name}",
-                    body=markup,
-                    representation="wiki",
-                    version_comment=comment,
-                )
-                logger.info(f"  Published doc for '{app_name}' → page {page_id}")
-                summary["published"] += 1
-            except ConfluenceError as e:
-                logger.error(f"  Failed to publish doc for '{app_name}' to page {page_id}: {e}")
-                summary["errors"] += 1
+        if parent_page_id and space_key:
+            # ---- Auto-create mode: create/update child pages under parent ----
+            logger.info(f"  Auto-create mode: parent page {parent_page_id}, space {space_key}")
+            logger.info(f"  {len(known_apps)} application(s) to publish")
+
+            # Build lookup of existing child pages by title
+            existing_children = client.get_child_pages(parent_page_id)
+            child_by_title = {child["title"]: child["id"] for child in existing_children}
+            logger.info(f"  {len(child_by_title)} existing child page(s) found under parent")
+
+            for app_name in known_apps:
+                markup = doc_gen.generate_app_page(app_name)
+                if not markup:
+                    summary["skipped"] += 1
+                    continue
+
+                page_title = f"EA_{app_name}"
+
+                try:
+                    if page_title in child_by_title:
+                        # Update existing page
+                        page_id = child_by_title[page_title]
+                        client.update_page(
+                            page_id=page_id,
+                            title=page_title,
+                            body=markup,
+                            representation="wiki",
+                            version_comment=comment,
+                        )
+                        logger.info(f"  Updated '{page_title}' (page {page_id})")
+                        summary["published"] += 1
+                    else:
+                        # Create new child page
+                        result = client.create_page(
+                            space_key=space_key,
+                            title=page_title,
+                            body=markup,
+                            parent_id=parent_page_id,
+                            representation="wiki",
+                        )
+                        new_id = result.get("id", "?")
+                        child_by_title[page_title] = new_id
+                        logger.info(f"  Created '{page_title}' (page {new_id})")
+                        summary["created"] += 1
+                        summary["published"] += 1
+                except ConfluenceError as e:
+                    logger.error(f"  Failed to publish '{page_title}': {e}")
+                    summary["errors"] += 1
+
+        else:
+            # ---- Manual mode: use diagram_pages mapping ----
+            page_map = config.get("diagram_pages", {})
+            page_map = {k: v for k, v in page_map.items() if not k.startswith("_")}
+
+            if not page_map:
+                logger.warning("No app_docs_parent_page_id or diagram_pages configured — skipping")
+                return summary
+
+            logger.info(f"  Manual mode: {len(page_map)} page(s) in diagram_pages")
+            logger.info(f"  {len(known_apps)} application(s) in data")
+
+            for app_name, page_id in page_map.items():
+                markup = doc_gen.generate_app_page(app_name)
+                if not markup:
+                    logger.warning(
+                        f"  No data for '{app_name}' — skipping. "
+                        f"Known apps: {', '.join(known_apps[:10])}"
+                        + (f" ... and {len(known_apps)-10} more" if len(known_apps) > 10 else "")
+                    )
+                    summary["skipped"] += 1
+                    continue
+
+                try:
+                    client.update_page(
+                        page_id=page_id,
+                        title=f"EA_{app_name}",
+                        body=markup,
+                        representation="wiki",
+                        version_comment=comment,
+                    )
+                    logger.info(f"  Published doc for '{app_name}' → page {page_id}")
+                    summary["published"] += 1
+                except ConfluenceError as e:
+                    logger.error(f"  Failed to publish doc for '{app_name}' to page {page_id}: {e}")
+                    summary["errors"] += 1
 
         return summary
 
