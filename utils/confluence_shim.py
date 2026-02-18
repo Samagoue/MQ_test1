@@ -321,7 +321,7 @@ def publish_app_documentation(
         comment = version_comment or "Auto-updated by MQ CMDB pipeline"
         known_apps = doc_gen.get_known_apps()
 
-        parent_page_id = config.get("app_docs_parent_page_id", "")
+        parent_page_id = config.get("app_docs_parent_page_id", "") or config.get("page_id", "")
         space_key = config.get("space_key", "")
 
         if parent_page_id and space_key:
@@ -340,7 +340,7 @@ def publish_app_documentation(
                     summary["skipped"] += 1
                     continue
 
-                page_title = f"EA_{app_name}"
+                page_title = app_name
 
                 try:
                     if page_title in child_by_title:
@@ -399,7 +399,7 @@ def publish_app_documentation(
                 try:
                     client.update_page(
                         page_id=page_id,
-                        title=f"EA_{app_name}",
+                        title=app_name,
                         body=markup,
                         representation="wiki",
                         version_comment=comment,
