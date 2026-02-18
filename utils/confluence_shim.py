@@ -274,6 +274,84 @@ def publish_application_diagrams(
         return summary
 
 
+def app_docs_enabled() -> bool:
+    """Check whether per-application doc publishing is enabled in config."""
+    try:
+        config = _load_config()
+        return config.get("publish_app_docs", False)
+    except (ValueError, FileNotFoundError):
+        return False
+
+
+def publish_app_documentation(
+    enriched_data: dict,
+    version_comment: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Publish per-application EA documentation to Confluence pages.
+
+    Uses the ``diagram_pages`` mapping in config to find the Confluence
+    page for each application.  Generates wiki markup via
+    ``ApplicationDocGenerator`` and updates the page body.
+
+    The SVG diagram attachment is handled separately by
+    ``publish_application_diagrams()`` — both use the same pages.
+
+    Args:
+        enriched_data: The enriched hierarchical MQ CMDB data
+        version_comment: Optional version history comment
+
+    Returns:
+        Dict with "published", "skipped", and "errors" counts
+    """
+    from confluence_client import ConfluenceError
+    from generators.app_doc_generator import ApplicationDocGenerator
+
+    summary = {"published": 0, "skipped": 0, "errors": 0}
+
+    try:
+        client, config = _get_client()
+
+        page_map = config.get("diagram_pages", {})
+        page_map = {k: v for k, v in page_map.items() if not k.startswith("_")}
+
+        if not page_map:
+            logger.warning("No diagram_pages mapping configured — skipping app doc publish")
+            return summary
+
+        doc_gen = ApplicationDocGenerator(enriched_data)
+        comment = version_comment or "Auto-updated by MQ CMDB pipeline"
+
+        for app_name, page_id in page_map.items():
+            markup = doc_gen.generate_app_page(app_name)
+            if not markup:
+                logger.info(f"  No data for '{app_name}' — skipping")
+                summary["skipped"] += 1
+                continue
+
+            try:
+                client.update_page(
+                    page_id=page_id,
+                    title=app_name,
+                    body=markup,
+                    representation="wiki",
+                    version_comment=comment,
+                )
+                logger.info(f"  Published doc for '{app_name}' → page {page_id}")
+                summary["published"] += 1
+            except ConfluenceError as e:
+                logger.error(f"  Failed to publish doc for '{app_name}': {e}")
+                summary["errors"] += 1
+
+        return summary
+
+    except ConfluenceError as e:
+        logger.error(f"Confluence API error: {e}")
+        return summary
+    except Exception as e:
+        logger.error(f"Failed to publish app documentation: {e}")
+        return summary
+
+
 def _sanitize_filename(name: str) -> str:
     """Sanitize name to match the diagram generator's filename convention."""
     import re

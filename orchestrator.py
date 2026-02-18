@@ -279,11 +279,27 @@ class MQCMDBOrchestrator:
                 logger.warning(f"⚠ EA documentation generation failed: {e}")
                 self._pipeline_errors.append(f"EA documentation: {e}")
 
+            # Per-Application Documentation Generation
+            try:
+                from generators.app_doc_generator import ApplicationDocGenerator
+                app_docs_dir = Config.EXPORTS_DIR / "app_docs"
+                app_doc_gen = ApplicationDocGenerator(enriched_data)
+                app_doc_summary = app_doc_gen.generate_all(app_docs_dir)
+                if app_doc_summary['generated'] > 0:
+                    logger.info(f"✓ Generated {app_doc_summary['generated']} per-application doc(s): {app_docs_dir}")
+            except Exception as e:
+                logger.warning(f"⚠ Per-application documentation generation failed: {e}")
+                self._pipeline_errors.append(f"Per-app documentation: {e}")
+
             # Confluence Publishing
             if Config.ENABLE_CONFLUENCE_PUBLISH:
                 logger.info("\n[12.5/14] Publishing to Confluence...")
                 try:
-                    from utils.confluence_shim import is_configured, attach_diagrams_enabled, publish_ea_documentation, publish_application_diagrams
+                    from utils.confluence_shim import (
+                        is_configured, attach_diagrams_enabled, app_docs_enabled,
+                        publish_ea_documentation, publish_application_diagrams,
+                        publish_app_documentation,
+                    )
 
                     if is_configured():
                         # Publish the EA documentation markup page
@@ -299,6 +315,18 @@ class MQCMDBOrchestrator:
                                 self._pipeline_errors.append("Confluence: page update returned no result")
                         else:
                             logger.warning("⚠ No EA documentation file to publish")
+
+                        # Publish per-application documentation pages (then attach SVGs)
+                        if app_docs_enabled():
+                            app_doc_result = publish_app_documentation(
+                                enriched_data=enriched_data,
+                                version_comment=f"Pipeline run {timestamp}",
+                            )
+                            if app_doc_result["published"] > 0:
+                                logger.info(f"✓ Published {app_doc_result['published']} per-app doc(s) to Confluence")
+                            if app_doc_result["errors"] > 0:
+                                logger.warning(f"⚠ {app_doc_result['errors']} per-app doc(s) failed to publish")
+                                self._pipeline_errors.append(f"Confluence: {app_doc_result['errors']} per-app doc(s) failed")
 
                         # Attach application diagram SVGs to per-app pages (only when enabled)
                         if attach_diagrams_enabled():
