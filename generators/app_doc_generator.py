@@ -131,10 +131,16 @@ class ApplicationDocGenerator:
     #  Per-app page generation
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def _normalize(name: str) -> str:
+        """Normalize an app name for fuzzy matching (lowercase, collapse separators)."""
+        return re.sub(r'[\s_\-]+', '', name).lower()
+
     def _resolve_app_name(self, app_name: str) -> Optional[str]:
         """Resolve an app name from config to the exact name in the data.
 
-        Tries exact match first, then case-insensitive fallback.
+        Tries (in order): exact match, case-insensitive, normalized
+        (ignoring spaces/underscores/hyphens).
         Returns the canonical app name or None if not found.
         """
         if app_name in self.stats['apps']:
@@ -143,6 +149,12 @@ class ApplicationDocGenerator:
         lower = app_name.lower()
         for known in self.stats['apps']:
             if known.lower() == lower:
+                return known
+        # Normalized fallback (collapse spaces, underscores, hyphens)
+        norm = self._normalize(app_name)
+        for known in self.stats['apps']:
+            if self._normalize(known) == norm:
+                logger.info(f"  Fuzzy-matched config name '{app_name}' → data name '{known}'")
                 return known
         return None
 

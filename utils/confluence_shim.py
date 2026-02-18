@@ -323,6 +323,8 @@ def publish_app_documentation(
 
         known_apps = doc_gen.get_known_apps()
         logger.info(f"  {len(known_apps)} application(s) in data, {len(page_map)} configured in diagram_pages")
+        logger.info(f"  Config app names: {list(page_map.keys())}")
+        logger.info(f"  Known data apps:  {known_apps[:15]}" + (f" ... +{len(known_apps)-15} more" if len(known_apps) > 15 else ""))
 
         for app_name, page_id in page_map.items():
             markup = doc_gen.generate_app_page(app_name)
@@ -336,17 +338,21 @@ def publish_app_documentation(
                 continue
 
             try:
+                # Fetch the existing page title so we don't accidentally rename the page
+                existing_page = client.get_page(page_id, expand="version")
+                page_title = existing_page.get("title", app_name)
+
                 client.update_page(
                     page_id=page_id,
-                    title=app_name,
+                    title=page_title,
                     body=markup,
                     representation="wiki",
                     version_comment=comment,
                 )
-                logger.info(f"  Published doc for '{app_name}' → page {page_id}")
+                logger.info(f"  Published doc for '{app_name}' → page {page_id} (title: {page_title})")
                 summary["published"] += 1
             except ConfluenceError as e:
-                logger.error(f"  Failed to publish doc for '{app_name}': {e}")
+                logger.error(f"  Failed to publish doc for '{app_name}' to page {page_id}: {e}")
                 summary["errors"] += 1
 
         return summary
