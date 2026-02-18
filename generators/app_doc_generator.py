@@ -131,12 +131,33 @@ class ApplicationDocGenerator:
     #  Per-app page generation
     # ------------------------------------------------------------------ #
 
+    def _resolve_app_name(self, app_name: str) -> Optional[str]:
+        """Resolve an app name from config to the exact name in the data.
+
+        Tries exact match first, then case-insensitive fallback.
+        Returns the canonical app name or None if not found.
+        """
+        if app_name in self.stats['apps']:
+            return app_name
+        # Case-insensitive fallback
+        lower = app_name.lower()
+        for known in self.stats['apps']:
+            if known.lower() == lower:
+                return known
+        return None
+
+    def get_known_apps(self) -> List[str]:
+        """Return the list of application names known to this generator."""
+        return sorted(self.stats['apps'].keys())
+
     def generate_app_page(self, app_name: str) -> Optional[str]:
         """Return Confluence wiki markup for one application's documentation page."""
-        app_info = self.stats['apps'].get(app_name)
-        if not app_info:
+        resolved = self._resolve_app_name(app_name)
+        if not resolved:
             return None
+        app_name = resolved
 
+        app_info = self.stats['apps'][app_name]
         mqmanagers = self.stats['mqmanagers']
         svg_filename = f"{_sanitize_filename(app_name)}.svg"
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

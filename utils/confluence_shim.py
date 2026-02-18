@@ -321,10 +321,17 @@ def publish_app_documentation(
         doc_gen = ApplicationDocGenerator(enriched_data)
         comment = version_comment or "Auto-updated by MQ CMDB pipeline"
 
+        known_apps = doc_gen.get_known_apps()
+        logger.info(f"  {len(known_apps)} application(s) in data, {len(page_map)} configured in diagram_pages")
+
         for app_name, page_id in page_map.items():
             markup = doc_gen.generate_app_page(app_name)
             if not markup:
-                logger.info(f"  No data for '{app_name}' — skipping")
+                logger.warning(
+                    f"  No data for '{app_name}' — skipping. "
+                    f"Known apps: {', '.join(known_apps[:10])}"
+                    + (f" ... and {len(known_apps)-10} more" if len(known_apps) > 10 else "")
+                )
                 summary["skipped"] += 1
                 continue
 
