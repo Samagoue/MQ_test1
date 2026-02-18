@@ -257,9 +257,10 @@ class ApplicationDocGenerator:
                 if src_app != app_name:
                     if src_app in _unmapped:
                         has_unmapped_inbound = True
+                        loz = _status_lozenge('NEEDS MAPPING', 'Red')
                         inbound_rows.append(
-                            f"|{{{color:#cc0000}}}{source}{{color}}"
-                            f"|{{{color:#cc0000}}}*{src_app}*{{color}} {_status_lozenge('NEEDS MAPPING', 'Red')}"
+                            f"|{{color:#cc0000}}{source}{{color}}"
+                            f"|{{color:#cc0000}}*{src_app}*{{color}} {loz}"
                             f"|{mgr_name}|"
                         )
                     else:
@@ -278,10 +279,11 @@ class ApplicationDocGenerator:
                 if tgt_app != app_name:
                     if tgt_app in _unmapped:
                         has_unmapped_outbound = True
+                        loz = _status_lozenge('NEEDS MAPPING', 'Red')
                         outbound_rows.append(
                             f"|{mgr_name}"
-                            f"|{{{color:#cc0000}}}{target}{{color}}"
-                            f"|{{{color:#cc0000}}}*{tgt_app}*{{color}} {_status_lozenge('NEEDS MAPPING', 'Red')}|"
+                            f"|{{color:#cc0000}}{target}{{color}}"
+                            f"|{{color:#cc0000}}*{tgt_app}*{{color}} {loz}|"
                         )
                     else:
                         outbound_rows.append(f"|{mgr_name}|{target}|{tgt_app}|")
