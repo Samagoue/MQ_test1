@@ -341,18 +341,14 @@ def publish_app_documentation(
                 continue
 
             try:
-                # Fetch the existing page title so we don't accidentally rename the page
-                existing_page = client.get_page(page_id, expand="version")
-                page_title = existing_page.get("title", app_name)
-
                 client.update_page(
                     page_id=page_id,
-                    title=page_title,
+                    title=app_name,
                     body=markup,
                     representation="wiki",
                     version_comment=comment,
                 )
-                logger.info(f"  Published doc for '{app_name}' → page {page_id} (title: {page_title})")
+                logger.info(f"  Published doc for '{app_name}' → page {page_id}")
                 summary["published"] += 1
             except ConfluenceError as e:
                 logger.error(f"  Failed to publish doc for '{app_name}' to page {page_id}: {e}")
