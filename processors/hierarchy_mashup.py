@@ -12,13 +12,15 @@ logger = get_logger("processors.hierarchy_mashup")
 class HierarchyMashup:
     """Enrich MQ data with organizational hierarchy and application information."""
 
-    def __init__(self, org_hierarchy_file: Path, app_to_qmgr_file: Path, gateways_file: Path = None):
+    def __init__(self, org_hierarchy_file: Path, app_to_qmgr_file: Path, gateways_file: Path = None, hosts_file: Path = None):
         self.org_hierarchy = self._load_org_hierarchy(org_hierarchy_file)
         self.app_mapping = self._load_app_mapping(app_to_qmgr_file)
         self.gateway_mapping = self._load_gateway_mapping(gateways_file)
+        self.host_metadata = self._load_host_metadata(hosts_file)
         logger.info(f"✓ Loaded {len(self.org_hierarchy)} business owners from hierarchy")
         logger.info(f"✓ Loaded {len(self.app_mapping)} application mappings")
         logger.info(f"✓ Loaded {len(self.gateway_mapping)} gateway mappings")
+        logger.info(f"✓ Loaded {len(self.host_metadata)} host metadata records")
  
     def _load_org_hierarchy(self, filepath: Path) -> Dict:
         """Load and index org hierarchy by Biz_Ownr (directorate)."""
@@ -128,7 +130,43 @@ class HierarchyMashup:
                 }
 
         return mapping
- 
+
+    def _load_host_metadata(self, filepath: Path) -> Dict:
+        """Load CMDB host metadata indexed by hostname (case-insensitive)."""
+        from utils.file_io import load_json
+
+        if filepath is None or not filepath.exists():
+            if filepath is not None:
+                logger.warning(f"⚠ Warning: {filepath} not found. No host metadata loaded.")
+            return {}
+
+        try:
+            data = load_json(filepath)
+        except Exception as e:
+            logger.warning(f"⚠ Warning: Failed to load {filepath}: {e}. No host metadata loaded.")
+            return {}
+
+        if not isinstance(data, list):
+            logger.warning(f"⚠ Warning: {filepath} should contain a JSON array. No host metadata loaded.")
+            return {}
+
+        mapping = {}
+
+        for idx, record in enumerate(data):
+            if not isinstance(record, dict):
+                continue
+
+            hostname = str(record.get('hostname', '')).strip()
+            if hostname:
+                mapping[hostname.upper()] = {
+                    'hardware_type': str(record.get('hardware_type', '')).strip(),
+                    'hardware_model': str(record.get('hardware_model', '')).strip(),
+                    'os_type': str(record.get('os_type', '')).strip(),
+                    'program_office': str(record.get('program_office', '')).strip(),
+                }
+
+        return mapping
+
     def enrich_data(self, processed_data: Dict) -> Dict:
         """
         Enrich processed MQ data with hierarchy and application info.
@@ -173,6 +211,10 @@ class HierarchyMashup:
                     if gateway_name not in enriched[org]['_departments'][dept][biz_ownr]:
                         enriched[org]['_departments'][dept][biz_ownr][gateway_name] = {}
 
+                    # Lookup host metadata by mq_host
+                    host_name = mq_data.get('mq_host', '')
+                    host_info = self.host_metadata.get(host_name.upper(), {}) if host_name else {}
+
                     # Add enriched gateway MQ manager data
                     enriched[org]['_departments'][dept][biz_ownr][gateway_name][mqmanager] = {
                         'Organization': org,
@@ -181,7 +223,11 @@ class HierarchyMashup:
                         'Biz_Ownr': biz_ownr,
                         'Application': gateway_name,
                         'MQmanager': mqmanager,
-                        'mq_host': mq_data.get('mq_host', ''),
+                        'mq_host': host_name,
+                        'hardware_type': host_info.get('hardware_type', ''),
+                        'hardware_model': host_info.get('hardware_model', ''),
+                        'os_type': host_info.get('os_type', ''),
+                        'program_office': host_info.get('program_office', ''),
                         'qlocal_count': mq_data.get('qlocal_count', 0),
                         'qremote_count': mq_data.get('qremote_count', 0),
                         'qalias_count': mq_data.get('qalias_count', 0),
@@ -201,6 +247,10 @@ class HierarchyMashup:
                     if application not in enriched[org]['_departments'][dept][biz_ownr]:
                         enriched[org]['_departments'][dept][biz_ownr][application] = {}
 
+                    # Lookup host metadata by mq_host
+                    host_name = mq_data.get('mq_host', '')
+                    host_info = self.host_metadata.get(host_name.upper(), {}) if host_name else {}
+
                     # Add enriched MQ manager data
                     enriched[org]['_departments'][dept][biz_ownr][application][mqmanager] = {
                         'Organization': org,
@@ -209,7 +259,11 @@ class HierarchyMashup:
                         'Biz_Ownr': biz_ownr,
                         'Application': application,
                         'MQmanager': mqmanager,
-                        'mq_host': mq_data.get('mq_host', ''),
+                        'mq_host': host_name,
+                        'hardware_type': host_info.get('hardware_type', ''),
+                        'hardware_model': host_info.get('hardware_model', ''),
+                        'os_type': host_info.get('os_type', ''),
+                        'program_office': host_info.get('program_office', ''),
                         'qlocal_count': mq_data.get('qlocal_count', 0),
                         'qremote_count': mq_data.get('qremote_count', 0),
                         'qalias_count': mq_data.get('qalias_count', 0),

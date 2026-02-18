@@ -139,6 +139,7 @@ class Config:
     GATEWAYS_JSON = INPUT_DIR / "gateways.json"
     MQMANAGER_ALIASES_JSON = INPUT_DIR / "mqmanager_aliases.json"
     EXTERNAL_APPS_JSON = INPUT_DIR / "external_apps.json"
+    HOSTS_JSON = OUTPUT_DIR / "all_cmdb_hosts.json"
  
     # ==================== DATABASE ====================
     DEFAULT_PROFILE = "production"
