@@ -288,25 +288,21 @@ class ApplicationDocGenerator:
                     "",
                 ])
 
-        # Application dependencies — unified table
+        # Application dependencies — RACI-style matrix
         outgoing_deps = self.dependencies.get(app_name, set())
         incoming_deps = {src for src, targets in self.dependencies.items() if app_name in targets}
 
         if outgoing_deps or incoming_deps:
+            all_deps = sorted(outgoing_deps | incoming_deps)
             lines.extend(["h3. Application Dependencies", ""])
-            lines.append("||Direction||Application||Relationship||")
-            for dep in sorted(outgoing_deps):
-                lines.append(
-                    f"|{_status_lozenge('OUTBOUND', 'Blue')}"
-                    f"|{dep}"
-                    f"|This application _depends on_ {dep}|"
-                )
-            for dep in sorted(incoming_deps):
-                lines.append(
-                    f"|{_status_lozenge('INBOUND', 'Green')}"
-                    f"|{dep}"
-                    f"|{dep} _depends on_ this application|"
-                )
+            lines.append("||Application||Data Flow||")
+            for dep in all_deps:
+                badges = []
+                if dep in outgoing_deps:
+                    badges.append("{status:colour=Yellow|title=SENDS TO}")
+                if dep in incoming_deps:
+                    badges.append("{status:colour=Grey|title=RECEIVES FROM}")
+                lines.append(f"|{dep}|{' '.join(badges)}|")
             lines.append("")
 
         # Risk indicators
