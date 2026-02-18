@@ -28,6 +28,7 @@ class MQManagerProcessor:
         # Collections for processing
         self.valid_mqmanagers = set()
         self.mqmanager_to_directorate = {}
+        self.mqmanager_to_host = {}
      
         self.stats = {
             'total_records': len(self.raw_data),
@@ -106,15 +107,16 @@ class MQManagerProcessor:
         """First pass: collect all valid MQmanager names."""
         logger.info("Building MQ Manager index...")
      
+        mqmanager_field = self.field_mappings.get('mqmanager', 'MQmanager')
+        directorate_field = self.field_mappings.get('directorate', 'directorate')
+        host_field = self.field_mappings.get('mq_host', 'MQ_host')
+
         for record in self.raw_data:
             if not isinstance(record, dict):
                 continue
-         
-            mqmanager_field = self.field_mappings.get('mqmanager', 'MQmanager')
-            directorate_field = self.field_mappings.get('directorate', 'directorate')
-         
+
             mqmanager = self._normalize_value(record.get(mqmanager_field, ''))
-         
+
             if mqmanager:
                 mqmanager_upper = mqmanager.upper()
                 self.valid_mqmanagers.add(mqmanager_upper)
@@ -123,6 +125,11 @@ class MQManagerProcessor:
                     directorate = "Unknown"
                 # Store with uppercase key for consistent lookups
                 self.mqmanager_to_directorate[mqmanager_upper] = directorate
+                # Capture host (first non-empty value wins)
+                if mqmanager_upper not in self.mqmanager_to_host:
+                    host = self._normalize_value(record.get(host_field, ''))
+                    if host:
+                        self.mqmanager_to_host[mqmanager_upper] = host
      
         logger.info(f"✓ Found {len(self.valid_mqmanagers)} unique MQ Managers")
  
@@ -142,6 +149,7 @@ class MQManagerProcessor:
             'qremote_count': 0,
             'qalias_count': 0,
             'total_count': 0,
+            'mq_host': '',
             'inbound': set(),
             'outbound': set(),
             'inbound_extra': set(),
@@ -172,7 +180,11 @@ class MQManagerProcessor:
             # Use "Unknown" if directorate is empty
             if not directorate:
                 directorate = "Unknown"
-         
+
+            # Set host from index (first access populates the default dict entry)
+            if not directorate_data[directorate][mqmanager]['mq_host']:
+                directorate_data[directorate][mqmanager]['mq_host'] = self.mqmanager_to_host.get(mqmanager.upper(), '')
+
             # Count assets by type
             if 'local' in asset_type and 'remote' not in asset_type:
                 directorate_data[directorate][mqmanager]['qlocal_count'] += 1
@@ -252,6 +264,7 @@ class MQManagerProcessor:
                 result[directorate][mqmanager] = {
                     'directorate': directorate,
                     'mqmanager': mqmanager,
+                    'mq_host': data.get('mq_host', ''),
                     'qlocal_count': data['qlocal_count'],
                     'qremote_count': data['qremote_count'],
                     'qalias_count': data['qalias_count'],

@@ -83,6 +83,7 @@ class ApplicationDocGenerator:
                                 'dept': dept_name, 'biz_ownr': biz_ownr,
                                 'app': app_name,
                                 'is_gateway': mqmgr_data.get('IsGateway', False),
+                                'mq_host': mqmgr_data.get('mq_host', ''),
                                 'qlocal': mqmgr_data.get('qlocal_count', 0),
                                 'qremote': mqmgr_data.get('qremote_count', 0),
                                 'qalias': mqmgr_data.get('qalias_count', 0),
@@ -232,15 +233,16 @@ class ApplicationDocGenerator:
         lines.extend([
             "h3. MQ Manager Inventory",
             "",
-            "||MQ Manager||Local||Remote||Alias||Total||Gateway||",
+            "||MQ Manager||Host||Local||Remote||Alias||Total||Gateway||",
         ])
         for mgr_name in sorted(app_info['mqmanagers']):
             mgr = mqmanagers.get(mgr_name, {})
+            host = mgr.get('mq_host', '') or ' '
             ql = mgr.get('qlocal', 0)
             qr = mgr.get('qremote', 0)
             qa = mgr.get('qalias', 0)
             gw = _status_lozenge("Yes", "Blue") if mgr.get('is_gateway') else " "
-            lines.append(f"|{mgr_name}|{ql:,}|{qr:,}|{qa:,}|{ql+qr+qa:,}|{gw}|")
+            lines.append(f"|{mgr_name}|{host}|{ql:,}|{qr:,}|{qa:,}|{ql+qr+qa:,}|{gw}|")
         lines.append("")
 
         # Integration map — inbound
