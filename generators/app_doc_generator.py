@@ -247,6 +247,8 @@ class ApplicationDocGenerator:
 
         # Integration map — inbound
         _unmapped = {'No Application', 'Unknown'}
+        _RED = "{color:#cc0000}"
+        _ENDC = "{color}"
         inbound_rows = []
         has_unmapped_inbound = False
         for mgr_name in app_info['mqmanagers']:
@@ -259,8 +261,8 @@ class ApplicationDocGenerator:
                         has_unmapped_inbound = True
                         loz = _status_lozenge('NEEDS MAPPING', 'Red')
                         inbound_rows.append(
-                            f"|{{color:#cc0000}}{source}{{color}}"
-                            f"|{{color:#cc0000}}*{src_app}*{{color}} {loz}"
+                            f"|{_RED}{source}{_ENDC}"
+                            f"|{_RED}*{src_app}*{_ENDC} {loz}"
                             f"|{mgr_name}|"
                         )
                     else:
@@ -282,8 +284,8 @@ class ApplicationDocGenerator:
                         loz = _status_lozenge('NEEDS MAPPING', 'Red')
                         outbound_rows.append(
                             f"|{mgr_name}"
-                            f"|{{color:#cc0000}}{target}{{color}}"
-                            f"|{{color:#cc0000}}*{tgt_app}*{{color}} {loz}|"
+                            f"|{_RED}{target}{_ENDC}"
+                            f"|{_RED}*{tgt_app}*{_ENDC} {loz}|"
                         )
                     else:
                         outbound_rows.append(f"|{mgr_name}|{target}|{tgt_app}|")
