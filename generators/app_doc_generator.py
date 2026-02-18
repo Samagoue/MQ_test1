@@ -288,22 +288,26 @@ class ApplicationDocGenerator:
                     "",
                 ])
 
-        # Application dependencies
+        # Application dependencies — unified table
         outgoing_deps = self.dependencies.get(app_name, set())
         incoming_deps = {src for src, targets in self.dependencies.items() if app_name in targets}
 
         if outgoing_deps or incoming_deps:
             lines.extend(["h3. Application Dependencies", ""])
-            if outgoing_deps:
-                lines.append("||This Application Depends On||")
-                for dep in sorted(outgoing_deps):
-                    lines.append(f"|{dep}|")
-                lines.append("")
-            if incoming_deps:
-                lines.append("||Applications That Depend On This||")
-                for dep in sorted(incoming_deps):
-                    lines.append(f"|{dep}|")
-                lines.append("")
+            lines.append("||Direction||Application||Relationship||")
+            for dep in sorted(outgoing_deps):
+                lines.append(
+                    f"|{_status_lozenge('OUTBOUND', 'Blue')}"
+                    f"|{dep}"
+                    f"|This application _depends on_ {dep}|"
+                )
+            for dep in sorted(incoming_deps):
+                lines.append(
+                    f"|{_status_lozenge('INBOUND', 'Green')}"
+                    f"|{dep}"
+                    f"|{dep} _depends on_ this application|"
+                )
+            lines.append("")
 
         # Risk indicators
         risk_lines = []
