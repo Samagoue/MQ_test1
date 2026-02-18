@@ -246,32 +246,60 @@ class ApplicationDocGenerator:
         lines.append("")
 
         # Integration map — inbound
+        _unmapped = {'No Application', 'Unknown'}
         inbound_rows = []
+        has_unmapped_inbound = False
         for mgr_name in app_info['mqmanagers']:
             mgr = mqmanagers.get(mgr_name, {})
             for source in mgr.get('inbound', []):
                 src_info = mqmanagers.get(source, {})
                 src_app = src_info.get('app', 'Unknown')
                 if src_app != app_name:
-                    inbound_rows.append(f"|{source}|{src_app}|{mgr_name}|")
+                    if src_app in _unmapped:
+                        has_unmapped_inbound = True
+                        inbound_rows.append(
+                            f"|{{{color:#cc0000}}}{source}{{color}}"
+                            f"|{{{color:#cc0000}}}*{src_app}*{{color}} {_status_lozenge('NEEDS MAPPING', 'Red')}"
+                            f"|{mgr_name}|"
+                        )
+                    else:
+                        inbound_rows.append(f"|{source}|{src_app}|{mgr_name}|")
             for source in mgr.get('inbound_extra', []):
                 inbound_rows.append(f"|{source}|_(External)_|{mgr_name}|")
 
         # Integration map — outbound
         outbound_rows = []
+        has_unmapped_outbound = False
         for mgr_name in app_info['mqmanagers']:
             mgr = mqmanagers.get(mgr_name, {})
             for target in mgr.get('outbound', []):
                 tgt_info = mqmanagers.get(target, {})
                 tgt_app = tgt_info.get('app', 'Unknown')
                 if tgt_app != app_name:
-                    outbound_rows.append(f"|{mgr_name}|{target}|{tgt_app}|")
+                    if tgt_app in _unmapped:
+                        has_unmapped_outbound = True
+                        outbound_rows.append(
+                            f"|{mgr_name}"
+                            f"|{{{color:#cc0000}}}{target}{{color}}"
+                            f"|{{{color:#cc0000}}}*{tgt_app}*{{color}} {_status_lozenge('NEEDS MAPPING', 'Red')}|"
+                        )
+                    else:
+                        outbound_rows.append(f"|{mgr_name}|{target}|{tgt_app}|")
             for target in mgr.get('outbound_extra', []):
                 outbound_rows.append(f"|{mgr_name}|{target}|_(External)_|")
 
         if inbound_rows or outbound_rows:
             lines.append("h3. Integration Map")
             lines.append("")
+
+            if has_unmapped_inbound or has_unmapped_outbound:
+                lines.extend([
+                    "{info:title=Action Required}",
+                    "Some MQ Managers highlighted below are not yet mapped to an application.",
+                    "Please update the *App to QMgr Mapping* page in Confluence to add the missing entries.",
+                    "{info}",
+                    "",
+                ])
 
             if inbound_rows:
                 lines.extend([
