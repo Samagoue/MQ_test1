@@ -343,7 +343,7 @@ def publish_app_documentation(
             try:
                 client.update_page(
                     page_id=page_id,
-                    title=app_name,
+                    title=f"EA_{app_name}",
                     body=markup,
                     representation="wiki",
                     version_comment=comment,
