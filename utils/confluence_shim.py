@@ -278,8 +278,11 @@ def app_docs_enabled() -> bool:
     """Check whether per-application doc publishing is enabled in config."""
     try:
         config = _load_config()
-        return config.get("publish_app_docs", False)
-    except (ValueError, FileNotFoundError):
+        value = config.get("publish_app_docs", False)
+        logger.info(f"  publish_app_docs config value: {value!r} (type: {type(value).__name__})")
+        return bool(value)
+    except (ValueError, FileNotFoundError) as e:
+        logger.warning(f"  app_docs_enabled check failed: {e}")
         return False
 
 

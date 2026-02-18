@@ -317,11 +317,15 @@ class MQCMDBOrchestrator:
                             logger.warning("⚠ No EA documentation file to publish")
 
                         # Publish per-application documentation pages (then attach SVGs)
-                        if app_docs_enabled():
+                        _app_docs_on = app_docs_enabled()
+                        logger.info(f"  publish_app_docs enabled: {_app_docs_on}")
+                        if _app_docs_on:
+                            logger.info("  Calling publish_app_documentation()...")
                             app_doc_result = publish_app_documentation(
                                 enriched_data=enriched_data,
                                 version_comment=f"Pipeline run {timestamp}",
                             )
+                            logger.info(f"  publish_app_documentation result: {app_doc_result}")
                             if app_doc_result["published"] > 0:
                                 logger.info(f"✓ Published {app_doc_result['published']} per-app doc(s) to Confluence")
                             if app_doc_result["errors"] > 0:
