@@ -163,6 +163,7 @@ class HierarchyMashup:
                     'hardware_model': str(record.get('hardware_model', '')).strip(),
                     'os_type': str(record.get('os_type', '')).strip(),
                     'program_office': str(record.get('program_office', '')).strip(),
+                    'host_directorate': str(record.get('host_directorate', '')).strip(),
                 }
 
         return mapping
@@ -224,6 +225,7 @@ class HierarchyMashup:
                         'Application': gateway_name,
                         'MQmanager': mqmanager,
                         'mq_host': host_name,
+                        'host_directorate': host_info.get('host_directorate', ''),
                         'hardware_type': host_info.get('hardware_type', ''),
                         'hardware_model': host_info.get('hardware_model', ''),
                         'os_type': host_info.get('os_type', ''),
@@ -260,6 +262,7 @@ class HierarchyMashup:
                         'Application': application,
                         'MQmanager': mqmanager,
                         'mq_host': host_name,
+                        'host_directorate': host_info.get('host_directorate', ''),
                         'hardware_type': host_info.get('hardware_type', ''),
                         'hardware_model': host_info.get('hardware_model', ''),
                         'os_type': host_info.get('os_type', ''),

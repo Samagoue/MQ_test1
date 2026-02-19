@@ -326,7 +326,7 @@ class Config:
     ASSET_TYPE_LOCAL = "local"
     ASSET_TYPE_REMOTE = "remote"
     ASSET_TYPE_ALIAS = "alias"
- 
+
     # Role field values
     ROLE_SENDER = "SENDER"
     ROLE_RECEIVER = "RECEIVER"

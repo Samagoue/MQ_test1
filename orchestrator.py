@@ -76,9 +76,24 @@ class MQCMDBOrchestrator:
             raw_data = load_json(Config.INPUT_JSON)
             logger.info(f"✓ Loaded {len(raw_data)} records")
 
+            # Build host→directorate map from all_cmdb_hosts.json.
+            # host_directorate is the owner of the MQ host (i.e. the QM owner),
+            # which is more reliable than the asset-level directorate field.
+            host_directorate_map = {}
+            if Config.HOSTS_JSON.exists():
+                hosts_data = load_json(Config.HOSTS_JSON)
+                for h in hosts_data:
+                    hostname = str(h.get('hostname', '')).strip()
+                    host_dir = str(h.get('host_directorate', '')).strip()
+                    if hostname and host_dir:
+                        host_directorate_map[hostname.upper()] = host_dir
+                logger.info(f"✓ Host→directorate map: {len(host_directorate_map)} entries")
+            else:
+                logger.warning("⚠ all_cmdb_hosts.json not found — QM directorate will use asset-level fallback")
+
             # Process relationships
             logger.info("\n[2/14] Processing MQ Manager relationships...")
-            processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
+            processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS, host_directorate_map)
             directorate_data = processor.process_assets()
             processor.print_stats()
 

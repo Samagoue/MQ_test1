@@ -14,17 +14,26 @@ logger = get_logger("processors.mqmanager")
 class MQManagerProcessor:
     """Process MQ CMDB assets."""
  
-    def __init__(self, raw_data: List[Dict], field_mappings: Dict[str, str]):
-        """Initialize processor with raw data and field mappings."""
+    def __init__(self, raw_data: List[Dict], field_mappings: Dict[str, str],
+                 host_directorate_map: Dict[str, str] = None):
+        """Initialize processor with raw data, field mappings, and optional host→directorate map.
+
+        host_directorate_map: {hostname_uppercase: host_directorate} derived from
+        all_cmdb_hosts.json. When provided, the QM's authoritative directorate is
+        taken from the host that runs it rather than from the asset-level directorate
+        field (which is the owner of the individual queue/channel, not the QM).
+        """
         if not isinstance(raw_data, list):
             raise ValueError(f"Input data must be a list, got {type(raw_data)}")
-     
+
         if len(raw_data) == 0:
             raise ValueError("Input data list is empty")
-     
+
         self.raw_data = raw_data
         self.field_mappings = field_mappings
-     
+        # {HOSTNAME_UPPER: directorate} — owner of the host/QM, not of individual assets
+        self.host_directorate_map = {k.upper(): v for k, v in (host_directorate_map or {}).items()}
+
         # Collections for processing
         self.valid_mqmanagers = set()
         self.mqmanager_to_directorate = {}
@@ -104,34 +113,67 @@ class MQManagerProcessor:
         return None
  
     def _build_index(self):
-        """First pass: collect all valid MQmanager names."""
+        """First pass: collect all valid MQmanager names, hosts, and directorates.
+
+        Directorate assignment priority:
+          1. host_directorate from all_cmdb_hosts.json (owner of the MQ host/QM)
+          2. asset-level directorate from all_MQCMDB_assets (owner of the asset)
+             used only as a fallback when no host mapping exists.
+
+        The asset directorate is the owner of an individual queue/channel and can
+        vary across records for the same QM (different teams own different queues).
+        First non-empty asset directorate seen per QM is used as the fallback.
+        """
         logger.info("Building MQ Manager index...")
-     
+
         mqmanager_field = self.field_mappings.get('mqmanager', 'MQmanager')
         directorate_field = self.field_mappings.get('directorate', 'directorate')
         host_field = self.field_mappings.get('mq_host', 'MQ_host')
+
+        # Collect asset-level directorate as fallback (first non-empty per QM wins)
+        asset_directorates = {}
 
         for record in self.raw_data:
             if not isinstance(record, dict):
                 continue
 
             mqmanager = self._normalize_value(record.get(mqmanager_field, ''))
+            if not mqmanager:
+                continue
 
-            if mqmanager:
-                mqmanager_upper = mqmanager.upper()
-                self.valid_mqmanagers.add(mqmanager_upper)
-                directorate = self._normalize_value(record.get(directorate_field, ''))
-                if not directorate:
-                    directorate = "Unknown"
-                # Store with uppercase key for consistent lookups
-                self.mqmanager_to_directorate[mqmanager_upper] = directorate
-                # Capture host (first non-empty value wins)
-                if mqmanager_upper not in self.mqmanager_to_host:
-                    host = self._normalize_value(record.get(host_field, ''))
-                    if host:
-                        self.mqmanager_to_host[mqmanager_upper] = host
-     
+            mqmanager_upper = mqmanager.upper()
+            self.valid_mqmanagers.add(mqmanager_upper)
+
+            # Capture host — first non-empty value wins
+            if mqmanager_upper not in self.mqmanager_to_host:
+                host = self._normalize_value(record.get(host_field, ''))
+                if host:
+                    self.mqmanager_to_host[mqmanager_upper] = host
+
+            # Collect asset directorate as fallback — first non-empty value wins
+            if mqmanager_upper not in asset_directorates:
+                asset_dir = self._normalize_value(record.get(directorate_field, ''))
+                if asset_dir:
+                    asset_directorates[mqmanager_upper] = asset_dir
+
+        # Assign each QM its authoritative directorate
+        host_dir_used = 0
+        asset_dir_used = 0
+        for mqmanager_upper in self.valid_mqmanagers:
+            host = self.mqmanager_to_host.get(mqmanager_upper, '')
+            host_dir = self.host_directorate_map.get(host.upper(), '') if host else ''
+            if host_dir:
+                self.mqmanager_to_directorate[mqmanager_upper] = host_dir
+                host_dir_used += 1
+            else:
+                self.mqmanager_to_directorate[mqmanager_upper] = (
+                    asset_directorates.get(mqmanager_upper, 'Unknown')
+                )
+                asset_dir_used += 1
+
         logger.info(f"✓ Found {len(self.valid_mqmanagers)} unique MQ Managers")
+        logger.info(f"  Directorate source: {host_dir_used} from host, "
+                    f"{asset_dir_used} from asset (fallback)")
  
     def process_assets(self) -> Dict:
         """
@@ -171,15 +213,14 @@ class MQManagerProcessor:
             mqmanager = self._normalize_value(record.get(mqmanager_field, ''))
             asset = self._normalize_value(record.get(asset_field, ''))
             asset_type = self._normalize_value(record.get(asset_type_field, '')).lower()
-            directorate = self._normalize_value(record.get(directorate_field, ''))
             role = self._normalize_value(record.get(role_field, '')).upper()
-         
+
             if not mqmanager:
                 continue
-         
-            # Use "Unknown" if directorate is empty
-            if not directorate:
-                directorate = "Unknown"
+
+            # Use the QM's authoritative directorate (host owner) from the index,
+            # not the asset-level directorate from this record (asset owner).
+            directorate = self.mqmanager_to_directorate.get(mqmanager.upper(), 'Unknown')
 
             # Set host from index (first access populates the default dict entry)
             if not directorate_data[directorate][mqmanager]['mq_host']:
@@ -195,7 +236,7 @@ class MQManagerProcessor:
             elif 'alias' in asset_type:
                 directorate_data[directorate][mqmanager]['qalias_count'] += 1
                 directorate_data[directorate][mqmanager]['total_count'] += 1
-         
+
             # Process Sender/Receiver logic with bidirectional tracking
             # SENDER means: this MQmanager SENDS to the target (outbound connection)
             # RECEIVER means: this MQmanager RECEIVES from the source (inbound connection)

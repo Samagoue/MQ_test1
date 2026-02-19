@@ -1,0 +1,743 @@
+================================================================================
+MQ CMDB AUTOMATION PIPELINE — CURRENT LOGIC
+Complete Step-by-Step Documentation
+Last updated: 18 Feb 2026 — directorate model fix applied (Issue 1 resolved)
+================================================================================
+
+OVERVIEW
+--------
+The entry point is main.py, which creates an MQCMDBOrchestrator and calls
+run_full_pipeline(). The orchestrator coordinates 14 numbered steps in
+sequence. The raw data flows through each step, progressively enriched,
+analysed, and rendered.
+
+
+================================================================================
+STEP 0 — OUTPUT CLEANUP (CONDITIONAL)
+================================================================================
+Before any processing, if Config.ENABLE_OUTPUT_CLEANUP is True, the
+orchestrator scans the output/ directory and deletes files older than
+Config.OUTPUT_RETENTION_DAYS days that match Config.OUTPUT_CLEANUP_PATTERNS.
+This keeps the output folder from growing indefinitely. If nothing was deleted,
+it logs a confirmation. Any deletion errors are logged as warnings but do not
+stop the pipeline.
+
+
+================================================================================
+STEP 1 — LOAD RAW DATA
+================================================================================
+The orchestrator calls load_json(Config.INPUT_JSON). This reads the file
+output/all_MQCMDB_assets.json — the raw CMDB export produced by db_export.py
+from the MariaDB database. The result is a flat list of dictionaries, one
+dictionary per CMDB record. Each record has the following fields:
+
+  MQmanager   — the name of the Queue Manager that owns this asset
+  asset       — the full asset identifier string (often dot-separated)
+  asset_type  — the type of the asset (e.g. local, remote, alias, QCluster)
+  directorate — the business directorate (team/owner) that owns this QM
+  Role        — either SENDER or RECEIVER, describing connection direction
+  MQ_host     — the hostname of the server running this Queue Manager
+  extrainfo   — additional information about the asset
+                NOTE: this field existed in the data but was NEVER READ
+                by the processor before the 18 Feb 2026 change
+  impact      — other metadata, not used by the core processor
+  APPGroup    — other metadata, not used by the core processor
+
+The raw count of records is logged.
+
+
+================================================================================
+STEP 2 — PROCESSING MQ MANAGER RELATIONSHIPS (MQManagerProcessor)
+================================================================================
+This is the core processing engine. The orchestrator constructs:
+
+    MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)
+
+and calls process_assets(). This is a two-pass algorithm.
+
+--------------------------------------------------------------------------------
+INITIALISATION
+--------------------------------------------------------------------------------
+The processor stores the raw data list and the field name mappings (which tell
+it which dictionary key maps to which logical field). It initialises a
+statistics dictionary with SEVEN counters:
+
+  total_records        — set immediately to the number of raw records
+  processed_sender     — will count records with Role=SENDER
+  processed_receiver   — will count records with Role=RECEIVER
+  inbound_found        — connections identified coming INTO a Queue Manager
+  outbound_found       — connections identified going OUT of a Queue Manager
+  inbound_extra_found  — connections where the remote end could not be matched
+                         to a known Queue Manager (inbound direction)
+  outbound_extra_found — same but for outbound direction
+
+NOTE: There was NO server_channel_orgs_found counter before 18 Feb 2026.
+
+--------------------------------------------------------------------------------
+PASS 1 — _build_index()
+--------------------------------------------------------------------------------
+The processor iterates through every raw record once and builds three lookup
+structures:
+
+  1. valid_mqmanagers
+     A Python set of every unique Queue Manager name found in the data, stored
+     in UPPERCASE. This becomes the authoritative list of all known Queue
+     Managers in the estate.
+
+  2. mqmanager_to_directorate
+     A dictionary keyed by Queue Manager name (uppercase), value is the
+     directorate that owns it. If a Queue Manager appears in multiple records
+     (which it will, once per asset), only the first non-empty directorate
+     value is stored.
+
+  3. mqmanager_to_host
+     A dictionary keyed by Queue Manager name (uppercase), value is the
+     MQ_host server name. Again, first non-empty value wins.
+
+After this pass, the processor knows every Queue Manager that exists in the
+data and which directorate and host each one belongs to.
+
+--------------------------------------------------------------------------------
+PASS 2 — process_assets()
+--------------------------------------------------------------------------------
+The processor iterates through every raw record a second time.
+
+For each record it reads FIVE fields:
+  - MQmanager (as-is)
+  - asset (as-is)
+  - asset_type (lowercased)
+  - directorate (as-is)
+  - Role (uppercased)
+
+The extrainfo field was NOT READ AT ALL before the 18 Feb 2026 change.
+
+Records with no MQmanager value are skipped entirely.
+If directorate is empty it defaults to "Unknown".
+
+The output data structure is a nested defaultdict. Every time a new
+(directorate, mqmanager) combination is first accessed, it auto-creates an
+entry with the following initial values:
+
+    qlocal_count   = 0
+    qremote_count  = 0
+    qalias_count   = 0
+    total_count    = 0
+    mq_host        = ''
+    inbound        = set()
+    outbound       = set()
+    inbound_extra  = set()
+    outbound_extra = set()
+
+NOTE: There was NO qchannel_count and NO server_channel_orgs before
+the 18 Feb 2026 change.
+
+The host is populated from the index built in Pass 1 (first time the
+Queue Manager is seen in this pass).
+
+QUEUE TYPE COUNTING
+The asset_type value (lowercased) is tested with three if/elif conditions:
+
+  - If it CONTAINS "local" AND does NOT contain "remote"
+    → qlocal_count += 1 and total_count += 1
+
+  - Else if it CONTAINS "remote"
+    → qremote_count += 1 and total_count += 1
+
+  - Else if it CONTAINS "alias"
+    → qalias_count += 1 and total_count += 1
+
+  - Any other value — including "silverjet", "swiss_air", "runway aerlingus",
+    "runway alitalia", "qcluster", "channel", or anything else — fell through
+    all three conditions and was SILENTLY IGNORED. Nothing was counted.
+    No error was raised. No warning was logged.
+
+CONNECTION TRACKING — SENDER / RECEIVER LOGIC
+After the type counting block, the record's Role field is examined.
+
+IF ROLE CONTAINS "SENDER" AND THE ASSET STRING IS NOT EMPTY:
+  The stat processed_sender is incremented.
+
+  The method _extract_mqmanager_from_asset(asset, mqmanager) is called.
+  This method strips the current Queue Manager's name from the beginning of
+  the asset string, removing it as a prefix up to a dot separator, and
+  returns the remaining string.
+
+  Example:
+    Asset     = "QM1.QM2.PAYMENTS.QUEUE"
+    QManager  = "QM1"
+    Remaining = "QM2.PAYMENTS.QUEUE"
+
+  If the asset does not start with the Queue Manager name as a prefix, the
+  method falls back to finding the Queue Manager name anywhere in the string
+  and returning everything after it. If neither match works, the full asset
+  string is returned unchanged. Leading and trailing dots are stripped from
+  the result.
+
+  If the remaining string is not empty, _find_mqmanager_in_string(remaining,
+  mqmanager) is called. This method splits the remaining string by dots and
+  checks each part against the valid_mqmanagers set (built in Pass 1). It
+  also checks the whole remaining string against the set. If any part matches
+  a known Queue Manager name (and it is not the same as the current Queue
+  Manager being processed), it returns that Queue Manager name. Otherwise it
+  returns None.
+
+  IF A KNOWN QUEUE MANAGER WAS FOUND in the remaining string:
+    This means the current Queue Manager SENDS TO that other Queue Manager.
+    Action 1: The found Queue Manager name is added to the current Queue
+              Manager's outbound set.
+    Action 2: outbound_found stat is incremented.
+    Action 3: BIDIRECTIONAL INVERSE — the current Queue Manager's name is
+              added to the FOUND Queue Manager's inbound set. The found Queue
+              Manager's directorate is looked up from the index to ensure it
+              is placed under the correct directorate in the data structure.
+              No stat is incremented for this inverse insertion.
+
+  IF NO KNOWN QUEUE MANAGER WAS FOUND:
+    The remaining string has no match in the estate — it is an unresolved
+    external reference.
+    Action 1: The full remaining string is added to the current Queue
+              Manager's outbound_extra set.
+    Action 2: outbound_extra_found stat is incremented.
+
+IF ROLE CONTAINS "RECEIVER" AND THE ASSET STRING IS NOT EMPTY:
+  This is the exact mirror of the SENDER logic.
+
+  processed_receiver is incremented. The same extraction and lookup are
+  performed.
+
+  IF A KNOWN QUEUE MANAGER WAS FOUND:
+    The found Queue Manager is added to inbound (current QM receives FROM it).
+    inbound_found is incremented.
+    BIDIRECTIONAL INVERSE: the current Queue Manager's name is added to the
+    found Queue Manager's outbound set.
+
+  IF NO KNOWN QUEUE MANAGER WAS FOUND:
+    The remaining string goes into inbound_extra.
+    inbound_extra_found is incremented.
+
+After the full second pass, process_assets() returns the nested defaultdict.
+
+--------------------------------------------------------------------------------
+AFTER process_assets()
+--------------------------------------------------------------------------------
+processor.print_stats() is called. It logs the SEVEN counters in a formatted
+block. Before 18 Feb 2026 there was no stat and no log line for extrainfo or
+server-connection channel records.
+
+
+================================================================================
+STEP 3 — CONVERT TO JSON
+================================================================================
+processor.convert_to_json(directorate_data) is called. This iterates through
+the defaultdict and produces a clean, serialisable Python dictionary. All set
+objects for inbound, outbound, inbound_extra, and outbound_extra are converted
+to SORTED LISTS (alphabetically).
+
+The per-Queue-Manager output structure BEFORE 18 FEB 2026 was:
+
+    {
+      "directorate":   "...",
+      "mqmanager":     "...",
+      "mq_host":       "...",
+      "qlocal_count":  0,
+      "qremote_count": 0,
+      "qalias_count":  0,
+      "total_count":   0,
+      "inbound":       [],
+      "outbound":      [],
+      "inbound_extra": [],
+      "outbound_extra": []
+    }
+
+There was NO qchannel_count and NO server_channel_orgs field.
+
+
+================================================================================
+STEP 3.5 — OPTIONAL CONFLUENCE INPUT SYNC
+================================================================================
+If Confluence is configured, the sync_input_files() utility downloads the
+latest versions of the input configuration files (org_hierarchy.json,
+app_to_qmgr.json, gateways.json, etc.) from Confluence, overwriting local
+copies. Errors produce warnings but do not stop the pipeline.
+
+
+================================================================================
+STEP 4 — HIERARCHY ENRICHMENT (HierarchyMashup)
+================================================================================
+The orchestrator constructs HierarchyMashup with four input file paths and
+calls enrich_data(json_output).
+
+FOUR CONFIGURATION FILES ARE LOADED:
+
+  org_hierarchy.json
+    Maps each Biz_Ownr (directorate name) to a three-level hierarchy:
+    Organisation → Department → Biz_Ownr, plus an Org_Type of Internal or
+    External. Indexed by Biz_Ownr.
+
+  app_to_qmgr.json
+    Maps each Queue Manager name to an Application name. Indexed by QmgrName.
+
+  gateways.json
+    Identifies which Queue Managers are gateways. Each entry has QmgrName,
+    Scope (Internal or External), and Description. Indexed by QmgrName.
+
+  all_cmdb_hosts.json (output/all_cmdb_hosts.json)
+    Maps server hostnames to hardware and OS metadata (hardware_type,
+    hardware_model, os_type, program_office) AND host_directorate (the owner
+    of the MQ host, used as the authoritative QM directorate).
+    Indexed by hostname in uppercase.
+
+enrich_data() iterates through the JSON output from Step 3
+(directorate → Queue Manager). For each directorate it looks up the org
+hierarchy. If the directorate is not found in the hierarchy file, it defaults
+to Organization="Unknown Organization", Department="Unknown Department",
+Org_Type="Internal".
+
+For each Queue Manager it asks: IS THIS QUEUE MANAGER IN THE GATEWAYS LIST?
+
+  YES — IT IS A GATEWAY:
+    The Application label is overridden with "Gateway (Internal)" or
+    "Gateway (External)" based on the Scope field. The Queue Manager is placed
+    under this gateway application group in the hierarchy. The flag
+    IsGateway: True is set. The fields GatewayScope and GatewayDescription
+    are added. Host metadata is looked up and added.
+
+  NO — IT IS A REGULAR APPLICATION QUEUE MANAGER:
+    The Application label comes from app_to_qmgr.json, or "No Application"
+    if not found. IsGateway: False is set. Host metadata is looked up.
+
+In both cases, the enriched output for each Queue Manager BEFORE 18 FEB 2026
+contained:
+
+    Organization, Org_Type, Department, Biz_Ownr, Application, MQmanager,
+    mq_host, hardware_type, hardware_model, os_type, program_office,
+    qlocal_count, qremote_count, qalias_count, total_count,
+    inbound, outbound, inbound_extra, outbound_extra, IsGateway
+
+    For gateways only: GatewayScope, GatewayDescription
+
+There was NO qchannel_count and NO server_channel_orgs field.
+
+The final enriched data structure is a four-level hierarchy:
+  Organisation → _departments → Department → Biz_Ownr → Application
+    → MQmanager → data
+
+This is saved to output/data/mq_cmdb_processed.json.
+
+
+================================================================================
+STEP 5 — CHANGE DETECTION (ChangeDetector)
+================================================================================
+If a baseline file output/data/mq_cmdb_baseline.json exists from a previous
+run, the ChangeDetector compares the current enriched data against it.
+
+It runs FOUR sub-analyses:
+
+  MQ MANAGER CHANGES:
+    Flattens both hierarchies into flat dictionaries keyed by Queue Manager
+    name. Identifies:
+      - Added Queue Managers (in current but not baseline)
+      - Removed Queue Managers (in baseline but not current)
+      - Modified Queue Managers (same name but Organization, Department,
+        Biz_Ownr, or Application changed)
+
+  CONNECTION CHANGES:
+    Extracts all (source, target) pairs from the outbound and outbound_extra
+    lists of every Queue Manager in both datasets. Identifies added and
+    removed connections as set differences.
+
+  GATEWAY CHANGES:
+    Filters both datasets to Queue Managers with IsGateway=True. Identifies
+    added, removed, and scope-changed gateways.
+
+  QUEUE COUNT CHANGES:
+    For every Queue Manager present in both datasets, computes the percentage
+    change in qlocal_count, qremote_count, and qalias_count. Any change of
+    20% or more is flagged.
+      - 0 to N   → 100% change (flagged as added)
+      - N to 0   → 100% change (flagged as removed)
+      - Both 0   → skipped (no change)
+      - Normal   → abs((current - baseline) / baseline * 100)
+
+A summary count is computed (total changes = sum of all category counts).
+
+An HTML report is written to:
+  output/reports/change_report_<timestamp>.html
+
+The changes are also saved as JSON. After successful change detection, the
+enriched data REPLACES the baseline file. If change detection fails, the
+baseline is preserved to protect the next run.
+
+
+================================================================================
+STEP 6 — HIERARCHICAL TOPOLOGY DIAGRAM
+================================================================================
+HierarchicalGraphVizGenerator takes the enriched data and produces a GraphViz
+.dot file: output/diagrams/topology/mq_topology.dot
+
+This creates one node per Queue Manager, grouped visually by:
+  Organisation → Department → Business Owner → Application
+
+using GraphViz subgraph cluster_ constructs.
+
+Connections (outbound) are drawn as directed edges with these colour rules:
+  - Internal connections (same department): blue, solid line
+  - Cross-department connections: coral, dashed line
+  - Cross-organisation connections: purple
+
+A legend is embedded in the diagram. If GraphViz is installed, a PDF is also
+generated. If not, the dot file is still saved and the user is given the
+command to generate it manually.
+
+
+================================================================================
+STEP 7 — APPLICATION DIAGRAMS
+================================================================================
+ApplicationDiagramGenerator iterates through the enriched data and generates
+one .dot file per Application group. Each diagram shows only the Queue Managers
+belonging to that application and their connections to other Queue Managers
+(including cross-application ones).
+
+Diagrams are saved in: output/diagrams/applications/
+
+
+================================================================================
+STEP 8 — INDIVIDUAL MQ MANAGER DIAGRAMS
+================================================================================
+IndividualDiagramGenerator uses the pre-enrichment directorate_data (from
+Step 2, before the hierarchy mashup) to generate one .dot file per Queue
+Manager.
+
+Each diagram shows:
+  - The single Queue Manager at the centre
+  - Its inbound connections arriving from the left
+  - Its outbound connections leaving to the right
+  - Any inbound_extra / outbound_extra strings shown as plain text nodes
+    (these represent unresolved external references — strings that appeared
+    in the asset data but could not be matched to a known Queue Manager)
+
+Diagrams are saved in: output/diagrams/individual/
+
+
+================================================================================
+STEP 9 — SMART FILTERED VIEWS
+================================================================================
+generate_filtered_diagrams() produces additional .dot files by applying
+filters to the enriched data:
+  - One diagram per Organisation (only Queue Managers within that org)
+  - A gateways-only view (only Queue Managers with IsGateway=True)
+  - Separate views for internal gateways and external gateways
+
+Diagrams are saved in: output/diagrams/filtered/
+
+
+================================================================================
+STEP 10 — GATEWAY ANALYTICS (GatewayAnalyzer)
+================================================================================
+This step analyses gateway Queue Managers specifically. It extracts all Queue
+Managers where IsGateway=True into a gateways dictionary. It then runs SEVEN
+sub-analyses:
+
+  SUMMARY:
+    Counts total gateways, internal gateways, external gateways, and total
+    gateway connections (sum of inbound + outbound + inbound_extra +
+    outbound_extra lengths across all gateways).
+
+  GATEWAY TRAFFIC:
+    For each gateway, counts inbound connections, outbound connections, total
+    connections, and how many distinct organisations and departments are
+    connected through it.
+
+  ORG CONNECTIVITY:
+    For each gateway, looks at all connected Queue Managers (from all four
+    connection lists) and finds those belonging to a different organisation.
+    Builds a map of "OrgA <-> OrgB" pairs with which gateways serve them and
+    how many connections each pair has.
+
+  DEPARTMENT CONNECTIVITY:
+    Same logic but for internal gateways only, looking at cross-department
+    pairs.
+
+  DEPENDENCIES:
+    For each gateway, lists which Applications (non-gateway) depend on it by
+    having Queue Managers connected through it.
+
+  LOAD DISTRIBUTION:
+    For each gateway computes a weighted load score:
+      load_score = (total connections × 2) + total queues
+    Gateways are ranked by this score within their scope category
+    (internal vs external), highest to lowest.
+
+  REDUNDANCY ANALYSIS:
+    For every org-pair and dept-pair identified above, checks if more than one
+    gateway serves that route. If only one gateway exists for a route, that
+    gateway is flagged as a SINGLE POINT OF FAILURE (SPOF).
+
+The analytics are written to an HTML report:
+  output/reports/gateway_analytics_<timestamp>.html
+
+And saved as JSON. The HTML report includes:
+  - Traffic overview table
+  - SPOF warning panel (coloured red) if SPOFs exist
+  - Load distribution table (internal and external separately)
+  - Organisation connectivity matrix with redundancy indicator
+
+
+================================================================================
+STEP 10.5 — CONSOLIDATED REPORT
+================================================================================
+A single HTML report is generated that combines both the change detection
+results and the gateway analytics into one document.
+
+Saved to: output/reports/consolidated_report_<timestamp>.html
+
+
+================================================================================
+STEP 11 — MULTI-FORMAT EXPORTS
+================================================================================
+  - Main topology .dot file is rendered to SVG and PNG (200 DPI)
+  - All application diagrams are rendered to SVG
+  - All individual diagrams are rendered to SVG
+
+An Excel workbook is generated:
+  output/exports/mqcmdb_inventory_<timestamp>.xlsx
+
+This contains the full Queue Manager inventory with all fields from the
+enriched data structure.
+
+
+================================================================================
+STEP 12 — ENTERPRISE ARCHITECTURE DOCUMENTATION
+================================================================================
+EADocumentationGenerator produces a Confluence wiki markup text file:
+  output/exports/EA_Documentation_<timestamp>.txt
+
+This document describes the entire MQ estate — organisations, Queue Managers,
+connections — in Confluence markup that can be pasted directly into a
+Confluence page using Insert → Markup.
+
+A separate ApplicationDocGenerator produces per-application markup pages, one
+file per application group, saved to:
+  output/exports/app_docs/
+
+
+================================================================================
+STEP 12.5 — CONFLUENCE PUBLISHING (CONDITIONAL)
+================================================================================
+If Config.ENABLE_CONFLUENCE_PUBLISH is True and Confluence credentials are
+configured, the pipeline:
+  - Uploads the EA documentation page to Confluence via REST API
+  - Uploads per-application documentation pages
+  - Optionally attaches SVG diagrams to the application pages
+
+Errors produce warnings but do not stop the pipeline.
+
+
+================================================================================
+STEP 13 — SUMMARY STATISTICS
+================================================================================
+The orchestrator calculates a final summary by walking the full enriched data
+structure and summing:
+
+  - Number of Organisations
+  - Number of Departments
+  - Number of Business Owners
+  - Number of Applications
+  - Number of Queue Managers
+  - Total qlocal_count across all Queue Managers
+  - Total qremote_count across all Queue Managers
+  - Total qalias_count across all Queue Managers
+  - Total outbound connections (length of outbound lists)
+
+These are logged in a formatted table. Any warnings accumulated during the
+run are listed below the summary table.
+
+
+================================================================================
+STEP 14 — EMAIL NOTIFICATION (CONDITIONAL)
+================================================================================
+If EMAIL_ENABLED=true is set as an environment variable, the pipeline sends
+an email summarising the run result (success or failure) along with the
+summary statistics and any warnings from the run.
+
+
+================================================================================
+WHAT WAS COMPLETELY ABSENT BEFORE 18 FEB 2026
+================================================================================
+To be fully explicit about what the system could NOT do before the changes:
+
+  - The extrainfo field was present in every raw CMDB record but was NEVER
+    READ by any processing step in the pipeline.
+
+  - Records with asset_type values of "silverjet", "swiss_air",
+    "runway aerlingus", "runway alitalia", "channel", or any other
+    non-standard value fell SILENTLY THROUGH the queue-type counting block.
+    They contributed zero counts to any category. No error was raised. No
+    warning was logged. They were read and discarded.
+
+  - There was no concept of a "server connection channel" anywhere in the
+    processing logic.
+
+  - There was no qchannel_count field anywhere in the data structures.
+
+  - There was no server_channel_orgs field anywhere in the data structures.
+
+  - Gateway Queue Managers that hosted these channels appeared in the output
+    with accurate qlocal_count / qremote_count / qalias_count values for
+    their standard queues, but the external organisation connections they
+    served via Server Connection Channels were COMPLETELY INVISIBLE —
+    not counted, not named, not tracked anywhere in the output.
+
+
+================================================================================
+KEY FILES AND THEIR ROLES (ORIGINAL)
+================================================================================
+
+  main.py
+    CLI entry point. Checks prerequisites, prints banner, starts orchestrator.
+
+  orchestrator.py
+    Coordinates the full 14-step pipeline. Handles errors, logging, summary.
+
+  db_export.py
+    Connects to MariaDB database and exports raw CMDB data to
+    output/all_MQCMDB_assets.json. Run separately before the main pipeline.
+
+  processors/mqmanager_processor.py
+    Two-pass core processor. Builds Queue Manager index, counts queue types,
+    tracks inbound/outbound connections. OUTPUT: directorate → QM → data.
+
+  processors/hierarchy_mashup.py
+    Enriches processed data with org hierarchy, application names, gateway
+    classification, and host metadata. OUTPUT: 4-level hierarchy.
+
+  processors/deduplication.py
+    Removes duplicate asset records. Rule: if the same asset appears twice
+    and one copy has asset_type=QCluster, the QCluster copy is discarded.
+
+  processors/change_detector.py
+    Compares current enriched data against baseline. Detects added/removed
+    Queue Managers, connections, gateways, and >20% queue count changes.
+
+  analytics/gateway_analyzer.py
+    Analyses gateway traffic, org/dept connectivity, load distribution,
+    and identifies single points of failure.
+
+  config/settings.py
+    All configuration constants: file paths, field name mappings, colour
+    schemes, asset type keywords, connection colours.
+
+  input/org_hierarchy.json
+    Maps each directorate (Biz_Ownr) to Organisation and Department.
+
+  input/gateways.json
+    Declares which Queue Managers are gateways and their scope.
+
+  input/app_to_qmgr.json
+    Maps Queue Manager names to Application names.
+
+  input/mqmanager_aliases.json
+    Alternative names for Queue Managers (aliases).
+
+  output/all_MQCMDB_assets.json
+    Raw CMDB data. Input to the pipeline. Generated by db_export.py.
+
+  output/data/mq_cmdb_processed.json
+    Fully enriched data. Output of Steps 2-4. Input to Steps 5-13.
+
+  output/data/mq_cmdb_baseline.json
+    Snapshot from the previous pipeline run. Used for change detection.
+
+
+================================================================================
+KNOWN ISSUES AND OBSERVATIONS (PENDING RESOLUTION)
+================================================================================
+
+ISSUE 1 — DIRECTORATE FIELD MEANS ASSET OWNER, NOT QUEUE MANAGER OWNER
+------------------------------------------------------------------------
+Identified: 18 Feb 2026
+RESOLVED: 18 Feb 2026
+
+The directorate field returned by all_MQCMDB_assets.sql is the owner of the
+ASSET (the individual queue or channel record), NOT the owner of the Queue
+Manager itself. The same Queue Manager can appear with many different
+directorates across its records (one per asset-owning team).
+
+The Queue Manager's actual owner/directorate is the host_directorate field
+in all_cmdb_hosts.json — the owner of the MQ_host server that runs the QM.
+
+Fix applied across three files:
+
+  orchestrator.py (between Steps 1 and 2):
+    Loads all_cmdb_hosts.json and builds {HOSTNAME_UPPER: host_directorate}.
+    Passes this map to MQManagerProcessor. If the file is missing, a warning
+    is logged and the asset-level fallback is used automatically.
+
+  processors/mqmanager_processor.py:
+    __init__: Accepts optional host_directorate_map parameter.
+    _build_index() — two-phase approach:
+      Phase 1: Collects valid_mqmanagers, mqmanager_to_host (first non-empty
+               host per QM wins), and asset_directorates (first non-empty
+               asset-level directorate per QM, kept as fallback only).
+      Phase 2: For each QM, sets authoritative directorate:
+               - If host found in host_directorate_map → use host_directorate
+               - Otherwise → fall back to asset_directorate
+               Logs counts for both sources.
+    process_assets(): Uses self.mqmanager_to_directorate.get(mqmanager.upper())
+    to obtain the QM's directorate instead of reading it from each asset record.
+    This ensures all assets for the same QM are grouped consistently.
+
+  processors/hierarchy_mashup.py:
+    _load_host_metadata(): Now also reads and stores host_directorate from
+    each host record. Written to both gateway and regular-app enriched output
+    nodes as the host_directorate field.
+
+
+ISSUE 2 — CHANNEL RECORDS WITH EXTERNAL ORG NAMES NOT PROCESSED
+-----------------------------------------------------------------
+Identified: 18 Feb 2026
+
+The SQL in all_MQCMDB_assets.sql produces a derived Role column from the
+asset_type and extrainfo fields using a CASE statement. When asset_type is
+'CHANNEL', the Role value is the channel type label (e.g. "Server Connection",
+"Sender", "Receiver"). When asset_type is anything else, Role is '' (empty).
+
+Some gateway Queue Managers have channel records where the asset_type is an
+external organisation name (e.g. "silverjet", "swiss_air", "runway aerlingus")
+rather than 'CHANNEL'. These records have an empty Role field and their
+extrainfo field contains the connection type (e.g. "Server Connection").
+
+Current behaviour: These records fall silently through the queue-type counting
+block (not local, remote, or alias) and are not counted or tracked.
+
+Planned fix: Deferred pending resolution of Issue 1 (directorate model).
+Detection rule designed: extrainfo contains "server connection" AND asset_type
+is not a known queue type → asset_type value is the external org name.
+
+
+================================================================================
+CHANGE LOG
+================================================================================
+
+18 Feb 2026 (1) — Channel detection changes designed and reverted
+  - Added ASSET_TYPE_CHANNEL, CHANNEL_ORG_PREFIXES to config/settings.py
+  - Added _extract_org_name(), qchannel_count, server_channel_orgs,
+    extrainfo detection block to processors/mqmanager_processor.py
+  - Added qchannel_count, server_channel_orgs to processors/hierarchy_mashup.py
+  All changes reverted. Will be re-implemented after Issue 1 is resolved.
+
+18 Feb 2026 (2) — Directorate model fix (Issue 1)
+  - all_cmdb_hosts.sql: added directorate AS host_directorate column
+  - orchestrator.py: builds host_directorate_map from all_cmdb_hosts.json
+    between Steps 1 and 2; passes it to MQManagerProcessor
+  - processors/mqmanager_processor.py: __init__ accepts host_directorate_map;
+    _build_index() uses two-phase approach with host directorate as primary
+    source and asset directorate as fallback; process_assets() reads
+    directorate from index (QM-level) not from each raw record (asset-level)
+  - processors/hierarchy_mashup.py: _load_host_metadata() reads
+    host_directorate; both enriched output branches include host_directorate
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================
