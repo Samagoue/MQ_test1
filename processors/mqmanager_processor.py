@@ -56,7 +56,7 @@ class MQManagerProcessor:
             'outbound_extra_found': 0,
             'aliases_resolved': 0
         }
-     
+   
         logger.info(f"✓ Initialized with {len(self.raw_data)} records")
  
     def _normalize_value(self, val) -> str:
@@ -72,13 +72,13 @@ class MQManagerProcessor:
         """
         asset = self._normalize_value(asset)
         mqmanager = self._normalize_value(mqmanager)
-     
+   
         if not asset or not mqmanager:
             return ""
-     
+   
         asset_upper = asset.upper()
         mqmanager_upper = mqmanager.upper()
-     
+   
         # Remove MQmanager prefix
         prefix = mqmanager_upper + "."
         if asset_upper.startswith(prefix):
@@ -90,10 +90,10 @@ class MQManagerProcessor:
                 remaining = remaining[1:]
         else:
             remaining = asset
-     
+   
         # Remove leading and trailing dots
         remaining = remaining.strip('.')
-     
+   
         return remaining
  
     def _find_mqmanager_in_string(self, text: str, exclude_mqmanager: str = "") -> Optional[str]:
@@ -204,10 +204,10 @@ class MQManagerProcessor:
         Returns: {directorate: {mqmanager: {...}}}
         """
         logger.info("\nProcessing MQ CMDB assets...")
-     
+   
         # Build index first
         self._build_index()
-     
+   
         # Structure to hold processed data
         directorate_data = defaultdict(lambda: defaultdict(lambda: {
             'qlocal_count': 0,
@@ -220,19 +220,19 @@ class MQManagerProcessor:
             'inbound_extra': set(),
             'outbound_extra': set()
         }))
-     
+   
         # Get field names
         mqmanager_field = self.field_mappings.get('mqmanager', 'MQmanager')
         asset_field = self.field_mappings.get('asset', 'asset')
         asset_type_field = self.field_mappings.get('asset_type', 'asset_type')
         directorate_field = self.field_mappings.get('directorate', 'directorate')
         role_field = self.field_mappings.get('role', 'Role')
-     
+   
         # Second pass: process each record
         for record in self.raw_data:
             if not isinstance(record, dict):
                 continue
-         
+       
             mqmanager = self._normalize_value(record.get(mqmanager_field, ''))
             asset = self._normalize_value(record.get(asset_field, ''))
             asset_type = self._normalize_value(record.get(asset_type_field, '')).lower()
@@ -263,22 +263,22 @@ class MQManagerProcessor:
             # Process Sender/Receiver logic with bidirectional tracking
             # SENDER means: this MQmanager SENDS to the target (outbound connection)
             # RECEIVER means: this MQmanager RECEIVES from the source (inbound connection)
-         
+       
             if 'SENDER' in role and asset:
                 self.stats['processed_sender'] += 1
-             
+           
                 # Extract remaining string after removing MQmanager
                 remaining = self._extract_mqmanager_from_asset(asset, mqmanager)
-             
+           
                 if remaining:
                     # Check if remaining contains another MQmanager
                     found_mqmanager = self._find_mqmanager_in_string(remaining, mqmanager)
-                 
+               
                     if found_mqmanager:
                         # This MQmanager sends TO found_mqmanager -> Outbound
                         directorate_data[directorate][mqmanager]['outbound'].add(found_mqmanager)
                         self.stats['outbound_found'] += 1
-                     
+                   
                         # INVERSE: found_mqmanager receives FROM this mqmanager
                         # Use uppercase for lookup to match how keys are stored
                         target_dir = self.mqmanager_to_directorate.get(found_mqmanager.upper(), "Unknown")
@@ -311,7 +311,7 @@ class MQManagerProcessor:
                         # No MQmanager found -> Inbound_Extra
                         directorate_data[directorate][mqmanager]['inbound_extra'].add(remaining)
                         self.stats['inbound_extra_found'] += 1
-     
+   
         return directorate_data
  
     def convert_to_json(self, directorate_data: Dict) -> Dict:
@@ -320,10 +320,10 @@ class MQManagerProcessor:
         Converts sets to sorted lists.
         """
         result = {}
-     
+   
         for directorate, mqmanagers in directorate_data.items():
             result[directorate] = {}
-         
+       
             for mqmanager, data in mqmanagers.items():
                 result[directorate][mqmanager] = {
                     'directorate': directorate,
@@ -338,7 +338,7 @@ class MQManagerProcessor:
                     'inbound_extra': sorted(list(data['inbound_extra'])),
                     'outbound_extra': sorted(list(data['outbound_extra']))
                 }
-     
+   
         return result
  
     def print_stats(self):

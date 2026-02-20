@@ -1,4 +1,3 @@
-
 """
 Enterprise Architecture Documentation Generator - TOGAF Aligned
 
@@ -1200,7 +1199,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         """Generate document footer."""
         footer_content = [
             f"_This TOGAF-aligned Enterprise Architecture documentation was automatically generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_",
-            "_by MQ CMDB Hierarchical Automation System_",
+            "_by MQ CMDB Automated Documentation System_",
             "",
             f"*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* {self._status_lozenge('Internal', 'Blue')} | {self._status_lozenge('AUTO-GENERATED', 'Grey')}",
         ]

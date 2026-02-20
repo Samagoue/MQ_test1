@@ -1,3 +1,4 @@
+
 """
 Per-Application EA Documentation Generator.
 

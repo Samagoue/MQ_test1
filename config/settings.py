@@ -1,4 +1,3 @@
-
 """Configuration settings for MQ CMDB automation system."""
 
 import random
@@ -359,5 +358,4 @@ class Config:
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return cls.LOGS_DIR / f"{prefix}_{timestamp}.log"
-
 

@@ -44,6 +44,30 @@ def print_banner():
     ║                                                                      ║
     ╚══════════════════════════════════════════════════════════════════════╝
 
+<<<<<<< HEAD
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║                                                                      ║
+    ║       ███╗   ███╗ ██████╗     ██████╗███╗   ███╗██████╗ ██████╗      ║
+    ║       ████╗ ████║██╔═══██╗   ██╔════╝████╗ ████║██╔══██╗██╔══██╗     ║
+    ║       ██╔████╔██║██║   ██║   ██║     ██╔████╔██║██║  ██║██████╔╝     ║
+    ║       ██║╚██╔╝██║██║▄▄ ██║   ██║     ██║╚██╔╝██║██║  ██║██╔══██╗     ║
+    ║       ██║ ╚═╝ ██║╚██████╔╝   ╚██████╗██║ ╚═╝ ██║██████╔╝██████╔╝     ║
+    ║       ╚═╝     ╚═╝ ╚══▀▀═╝     ╚═════╝╚═╝     ╚═╝╚═════╝ ╚═════╝      ║
+    ║                                                                      ║
+    ║        MQ CMDB HIERARCHICAL AUTOMATION SYSTEM                        ║
+    ║        Version 1.0                                                   ║
+    ║        Processes IBM MQ CMDB data and generates:                     ║
+    ║        • Hierarchical organization topology diagrams                 ║
+    ║        • Application-focused connection diagrams                     ║
+    ║        • Individual MQ manager connection diagrams                   ║
+    ║        • JSON data with full organizational enrichment               ║
+    ║                                                                      ║
+    ║        Started: 2026-02-12 08:09:33                                  ║
+    ║                                                                      ║
+    ╚══════════════════════════════════════════════════════════════════════╝
+
+=======
+>>>>>>> updates_and_enhancements
     """
     logger.info(banner)
 
@@ -167,3 +191,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

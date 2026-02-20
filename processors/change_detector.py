@@ -648,3 +648,4 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
 
     logger.info(f"✓ Change report generated: {output_file}")
 
+

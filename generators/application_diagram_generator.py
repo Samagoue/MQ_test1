@@ -1,4 +1,3 @@
-
 """
 Individual Application Diagram Generator - WITH FULL HIERARCHY
 Shows the application with its full hierarchy, plus connected MQ managers with their hierarchies.

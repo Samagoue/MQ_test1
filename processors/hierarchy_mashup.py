@@ -172,12 +172,12 @@ class HierarchyMashup:
     def enrich_data(self, processed_data: Dict) -> Dict:
         """
         Enrich processed MQ data with hierarchy and application info.
-     
+   
         Input: {directorate: {mqmanager: {...}}}
         Output: {Organization: {Department: {Biz_Ownr: {Application: {MQmanager: {...}}}}}}
         """
         enriched = {}
-     
+   
         for directorate, mqmanagers in processed_data.items():
             # Get hierarchy info for this directorate (Biz_Ownr)
             hierarchy_info = self.org_hierarchy.get(directorate, {
@@ -186,12 +186,12 @@ class HierarchyMashup:
                 'Biz_Ownr': directorate,
                 'Org_Type': 'Internal'
             })
-         
+       
             org = hierarchy_info['Organization']
             dept = hierarchy_info['Department']
             biz_ownr = hierarchy_info['Biz_Ownr']
             org_type = hierarchy_info['Org_Type']
-         
+       
             # Initialize hierarchy levels
             if org not in enriched:
                 enriched[org] = {'_org_type': org_type, '_departments': {}}
@@ -199,7 +199,7 @@ class HierarchyMashup:
                 enriched[org]['_departments'][dept] = {}
             if biz_ownr not in enriched[org]['_departments'][dept]:
                 enriched[org]['_departments'][dept][biz_ownr] = {}
-         
+       
             # Process each MQ manager
             for mqmanager, mq_data in mqmanagers.items():
                 # Check if this MQ manager is a gateway
@@ -278,5 +278,5 @@ class HierarchyMashup:
                         'outbound_extra': mq_data.get('outbound_extra', []),
                         'IsGateway': False
                     }
-     
+   
         return enriched
