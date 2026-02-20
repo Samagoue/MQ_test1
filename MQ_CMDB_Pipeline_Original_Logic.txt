@@ -1,7 +1,7 @@
 ================================================================================
 MQ CMDB AUTOMATION PIPELINE — CURRENT LOGIC
 Complete Step-by-Step Documentation
-Last updated: 18 Feb 2026 — directorate model fix applied (Issue 1 resolved)
+Last updated: 18 Feb 2026 — alias resolution + empty-application fix added
 ================================================================================
 
 OVERVIEW
@@ -736,6 +736,36 @@ CHANGE LOG
     directorate from index (QM-level) not from each raw record (asset-level)
   - processors/hierarchy_mashup.py: _load_host_metadata() reads
     host_directorate; both enriched output branches include host_directorate
+
+18 Feb 2026 (3) — Empty Application fix in Confluence table sync
+  - processors/hierarchy_mashup.py: _load_app_mapping() now treats an empty
+    Application string from app_to_qmgr.json as 'No Application' rather than
+    storing an empty string. Prevents column-shifting bug in Confluence markup
+    tables and ensures the NEEDS MAPPING lozenge is shown correctly.
+  - generators/app_doc_generator.py: added '' to the _unmapped sentinel set as
+    a safety net in case an empty app name reaches the doc generator.
+
+18 Feb 2026 (4) — MQ Manager alias resolution
+  - input/mqmanager_aliases.json: file already existed ({"canonical": ...,
+    "aliases": [...]}) but was never loaded or used anywhere.
+  - orchestrator.py: loads mqmanager_aliases.json between Steps 1 and 2;
+    builds {ALIAS_UPPER: canonical_name} reverse map; passes it as the new
+    alias_to_canonical parameter to MQManagerProcessor.
+  - processors/mqmanager_processor.py:
+      __init__: accepts optional alias_to_canonical parameter; stores as
+        self.alias_to_canonical ({ALIAS_UPPER: canonical_name}); adds
+        aliases_resolved counter to stats.
+      _find_mqmanager_in_string(): after the existing canonical-name checks,
+        also checks each dot-split part (and the whole string) against
+        alias_to_canonical. If an alias is found and its canonical name is
+        in valid_mqmanagers, returns the canonical name and increments
+        aliases_resolved. Alias resolution is transparent — the canonical
+        name is what gets stored in inbound/outbound sets.
+      print_stats(): logs aliases_resolved count.
+  Previously, any asset string referencing a QM by an alias name would fail
+  the _find_mqmanager_in_string lookup and fall into inbound_extra /
+  outbound_extra. After this change those connections are correctly resolved
+  to the canonical QM name.
 
 
 ================================================================================

@@ -91,9 +91,23 @@ class MQCMDBOrchestrator:
             else:
                 logger.warning("⚠ all_cmdb_hosts.json not found — QM directorate will use asset-level fallback")
 
+            # Load MQ Manager aliases (alias → canonical name reverse map)
+            alias_to_canonical = {}
+            if Config.MQMANAGER_ALIASES_JSON.exists():
+                aliases_data = load_json(Config.MQMANAGER_ALIASES_JSON)
+                for entry in aliases_data:
+                    canonical = str(entry.get('canonical', '')).strip()
+                    for alias in entry.get('aliases', []):
+                        alias = str(alias).strip()
+                        if alias and canonical:
+                            alias_to_canonical[alias.upper()] = canonical
+                logger.info(f"✓ Alias map: {len(alias_to_canonical)} alias(es) loaded")
+            else:
+                logger.info("  No mqmanager_aliases.json found — alias resolution skipped")
+
             # Process relationships
             logger.info("\n[2/14] Processing MQ Manager relationships...")
-            processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS, host_directorate_map)
+            processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS, host_directorate_map, alias_to_canonical)
             directorate_data = processor.process_assets()
             processor.print_stats()
 

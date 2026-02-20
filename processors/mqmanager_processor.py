@@ -15,13 +15,18 @@ class MQManagerProcessor:
     """Process MQ CMDB assets."""
  
     def __init__(self, raw_data: List[Dict], field_mappings: Dict[str, str],
-                 host_directorate_map: Dict[str, str] = None):
-        """Initialize processor with raw data, field mappings, and optional host→directorate map.
+                 host_directorate_map: Dict[str, str] = None,
+                 alias_to_canonical: Dict[str, str] = None):
+        """Initialize processor with raw data, field mappings, and optional lookup maps.
 
         host_directorate_map: {hostname_uppercase: host_directorate} derived from
         all_cmdb_hosts.json. When provided, the QM's authoritative directorate is
         taken from the host that runs it rather than from the asset-level directorate
         field (which is the owner of the individual queue/channel, not the QM).
+
+        alias_to_canonical: {ALIAS_UPPERCASE: canonical_name} derived from
+        mqmanager_aliases.json. When provided, alias names found in asset strings
+        are resolved to their canonical QM name before connection tracking.
         """
         if not isinstance(raw_data, list):
             raise ValueError(f"Input data must be a list, got {type(raw_data)}")
@@ -33,12 +38,14 @@ class MQManagerProcessor:
         self.field_mappings = field_mappings
         # {HOSTNAME_UPPER: directorate} — owner of the host/QM, not of individual assets
         self.host_directorate_map = {k.upper(): v for k, v in (host_directorate_map or {}).items()}
+        # {ALIAS_UPPER: canonical_name} — resolves alias references in asset strings
+        self.alias_to_canonical = {k.upper(): v for k, v in (alias_to_canonical or {}).items()}
 
         # Collections for processing
         self.valid_mqmanagers = set()
         self.mqmanager_to_directorate = {}
         self.mqmanager_to_host = {}
-     
+
         self.stats = {
             'total_records': len(self.raw_data),
             'processed_sender': 0,
@@ -46,7 +53,8 @@ class MQManagerProcessor:
             'inbound_found': 0,
             'outbound_found': 0,
             'inbound_extra_found': 0,
-            'outbound_extra_found': 0
+            'outbound_extra_found': 0,
+            'aliases_resolved': 0
         }
      
         logger.info(f"✓ Initialized with {len(self.raw_data)} records")
@@ -90,26 +98,41 @@ class MQManagerProcessor:
  
     def _find_mqmanager_in_string(self, text: str, exclude_mqmanager: str = "") -> Optional[str]:
         """
-        Check if any valid MQmanager name exists in the text.
-        Returns the MQmanager name if found, None otherwise.
+        Check if any valid MQmanager name (or known alias) exists in the text.
+        Returns the canonical MQmanager name if found, None otherwise.
+        Aliases are transparently resolved to their canonical name.
         """
         if not text:
             return None
-     
+
         text_upper = text.upper()
         exclude_upper = exclude_mqmanager.upper()
-     
+
         # Split by dots and check each part
         parts = text.split('.')
         for part in parts:
             part_upper = part.upper()
+            # Direct canonical name match
             if part_upper in self.valid_mqmanagers and part_upper != exclude_upper:
                 return part
-     
-        # Check if entire string matches
+            # Alias match — resolve to canonical name
+            if part_upper in self.alias_to_canonical:
+                canonical = self.alias_to_canonical[part_upper]
+                if canonical.upper() in self.valid_mqmanagers and canonical.upper() != exclude_upper:
+                    self.stats['aliases_resolved'] += 1
+                    return canonical
+
+        # Check if entire string matches a canonical name
         if text_upper in self.valid_mqmanagers and text_upper != exclude_upper:
             return text
-     
+
+        # Check if entire string matches an alias
+        if text_upper in self.alias_to_canonical:
+            canonical = self.alias_to_canonical[text_upper]
+            if canonical.upper() in self.valid_mqmanagers and canonical.upper() != exclude_upper:
+                self.stats['aliases_resolved'] += 1
+                return canonical
+
         return None
  
     def _build_index(self):
@@ -330,5 +353,6 @@ class MQManagerProcessor:
         logger.info(f"Outbound connections: {self.stats['outbound_found']}")
         logger.info(f"Inbound_Extra:        {self.stats['inbound_extra_found']}")
         logger.info(f"Outbound_Extra:       {self.stats['outbound_extra_found']}")
+        logger.info(f"Aliases resolved:     {self.stats['aliases_resolved']}")
         logger.info("=" * 70)
 
