@@ -71,10 +71,12 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             'applications': set(),
             'mqmanagers': {},
             'gateways': [],
+            'routers': [],
             'connections': {'internal': 0, 'cross_dept': 0, 'cross_org': 0, 'external': 0},
             'queues': {'qlocal': 0, 'qremote': 0, 'qalias': 0, 'total': 0}
         }
         seen_gateways = set()
+        seen_routers = set()
 
         for org_name, org_data in self.data.items():
             if not isinstance(org_data, dict) or '_departments' not in org_data:
@@ -93,10 +95,12 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                 stats['organizations'][org_name]['departments'].add(dept_name)
 
                 for biz_ownr, applications in dept_data.items():
-                    stats['biz_owners'].add(biz_ownr)
+                    # Only count internal-org biz_owners as "application stakeholders"
+                    if org_type == 'Internal':
+                        stats['biz_owners'].add(biz_ownr)
 
                     for app_name, mqmgr_dict in applications.items():
-                        if not app_name.startswith('Gateway (') and app_name != 'No Application':
+                        if not app_name.startswith('Gateway (') and app_name not in ('No Application', 'Router'):
                             stats['applications'].add(app_name)
                             stats['organizations'][org_name]['applications'].add(app_name)
 
@@ -111,6 +115,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                                 'app': app_name,
                                 'is_gateway': mqmgr_data.get('IsGateway', False),
                                 'gateway_scope': mqmgr_data.get('GatewayScope', ''),
+                                'is_router': mqmgr_data.get('IsRouter', False),
                                 'qlocal': mqmgr_data.get('qlocal_count', 0),
                                 'qremote': mqmgr_data.get('qremote_count', 0),
                                 'qalias': mqmgr_data.get('qalias_count', 0),
@@ -125,6 +130,15 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                                 stats['gateways'].append({
                                     'name': mqmgr_name,
                                     'scope': mqmgr_data.get('GatewayScope', ''),
+                                    'org': org_name,
+                                    'dept': dept_name
+                                })
+
+                            if mqmgr_data.get('IsRouter', False) and mqmgr_name not in seen_routers:
+                                seen_routers.add(mqmgr_name)
+                                stats['routers'].append({
+                                    'name': mqmgr_name,
+                                    'description': mqmgr_data.get('RouterDescription', ''),
                                     'org': org_name,
                                     'dept': dept_name
                                 })
@@ -558,7 +572,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "{column:width=33%}",
             *self._styled_panel("MQ Managers", [
                 f"h2. {len(self.stats['mqmanagers'])}",
-                f"{internal_gw + external_gw} Gateways",
+                f"{internal_gw + external_gw} Gateways | {len(self.stats['routers'])} Routers",
             ], bg_color="#fff3e0", title_bg="#e65100", title_color="#fff", border_color="#ffcc80"),
             "{column}",
             "{section}",
@@ -578,7 +592,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "{column:width=33%}",
             *self._styled_panel("Business Owners", [
                 f"h2. {len(self.stats['biz_owners'])}",
-                "Application stakeholders",
+                "Internal application stakeholders",
             ], bg_color="#e0f2f1", title_bg="#00695c", title_color="#fff", border_color="#80cbc4"),
             "{column}",
             "{section}",
@@ -626,22 +640,24 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
         ]
 
-        # Group by business owner
+        # Group by business owner (internal orgs only, matching the header metric)
         biz_owner_stats = defaultdict(lambda: {'dept': '', 'apps': set(), 'mqmgrs': 0})
         for mqmgr_name, info in self.stats['mqmanagers'].items():
+            if info.get('org_type') != 'Internal':
+                continue
             biz_ownr = info.get('biz_ownr', 'Unknown')
             biz_owner_stats[biz_ownr]['dept'] = info.get('dept', '')
-            if info['app'] and not info['app'].startswith('Gateway ('):
+            if info['app'] and not info['app'].startswith('Gateway (') and info['app'] not in ('No Application', 'Router'):
                 biz_owner_stats[biz_ownr]['apps'].add(info['app'])
             biz_owner_stats[biz_ownr]['mqmgrs'] += 1
 
+        shown_owners = {b: s for b, s in biz_owner_stats.items() if b != 'Unknown'}
         biz_table = ["||Business Owner||Department||Applications||MQ Managers||"]
-        for biz_ownr, stats in sorted(biz_owner_stats.items()):
-            if biz_ownr != 'Unknown':
-                biz_table.append(f"|{biz_ownr}|{stats['dept']}|{len(stats['apps'])}|{stats['mqmgrs']}|")
+        for biz_ownr, stats in sorted(shown_owners.items()):
+            biz_table.append(f"|{biz_ownr}|{stats['dept']}|{len(stats['apps'])}|{stats['mqmgrs']}|")
 
         lines.extend(self._expandable(
-            f"Business Owner Distribution ({len(biz_owner_stats)} owners)", biz_table
+            f"Business Owner Distribution ({len(shown_owners)} owners)", biz_table
         ))
 
         lines.extend(["", "----", ""])
@@ -903,6 +919,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             f"|*Message Broker*|IBM MQ|{len(self.stats['mqmanagers'])} Queue Managers|",
             f"|*Internal Gateways*|IBM MQ Gateway Pattern|{len(internal_gateways)} Gateways|",
             f"|*External Gateways*|IBM MQ Gateway Pattern|{len(external_gateways)} Gateways|",
+            f"|*Routers*|IBM MQ Router (MATIP/MQ Airlines)|{len(self.stats['routers'])} Routers|",
             f"|*Message Storage*|IBM MQ Queues|{self.stats['queues']['total']:,} Queues|",
             "",
             "h2. 7.2 Gateway Infrastructure",
@@ -939,15 +956,36 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         lines.extend([
             "",
+            "h3. Router Tier",
+            "",
+            "{info:title=Router Infrastructure}",
+            "Routers relay messages between external airline partners (MQ Airlines / MATIP Airlines) and internal gateways. "
+            "They sit between external MQ gateways and internal application gateways.",
+            "{info}",
+            "",
+        ])
+
+        router_table = ["||Router||Organization||Department||Description||"]
+        for rtr in sorted(self.stats['routers'], key=lambda x: x['name']):
+            desc = rtr.get('description', '') or '_No description_'
+            router_table.append(f"|{rtr['name']}|{rtr['org']}|{rtr['dept']}|{desc}|")
+        if not self.stats['routers']:
+            router_table.append("|_No routers configured_| | | |")
+
+        lines.extend(self._expandable(f"Routers ({len(self.stats['routers'])})", router_table))
+
+        lines.extend([
+            "",
             "h2. 7.3 Infrastructure Distribution",
             "",
-            "||Organization||Type||MQ Managers||Gateways||",
+            "||Organization||Type||MQ Managers||Gateways||Routers||",
         ])
 
         for org_name, org_info in sorted(self.stats['organizations'].items()):
             org_gateways = len([g for g in self.stats['gateways'] if g['org'] == org_name])
+            org_routers = len([r for r in self.stats['routers'] if r['org'] == org_name])
             type_badge = self._status_lozenge("Internal", "Green") if org_info['type'] == 'Internal' else self._status_lozenge("External", "Blue")
-            lines.append(f"|{org_name}|{type_badge}|{org_info['mqmanagers']}|{org_gateways}|")
+            lines.append(f"|{org_name}|{type_badge}|{org_info['mqmanagers']}|{org_gateways}|{org_routers}|")
 
         lines.extend(["", "----", ""])
         return lines

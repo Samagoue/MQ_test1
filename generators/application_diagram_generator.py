@@ -108,9 +108,9 @@ class ApplicationDiagramGenerator:
             for dept_name, biz_owners in departments.items():
                 for biz_ownr, apps in biz_owners.items():
                     for app_name, mqmanagers in apps.items():
-                        if app_name == "No Application":
+                        if app_name in ("No Application", "Router"):
                             continue
-                     
+
                         applications.append({
                             'application': app_name,
                             'organization': org_name,
