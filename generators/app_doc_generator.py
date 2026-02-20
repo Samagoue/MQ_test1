@@ -263,7 +263,7 @@ class ApplicationDocGenerator:
         lines.append("")
 
         # Integration map — inbound
-        _unmapped = {'No Application', 'Unknown'}
+        _unmapped = {'No Application', 'Unknown', ''}
         _RED = "{color:#cc0000}"
         _ENDC = "{color}"
         inbound_rows = []

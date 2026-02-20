@@ -89,7 +89,8 @@ class HierarchyMashup:
 
             qmgr_name = str(record.get('QmgrName', '')).strip()
             if qmgr_name:
-                mapping[qmgr_name] = str(record.get('Application', 'No Application')).strip()
+                application = str(record.get('Application', '')).strip()
+                mapping[qmgr_name] = application or 'No Application'
 
         return mapping
 
