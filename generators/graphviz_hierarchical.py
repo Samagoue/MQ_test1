@@ -42,6 +42,7 @@ class HierarchicalGraphVizGenerator:
         self.config = config
         self.all_connections = []
         self.mqmgr_lookup = {}
+        self.router_qms = []  # Populated during _generate_organizations pre-scan
 
         # Generate color mapping for departments
         self.department_colors = self._generate_department_color_mapping()
@@ -120,26 +121,40 @@ class HierarchicalGraphVizGenerator:
     def _generate_organizations(self) -> str:
         """Generate all organizations."""
         sections = []
-     
+
+        # Pre-scan: collect router QMs so they can be excluded from org clusters
+        # and rendered in the dedicated Router Tier cluster instead
+        self.router_qms = []
+        for org_data in self.data.values():
+            for biz_owners in org_data.get('_departments', {}).values():
+                for applications in biz_owners.values():
+                    for qm_name, qm_data in applications.get('Router', {}).items():
+                        if qm_data.get('IsRouter', False):
+                            self.router_qms.append((qm_name, qm_data))
+
         # Separate external and internal
         external_orgs = []
         internal_orgs = []
-     
+
         for org_name, org_data in sorted(self.data.items()):
             org_type = org_data.get('_org_type', 'Internal')
             if org_type == 'External':
                 external_orgs.append((org_name, org_data))
             else:
                 internal_orgs.append((org_name, org_data))
-     
+
         # External organizations first
         for org_name, org_data in external_orgs:
             sections.append(self._generate_organization(org_name, org_data, 'External'))
-     
+
+        # Router tier between external and internal
+        if self.router_qms:
+            sections.append(self._generate_routers_cluster())
+
         # Internal organizations
         for org_name, org_data in internal_orgs:
             sections.append(self._generate_organization(org_name, org_data, 'Internal'))
-     
+
         return "\n".join(sections)
  
     def _generate_organization(self, org_name: str, org_data: Dict, org_type: str) -> str:
@@ -250,7 +265,10 @@ class HierarchicalGraphVizGenerator:
      
         # Generate applications
         for app_name, mqmanagers in sorted(applications.items()):
-            if app_name == "No Application":
+            if app_name == "Router":
+                # Router QMs are rendered in the dedicated Router Tier cluster; skip here
+                continue
+            elif app_name == "No Application":
                 # MQ managers without application
                 for mqmgr, mq_data in sorted(mqmanagers.items()):
                     lines.append(self._generate_mqmanager_node(mqmgr, mq_data, colors, "                "))
@@ -319,6 +337,87 @@ class HierarchicalGraphVizGenerator:
         lines.extend(["                }", ""])
         return "\n".join(lines)
  
+    def _generate_routers_cluster(self) -> str:
+        """Generate the Router Tier cluster placed between external and internal org clusters."""
+        router_colors = self.config.ROUTER_COLORS
+        bg = router_colors['cluster_bg']
+        bg_light = lighten_color(bg, 0.08)
+
+        lines = [
+            "",
+            "    /* ==========================",
+            "       ROUTER TIER",
+            "    ========================== */",
+            "    subgraph cluster_ROUTER_TIER {",
+            f'        label=<<b>🔀 Router Tier</b>>',
+            f'        style="filled,rounded"',
+            f'        fillcolor="{bg}:{bg_light}"',
+            f'        gradientangle=270',
+            f'        color="{router_colors["cluster_border"]}"',
+            f'        penwidth=3',
+            f'        fontsize=20',
+            f'        margin=30',
+            "",
+            "        /* Invisible anchor for rank-ordering between external and internal tiers */",
+            "        ROUTER_TIER_ANCHOR [shape=point style=invis width=0 height=0]",
+            "",
+        ]
+
+        for qm_name, qm_data in sorted(self.router_qms):
+            lines.append(self._generate_router_node(qm_name, qm_data, "        "))
+
+        lines.extend(["    }", ""])
+        return "\n".join(lines)
+
+    def _generate_router_node(self, mqmanager: str, mq_data: Dict, indent: str) -> str:
+        """Generate a Router QM node with octagon shape and steel-blue styling."""
+        router_colors = self.config.ROUTER_COLORS
+        qm_id = self._sanitize_id(mqmanager)
+
+        qlocal = mq_data.get('qlocal_count', 0)
+        qremote = mq_data.get('qremote_count', 0)
+        qalias = mq_data.get('qalias_count', 0)
+        inbound = mq_data.get('inbound', [])
+        outbound = mq_data.get('outbound', [])
+        inbound_extra = mq_data.get('inbound_extra', [])
+        outbound_extra = mq_data.get('outbound_extra', [])
+        router_desc = mq_data.get('RouterDescription', '')
+
+        # Register in mqmgr_lookup so connection edges can find this node
+        self.mqmgr_lookup[mqmanager] = {
+            'Organization': mq_data.get('Organization', ''),
+            'Department': mq_data.get('Department', ''),
+            'Biz_Ownr': mq_data.get('Biz_Ownr', ''),
+            'Application': 'Router',
+            'Org_Type': mq_data.get('Org_Type', 'Internal')
+        }
+
+        # Register outbound connections
+        for target in outbound:
+            self.all_connections.append({'from': mqmanager, 'to': target})
+        for target in outbound_extra:
+            self.all_connections.append({'from': mqmanager, 'to': target})
+
+        url_path = f"../individual/{qm_id}.svg"
+        node_bg = router_colors['node_bg']
+        node_bg_dark = darken_color(node_bg, 0.08)
+        desc_line = f"<br/><i>{router_desc}</i>" if router_desc else ""
+
+        return f"""{indent}{qm_id} [
+{indent}    shape=octagon
+{indent}    style="filled"
+{indent}    fillcolor="{node_bg}:{node_bg_dark}"
+{indent}    gradientangle=90
+{indent}    color="{router_colors['node_border']}"
+{indent}    penwidth=2.0
+{indent}    fontcolor="{router_colors['node_text']}"
+{indent}    URL="{url_path}"
+{indent}    target="_blank"
+{indent}    tooltip="Click to view {mqmanager} details"
+{indent}    label=<<b>🔀 {mqmanager}</b>{desc_line}<br/>QLocal: {qlocal} | QRemote: {qremote} | QAlias: {qalias}<br/> ⬅ In: {len(inbound)}+{len(inbound_extra)} | Out: {len(outbound)}+{len(outbound_extra)} ➡>
+{indent}]
+"""
+
     def _generate_mqmanager_node(self, mqmanager: str, mq_data: Dict, colors: Dict, indent: str) -> str:
         """Generate MQ manager node - EXACT format from example."""
         qm_id = self._sanitize_id(mqmanager)
@@ -520,6 +619,12 @@ class HierarchicalGraphVizGenerator:
                 lines.append(f'    {from_id} -> {to_id} [color="{conn_colors["bidirectional"]}" penwidth=2.5 style=bold dir=both arrowhead={conn_arrows["bidirectional"]} arrowtail={conn_tails["bidirectional"]} weight=1]')
             lines.append("")
 
+        # Invisible rank-ordering edge: pull Router Tier anchor to the right of External orgs
+        if self.router_qms:
+            lines.append("    /* Invisible edge: enforce Router Tier between external and internal orgs */")
+            lines.append("    EXT_ANCHOR -> ROUTER_TIER_ANCHOR [style=invis weight=100]")
+            lines.append("")
+
         return "\n".join(lines)
  
     def _generate_legend(self) -> str:
@@ -550,6 +655,7 @@ class HierarchicalGraphVizGenerator:
                     <tr><td align="left">👤 Biz_Ownr</td></tr>
                     <tr><td align="left">🧩 Application</td></tr>
                     <tr><td align="left">🔀 Gateway (Internal/External)</td></tr>
+                    <tr><td align="left">🔀 Router Tier (steel-blue, octagon)</td></tr>
                     <tr><td align="left">🗄️ MQ Manager (clickable)</td></tr>
 
                     <tr><td><br/></td></tr>

@@ -12,15 +12,17 @@ logger = get_logger("processors.hierarchy_mashup")
 class HierarchyMashup:
     """Enrich MQ data with organizational hierarchy and application information."""
 
-    def __init__(self, org_hierarchy_file: Path, app_to_qmgr_file: Path, gateways_file: Path = None, hosts_file: Path = None):
+    def __init__(self, org_hierarchy_file: Path, app_to_qmgr_file: Path, gateways_file: Path = None, hosts_file: Path = None, routers_file: Path = None):
         self.org_hierarchy = self._load_org_hierarchy(org_hierarchy_file)
         self.app_mapping = self._load_app_mapping(app_to_qmgr_file)
         self.gateway_mapping = self._load_gateway_mapping(gateways_file)
         self.host_metadata = self._load_host_metadata(hosts_file)
+        self.router_mapping = self._load_router_mapping(routers_file)
         logger.info(f"✓ Loaded {len(self.org_hierarchy)} business owners from hierarchy")
         logger.info(f"✓ Loaded {len(self.app_mapping)} application mappings")
         logger.info(f"✓ Loaded {len(self.gateway_mapping)} gateway mappings")
         logger.info(f"✓ Loaded {len(self.host_metadata)} host metadata records")
+        logger.info(f"✓ Loaded {len(self.router_mapping)} router mappings")
  
     def _load_org_hierarchy(self, filepath: Path) -> Dict:
         """Load and index org hierarchy by Biz_Ownr (directorate)."""
@@ -132,6 +134,40 @@ class HierarchyMashup:
 
         return mapping
 
+    def _load_router_mapping(self, filepath: Path) -> Dict:
+        """Load and index router mapping by QmgrName."""
+        from utils.file_io import load_json
+
+        if filepath is None or not filepath.exists():
+            if filepath is not None:
+                logger.warning(f"⚠ Warning: {filepath} not found. No router mappings loaded.")
+            return {}
+
+        try:
+            data = load_json(filepath)
+        except Exception as e:
+            logger.warning(f"⚠ Warning: Failed to load {filepath}: {e}. No router mappings loaded.")
+            return {}
+
+        if not isinstance(data, list):
+            logger.warning(f"⚠ Warning: {filepath} should contain a JSON array. No router mappings loaded.")
+            return {}
+
+        mapping = {}
+
+        for idx, record in enumerate(data):
+            if not isinstance(record, dict):
+                logger.warning(f"⚠ Warning: Record {idx} in {filepath} is not a valid object, skipping.")
+                continue
+
+            qmgr_name = str(record.get('QmgrName', '')).strip()
+            if qmgr_name:
+                mapping[qmgr_name] = {
+                    'Description': str(record.get('Description', '')).strip()
+                }
+
+        return mapping
+
     def _load_host_metadata(self, filepath: Path) -> Dict:
         """Load CMDB host metadata indexed by hostname (case-insensitive)."""
         from utils.file_io import load_json
@@ -202,6 +238,45 @@ class HierarchyMashup:
        
             # Process each MQ manager
             for mqmanager, mq_data in mqmanagers.items():
+                # Check if this MQ manager is a router (checked before gateway)
+                router_info = self.router_mapping.get(mqmanager)
+
+                if router_info:
+                    application = "Router"
+
+                    if application not in enriched[org]['_departments'][dept][biz_ownr]:
+                        enriched[org]['_departments'][dept][biz_ownr][application] = {}
+
+                    host_name = mq_data.get('mq_host', '')
+                    host_info = self.host_metadata.get(host_name.upper(), {}) if host_name else {}
+
+                    enriched[org]['_departments'][dept][biz_ownr][application][mqmanager] = {
+                        'Organization': org,
+                        'Org_Type': org_type,
+                        'Department': dept,
+                        'Biz_Ownr': biz_ownr,
+                        'Application': application,
+                        'MQmanager': mqmanager,
+                        'mq_host': host_name,
+                        'host_directorate': host_info.get('host_directorate', ''),
+                        'hardware_type': host_info.get('hardware_type', ''),
+                        'hardware_model': host_info.get('hardware_model', ''),
+                        'os_type': host_info.get('os_type', ''),
+                        'program_office': host_info.get('program_office', ''),
+                        'qlocal_count': mq_data.get('qlocal_count', 0),
+                        'qremote_count': mq_data.get('qremote_count', 0),
+                        'qalias_count': mq_data.get('qalias_count', 0),
+                        'total_count': mq_data.get('total_count', 0),
+                        'inbound': mq_data.get('inbound', []),
+                        'outbound': mq_data.get('outbound', []),
+                        'inbound_extra': mq_data.get('inbound_extra', []),
+                        'outbound_extra': mq_data.get('outbound_extra', []),
+                        'IsGateway': False,
+                        'IsRouter': True,
+                        'RouterDescription': router_info.get('Description', '')
+                    }
+                    continue
+
                 # Check if this MQ manager is a gateway
                 gateway_info = self.gateway_mapping.get(mqmanager)
 
@@ -240,6 +315,7 @@ class HierarchyMashup:
                         'inbound_extra': mq_data.get('inbound_extra', []),
                         'outbound_extra': mq_data.get('outbound_extra', []),
                         'IsGateway': True,
+                        'IsRouter': False,
                         'GatewayScope': gateway_scope,
                         'GatewayDescription': gateway_info.get('Description', '')
                     }
@@ -276,7 +352,8 @@ class HierarchyMashup:
                         'outbound': mq_data.get('outbound', []),
                         'inbound_extra': mq_data.get('inbound_extra', []),
                         'outbound_extra': mq_data.get('outbound_extra', []),
-                        'IsGateway': False
+                        'IsGateway': False,
+                        'IsRouter': False
                     }
-   
+
         return enriched

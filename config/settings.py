@@ -136,6 +136,7 @@ class Config:
     ORG_HIERARCHY_JSON = INPUT_DIR / "org_hierarchy.json"
     APP_TO_QMGR_JSON = INPUT_DIR / "app_to_qmgr.json"
     GATEWAYS_JSON = INPUT_DIR / "gateways.json"
+    ROUTERS_JSON = INPUT_DIR / "routers.json"
     MQMANAGER_ALIASES_JSON = INPUT_DIR / "mqmanager_aliases.json"
     EXTERNAL_APPS_JSON = INPUT_DIR / "external_apps.json"
     HOSTS_JSON = OUTPUT_DIR / "all_cmdb_hosts.json"
@@ -272,6 +273,15 @@ class Config:
         'qm_bg': '#b2ebf2',           # Slightly darker teal for MQ managers
         'qm_border': '#0097a7',       # Dark cyan border
         'qm_text': '#006064'          # Dark cyan text
+    }
+
+    # Router Tier Colors (Steel Blue - distinct from gateways, signals network infrastructure)
+    ROUTER_COLORS = {
+        'cluster_bg':     '#e3f2fd',   # Light steel-blue background
+        'cluster_border': '#1565c0',   # Dark blue border
+        'node_bg':        '#bbdefb',   # Medium blue node fill
+        'node_border':    '#0d47a1',   # Deep blue node border
+        'node_text':      '#0d2a6e',   # Very dark blue text
     }
 
     INDIVIDUAL_DIAGRAM_COLORS = {

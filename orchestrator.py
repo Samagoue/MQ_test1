@@ -127,7 +127,7 @@ class MQCMDBOrchestrator:
 
             # Mashup with hierarchy
             logger.info("\n[4/14] Enriching with organizational hierarchy...")
-            mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON, Config.HOSTS_JSON)
+            mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON, Config.HOSTS_JSON, Config.ROUTERS_JSON)
             enriched_data = mashup.enrich_data(json_output)
             save_json(enriched_data, Config.PROCESSED_JSON)
             logger.info(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
