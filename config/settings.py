@@ -1,3 +1,4 @@
+
 """Configuration settings for MQ CMDB automation system."""
 
 import random
@@ -277,11 +278,11 @@ class Config:
 
     # Router Tier Colors (Steel Blue - distinct from gateways, signals network infrastructure)
     ROUTER_COLORS = {
-        'cluster_bg':     '#e3f2fd',   # Light steel-blue background
-        'cluster_border': '#1565c0',   # Dark blue border
-        'node_bg':        '#bbdefb',   # Medium blue node fill
-        'node_border':    '#0d47a1',   # Deep blue node border
-        'node_text':      '#0d2a6e',   # Very dark blue text
+        'cluster_bg':     '#fce4ec',   # Light steel-blue background
+        'cluster_border': '#b71c1c',   # Dark blue border '#1565c0'
+        'node_bg':        '#ffcdd2',   # Medium blue node fill
+        'node_border':    '#c62828',   # Deep blue node border '#0d47a1'
+        'node_text':      '#7f0000',   # Very dark blue text
     }
 
     INDIVIDUAL_DIAGRAM_COLORS = {
@@ -368,4 +369,3 @@ class Config:
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return cls.LOGS_DIR / f"{prefix}_{timestamp}.log"
-

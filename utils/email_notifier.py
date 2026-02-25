@@ -1,4 +1,3 @@
-
 """
 Email notification module for MQ CMDB pipeline.
 

@@ -1,4 +1,3 @@
-
 """Full MQ topology diagram generator."""
 
 import subprocess

@@ -1,4 +1,3 @@
-
 """
 Smart Filtering for MQ CMDB Data
 

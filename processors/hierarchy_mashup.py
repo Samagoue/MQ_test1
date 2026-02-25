@@ -1,4 +1,3 @@
-
 """
 Mashup processor to enrich MQ data with organizational hierarchy and application info.
 """
@@ -357,3 +356,4 @@ class HierarchyMashup:
                     }
 
         return enriched
+

@@ -1,4 +1,3 @@
-
 """Common utility functions for the MQ CMDB system."""
 
 import sys
@@ -251,4 +250,3 @@ def darken_color(hex_color: str, factor: float = 0.15) -> str:
     b = max(0, int(b * (1 - factor)))
 
     return f'#{r:02x}{g:02x}{b:02x}'
-

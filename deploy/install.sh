@@ -1,4 +1,3 @@
-
 #!/bin/bash
 #===============================================================================
 # MQ CMDB Automation System - RHEL Installation Script
@@ -431,3 +430,4 @@ main() {
 }
 
 main "$@"
+

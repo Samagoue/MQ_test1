@@ -301,6 +301,7 @@ class ApplicationDiagramGenerator:
                     ])
                  
                     for app_name, mqmanagers in sorted(applications.items()):
+
                         is_focus_app = (is_focus_biz and app_name == focus_app)
                         app_id = self._sanitize_id(app_name)
 

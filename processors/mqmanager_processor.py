@@ -1,4 +1,3 @@
-
 """
 MQ Manager Processor - Based on ACTUAL Working Logic
 Uses the original asset-based parsing that extracts MQ manager names from asset strings.

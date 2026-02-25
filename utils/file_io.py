@@ -1,4 +1,3 @@
-
 """File I/O utilities for the MQ CMDB system."""
 
 import json

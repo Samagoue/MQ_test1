@@ -1,5 +1,3 @@
-
-
 """Shared CSS and JS for HTML reports (change detection, gateway analytics)."""
 
 

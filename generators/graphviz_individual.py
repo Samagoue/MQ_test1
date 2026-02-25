@@ -1,4 +1,3 @@
-
 """Individual MQ Manager diagram generator."""
 
 from typing import Dict

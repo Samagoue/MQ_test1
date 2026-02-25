@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Database Export Script - Batch Process SQL Queries

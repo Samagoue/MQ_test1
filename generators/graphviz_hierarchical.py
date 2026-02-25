@@ -1,4 +1,3 @@
-
 """
 Hierarchical GraphViz Generator - Exact Match to Example
 Generates the main topology diagram with Organization → Department → Biz_Ownr → Application → MQ Manager
@@ -655,7 +654,7 @@ class HierarchicalGraphVizGenerator:
                     <tr><td align="left">👤 Biz_Ownr</td></tr>
                     <tr><td align="left">🧩 Application</td></tr>
                     <tr><td align="left">🔀 Gateway (Internal/External)</td></tr>
-                    <tr><td align="left">🔀 Router Tier (steel-blue, octagon)</td></tr>
+                    <tr><td align="left">🔀 Router Tier (cimson, octagon)</td></tr>
                     <tr><td align="left">🗄️ MQ Manager (clickable)</td></tr>
 
                     <tr><td><br/></td></tr>
@@ -730,3 +729,4 @@ class HierarchicalGraphVizGenerator:
         except subprocess.CalledProcessError as e:
             logger.error(f"✗ PDF generation failed: {e}")
             return False
+
