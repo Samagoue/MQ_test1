@@ -27,7 +27,7 @@ from collections import defaultdict
 from utils.logging_config import get_logger
 
 # Shared scripts directory (same convention as confluence_shim.py)
-_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", r"C:/Users/BABED2P/Documents/WORKSPACE/Scripts")
+_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", "/data/app/Scripts")
 if _SHARED_SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SHARED_SCRIPTS_DIR)
 

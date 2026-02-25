@@ -280,9 +280,12 @@ EMAIL_ENABLED=false
 # SMTP_FROM=mqcmdb@company.com
 # SMTP_USE_TLS=true
 
-# Optional: Confluence credentials for sync
-# CONFLUENCE_USER=your.email@company.com
-# CONFLUENCE_TOKEN=your-api-token
+# Confluence settings
+# CONFLUENCE_CERTIFICATE_PATH points to the CA cert used to verify the
+# Confluence server's SSL certificate (needed on Linux; Windows uses the
+# system store automatically)
+CONFLUENCE_CERTIFICATE_PATH=/data/app/EA_Documentation/mycert.pem
+# CONFLUENCE_PAT=your-personal-access-token
 EOF
 
     chown "$SERVICE_USER:$SERVICE_USER" "$ENV_FILE"

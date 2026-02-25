@@ -29,7 +29,7 @@ from utils.logging_config import get_logger
 logger = get_logger("utils.confluence_shim")
 
 # Shared scripts directory (same convention as logging_config.py)
-_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", r"C:/Users/BABED2P/Documents/WORKSPACE/Scripts")
+_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", "/data/app/Scripts")
 if _SHARED_SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SHARED_SCRIPTS_DIR)
 

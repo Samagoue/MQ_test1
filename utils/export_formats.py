@@ -68,7 +68,8 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str 
             [engine, '-Tsvg', str(dot_file), '-o', str(svg_file)],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            timeout=120
         )
 
         # Post-process SVG to remove underlines from hyperlinks
@@ -76,6 +77,9 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str 
 
         logger.info(f"✓ SVG generated: {svg_file}")
         return True
+    except subprocess.TimeoutExpired:
+        logger.warning(f"⚠ SVG generation timed out for {dot_file.name} - skipped")
+        return False
     except subprocess.CalledProcessError as e:
         logger.error(f"✗ SVG generation failed: {e.stderr}")
         return False
@@ -149,10 +153,14 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, lay
             [engine, '-Tpng', f'-Gdpi={dpi}', str(dot_file), '-o', str(png_file)],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            timeout=120
         )
         logger.info(f"✓ PNG generated: {png_file}")
         return True
+    except subprocess.TimeoutExpired:
+        logger.warning(f"⚠ PNG generation timed out for {dot_file.name} - skipped")
+        return False
     except subprocess.CalledProcessError as e:
         logger.error(f"✗ PNG generation failed: {e.stderr}")
         return False

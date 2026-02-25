@@ -723,9 +723,12 @@ class HierarchicalGraphVizGenerator:
      
         try:
             subprocess.run(['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)],
-                         check=True, capture_output=True)
+                         check=True, capture_output=True, timeout=120)
             logger.info(f"✓ PDF generated: {pdf_file}")
             return True
+        except subprocess.TimeoutExpired:
+            logger.warning("⚠ PDF generation timed out after 120s - DOT file saved, PDF skipped")
+            return False
         except subprocess.CalledProcessError as e:
             logger.error(f"✗ PDF generation failed: {e}")
             return False

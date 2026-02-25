@@ -87,9 +87,12 @@ class ApplicationDiagramGenerator:
                     subprocess.run(
                         ['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)],
                         check=True,
-                        capture_output=True
+                        capture_output=True,
+                        timeout=60
                     )
                     logger.info(f"  ✓ Generated: {safe_name}.pdf")
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"  ⚠ PDF generation timed out for {safe_name} - DOT file saved")
                 except subprocess.CalledProcessError:
                     logger.warning(f"  ⚠ PDF generation failed for {safe_name}")
          

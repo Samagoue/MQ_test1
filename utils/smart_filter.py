@@ -85,6 +85,7 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
         Config: Configuration object
     """
     from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
+    from utils.export_formats import export_dot_to_svg
 
     output_dir.mkdir(exist_ok=True)
     generated_count = 0
@@ -99,8 +100,7 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
             gen = HierarchicalGraphVizGenerator(org_data, Config)
             gen.save_to_file(dot_file)
 
-            pdf_file = dot_file.with_suffix('.pdf')
-            if gen.generate_pdf(dot_file, pdf_file):
+            if export_dot_to_svg(dot_file):
                 generated_count += 1
 
     # 2. Gateways-Only Diagram
@@ -109,9 +109,7 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
         dot_file = output_dir / "gateways_only.dot"
         gen = HierarchicalGraphVizGenerator(gateway_data, Config)
         gen.save_to_file(dot_file)
-
-        pdf_file = dot_file.with_suffix('.pdf')
-        if gen.generate_pdf(dot_file, pdf_file):
+        if export_dot_to_svg(dot_file):
             generated_count += 1
 
     # 3. Internal Gateways Only
@@ -120,9 +118,7 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
         dot_file = output_dir / "gateways_internal.dot"
         gen = HierarchicalGraphVizGenerator(internal_gw_data, Config)
         gen.save_to_file(dot_file)
-
-        pdf_file = dot_file.with_suffix('.pdf')
-        if gen.generate_pdf(dot_file, pdf_file):
+        if export_dot_to_svg(dot_file):
             generated_count += 1
 
     # 4. External Gateways Only
@@ -131,9 +127,7 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
         dot_file = output_dir / "gateways_external.dot"
         gen = HierarchicalGraphVizGenerator(external_gw_data, Config)
         gen.save_to_file(dot_file)
-
-        pdf_file = dot_file.with_suffix('.pdf')
-        if gen.generate_pdf(dot_file, pdf_file):
+        if export_dot_to_svg(dot_file):
             generated_count += 1
 
     return generated_count

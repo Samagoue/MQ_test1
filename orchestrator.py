@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from config.settings import Config
 from utils.common import setup_utf8_output
-from utils.logging_config import get_logger
+from utils.logging_config import setup_logging, get_logger
 from utils.file_io import load_json, save_json, cleanup_output_directory
 from utils.export_formats import export_directory_to_formats, generate_excel_inventory
 from utils.email_notifier import get_notifier
@@ -177,40 +177,45 @@ class MQCMDBOrchestrator:
 
             # Generate hierarchical topology
             logger.info("\n[6/14] Generating hierarchical topology diagram...")
-            gen = HierarchicalGraphVizGenerator(enriched_data, Config)
-            gen.save_to_file(Config.TOPOLOGY_DOT)
-
-            # Try to generate PDF, but don't fail if GraphViz is not installed
-            pdf_generated = gen.generate_pdf(Config.TOPOLOGY_DOT, Config.TOPOLOGY_PDF)
-            if not pdf_generated:
-                logger.warning("⚠ GraphViz not found - DOT file created, PDF skipped")
-                logger.info(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
+            pdf_generated = False
+            try:
+                gen = HierarchicalGraphVizGenerator(enriched_data, Config)
+                gen.save_to_file(Config.TOPOLOGY_DOT)
+                pdf_generated = gen.generate_pdf(Config.TOPOLOGY_DOT, Config.TOPOLOGY_PDF)
+                if not pdf_generated:
+                    logger.warning("⚠ GraphViz not found - DOT file created, PDF skipped")
+                    logger.info(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
+            except Exception as e:
+                logger.warning(f"⚠ Hierarchical topology generation failed: {e}")
+                self._pipeline_errors.append(f"Topology diagram: {e}")
 
             # Generate application diagrams
             logger.info("\n[7/14] Generating application diagrams...")
-            app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
-            app_gen = ApplicationDiagramGenerator(enriched_data, Config)
-            count = app_gen.generate_all(app_diagrams_dir)
-            if count > 0:
-                logger.info(f"✓ Generated {count} application diagrams in {app_diagrams_dir}")
-                if not pdf_generated:
-                    logger.warning("⚠ GraphViz required for PDF generation")
-                    logger.info(f"  → To generate PDFs: cd {app_diagrams_dir} && for f in *.dot; do dot -Tpdf $f -o ${{f%.dot}}.pdf; done")
-            else:
-                logger.warning("⚠ No application diagrams generated")
+            try:
+                app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
+                app_gen = ApplicationDiagramGenerator(enriched_data, Config)
+                count = app_gen.generate_all(app_diagrams_dir)
+                if count > 0:
+                    logger.info(f"✓ Generated {count} application diagrams in {app_diagrams_dir}")
+                else:
+                    logger.warning("⚠ No application diagrams generated")
+            except Exception as e:
+                logger.warning(f"⚠ Application diagram generation failed: {e}")
+                self._pipeline_errors.append(f"Application diagrams: {e}")
 
             # Generate individual MQ manager diagrams
             logger.info("\n[8/14] Generating individual MQ manager diagrams...")
-            individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
-            individual_gen = IndividualDiagramGenerator(directorate_data, Config)
-            individual_count = individual_gen.generate_all(individual_diagrams_dir)
-            if individual_count > 0:
-                logger.info(f"✓ Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
-                if not pdf_generated:
-                    logger.warning("⚠ GraphViz required for PDF generation")
-                    logger.info(f"  → To generate PDFs: cd {individual_diagrams_dir} && for f in *.dot; do dot -Tpdf $f -o ${{f%.dot}}.pdf; done")
-            else:
-                logger.warning("⚠ No individual diagrams generated")
+            try:
+                individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
+                individual_gen = IndividualDiagramGenerator(directorate_data, Config)
+                individual_count = individual_gen.generate_all(individual_diagrams_dir)
+                if individual_count > 0:
+                    logger.info(f"✓ Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
+                else:
+                    logger.warning("⚠ No individual diagrams generated")
+            except Exception as e:
+                logger.warning(f"⚠ Individual diagram generation failed: {e}")
+                self._pipeline_errors.append(f"Individual diagrams: {e}")
 
             # Smart Filtered Views
             logger.info("\n[9/14] Generating smart filtered views...")
@@ -273,11 +278,10 @@ class MQCMDBOrchestrator:
             # Multi-Format Exports
             logger.info("\n[11/14] Generating multi-format exports...")
             try:
-                # Export main topology to SVG and PNG
+                # Export main topology to SVG only (PNG skipped - too slow for large topology)
                 if Config.TOPOLOGY_DOT.exists():
-                    from utils.export_formats import export_dot_to_svg, export_dot_to_png
+                    from utils.export_formats import export_dot_to_svg
                     export_dot_to_svg(Config.TOPOLOGY_DOT, Config.TOPOLOGY_DIR / "mq_topology.svg")
-                    export_dot_to_png(Config.TOPOLOGY_DOT, Config.TOPOLOGY_DIR / "mq_topology.png", dpi=200)
 
                 # Export all application diagrams
                 if Config.APPLICATION_DIAGRAMS_DIR.exists():
@@ -503,6 +507,7 @@ class MQCMDBOrchestrator:
 
 def main():
     """Entry point for the MQ CMDB orchestrator."""
+    setup_logging(banner_config=Config.BANNER_CONFIG)
     orchestrator = MQCMDBOrchestrator()
     success = orchestrator.run_full_pipeline()
 
