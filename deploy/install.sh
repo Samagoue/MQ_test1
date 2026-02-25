@@ -223,15 +223,6 @@ setup_installation_directory() {
     # Set ownership of shared scripts directory
     chown -R "$SERVICE_USER:$SERVICE_USER" /data/app/Scripts
 
-    # Create email config directory
-    mkdir -p /etc/mqcmdb
-
-    # Copy email config example if tools directory exists
-    if [ -f "$PROJECT_DIR/tools/email_config.ini.example" ]; then
-        cp "$PROJECT_DIR/tools/email_config.ini.example" /etc/mqcmdb/email_config.ini.example
-        log_info "Email config example copied to /etc/mqcmdb/"
-    fi
-
     # Set ownership
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
@@ -261,7 +252,7 @@ setup_environment_file() {
 
 # Database Master Password (set this securely)
 # This is used to decrypt database credentials
-# DB_MASTER_PASSWORD=your_secure_password
+DB_MASTER_PASSWORD=S@magoue
 
 # Python settings
 PYTHONIOENCODING=utf-8
@@ -281,10 +272,7 @@ EMAIL_ENABLED=false
 # Recipients (comma-separated for multiple)
 # EMAIL_RECIPIENTS=ops-team@company.com,admin@company.com
 
-# Email configuration file (alternative to env vars below)
-# EMAIL_CONFIG_FILE=/etc/mqcmdb/email_config.ini
-
-# SMTP server settings (if not using config file)
+# SMTP server settings
 # SMTP_SERVER=smtp.company.com
 # SMTP_PORT=587
 # SMTP_USER=your_username
@@ -393,12 +381,11 @@ print_summary() {
     echo "   - $INSTALL_DIR/input/org_hierarchy.json"
     echo ""
     echo "4. (Optional) Configure email notifications:"
-    echo "   sudo cp /etc/mqcmdb/email_config.ini.example /etc/mqcmdb/email_config.ini"
-    echo "   sudo vi /etc/mqcmdb/email_config.ini"
-    echo "   # Then in $INSTALL_DIR/.env, set:"
+    echo "   # In $INSTALL_DIR/.env, set:"
     echo "   #   EMAIL_ENABLED=true"
     echo "   #   EMAIL_RECIPIENTS=your-team@company.com"
-    echo "   #   EMAIL_CONFIG_FILE=/etc/mqcmdb/email_config.ini"
+    echo "   #   SMTP_SERVER=smtp.company.com"
+    echo "   #   SMTP_FROM=mqcmdb@company.com"
     echo ""
     echo "5. Test the pipeline manually:"
     echo "   sudo -u $SERVICE_USER $INSTALL_DIR/deploy/run_pipeline.sh"

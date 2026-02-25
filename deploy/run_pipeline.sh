@@ -24,7 +24,6 @@
 # Email Notification Variables (optional):
 #   EMAIL_ENABLED        Set to 'true' to enable email notifications
 #   EMAIL_RECIPIENTS     Comma-separated list of recipient addresses
-#   EMAIL_CONFIG_FILE    Path to email config INI file
 #   SMTP_SERVER          SMTP server hostname
 #   SMTP_PORT            SMTP server port (default: 25)
 #   SMTP_USER            SMTP username for authentication
@@ -125,7 +124,6 @@ Environment Variables:
 Email Notification Variables (optional):
   EMAIL_ENABLED        Set to 'true' to enable email notifications
   EMAIL_RECIPIENTS     Comma-separated list of recipient addresses
-  EMAIL_CONFIG_FILE    Path to email config INI file (e.g., /etc/mqcmdb/email_config.ini)
   SMTP_SERVER          SMTP server hostname
   SMTP_PORT            SMTP server port (default: 25)
   SMTP_USER            SMTP username for authentication
@@ -335,10 +333,7 @@ run_database_export() {
 run_orchestrator() {
     log_step "Running processing pipeline..."
 
-    local cmd="python3 cli.py run"
-    if [ "$DIAGRAMS_ONLY" = true ]; then
-        cmd="python3 cli.py diagrams"
-    fi
+    local cmd="python3 orchestrator.py"
 
     if [ "$DRY_RUN" = true ]; then
         log_info "[DRY-RUN] Would execute: $cmd"
@@ -406,7 +401,6 @@ send_notification() {
 
     # Email configuration
     local EMAIL_SCRIPT="/data/app/Scripts/send_email.py"
-    local EMAIL_CONFIG="${EMAIL_CONFIG_FILE:-/etc/mqcmdb/email_config.ini}"
     local EMAIL_TO="${EMAIL_RECIPIENTS:-ops-team@company.com}"
     local EMAIL_FROM="${SMTP_FROM:-mqcmdb@company.com}"
 
@@ -460,11 +454,6 @@ MQ CMDB Automation System"
 
     # Build command
     local cmd="python3 \"$EMAIL_SCRIPT\" --from \"$EMAIL_FROM\" --to $EMAIL_TO --subject \"$subject\" --body \"$body\""
-
-    # Add config file if exists
-    if [ -f "$EMAIL_CONFIG" ]; then
-        cmd="python3 \"$EMAIL_SCRIPT\" --config \"$EMAIL_CONFIG\" --from \"$EMAIL_FROM\" --to $EMAIL_TO --subject \"$subject\" --body \"$body\""
-    fi
 
     # Attach log file if it exists and is not too large (< 1MB)
     if [ -f "$LOG_FILE" ]; then
