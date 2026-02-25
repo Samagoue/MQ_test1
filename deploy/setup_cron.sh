@@ -10,7 +10,7 @@
 # Options:
 #   --schedule CRON      Cron schedule expression (default: "0 6 * * *" = 6 AM daily)
 #   --user USER          User to run the cron job as (default: current user)
-#   --install-dir DIR    Installation directory (default: /opt/mqcmdb)
+#   --install-dir DIR    Installation directory (default: /data/app/EA_Documentation/IBM_MQ)
 #   --remove             Remove existing MQ CMDB cron jobs
 #   --list               List current MQ CMDB cron jobs
 #   --help               Show this help message
@@ -35,8 +35,8 @@ NC='\033[0m' # No Color
 
 # Default configuration
 CRON_SCHEDULE="0 6 * * *"
-CRON_USER="${USER:-$(whoami)}"
-INSTALL_DIR="/opt/mqcmdb"
+CRON_USER="microtest"
+INSTALL_DIR="/data/app/EA_Documentation/IBM_MQ"
 ACTION="install"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -67,7 +67,7 @@ Usage: $(basename "$0") [OPTIONS]
 Options:
   --schedule CRON      Cron schedule expression (default: "0 6 * * *" = 6 AM daily)
   --user USER          User to run the cron job as (default: $CRON_USER)
-  --install-dir DIR    Installation directory (default: /opt/mqcmdb)
+  --install-dir DIR    Installation directory (default: /data/app/EA_Documentation/IBM_MQ)
   --remove             Remove existing MQ CMDB cron jobs
   --list               List current MQ CMDB cron jobs
   --help               Show this help message

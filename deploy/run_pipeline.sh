@@ -405,7 +405,7 @@ send_notification() {
     # Configure paths and recipients below
 
     # Email configuration
-    local EMAIL_SCRIPT="${MQCMDB_HOME}/tools/send_email.py"
+    local EMAIL_SCRIPT="/data/app/Scripts/send_email.py"
     local EMAIL_CONFIG="${EMAIL_CONFIG_FILE:-/etc/mqcmdb/email_config.ini}"
     local EMAIL_TO="${EMAIL_RECIPIENTS:-ops-team@company.com}"
     local EMAIL_FROM="${SMTP_FROM:-mqcmdb@company.com}"

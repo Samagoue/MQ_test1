@@ -8,8 +8,8 @@
 # Usage: sudo ./install.sh [OPTIONS]
 #
 # Options:
-#   --install-dir DIR    Installation directory (default: /opt/mqcmdb)
-#   --user USER          Service user (default: mqcmdb)
+#   --install-dir DIR    Installation directory (default: /data/app/EA_Documentation/IBM_MQ)
+#   --user USER          Service user (default: microtest)
 #   --skip-graphviz      Skip GraphViz installation
 #   --skip-python        Skip Python installation (use existing)
 #   --help               Show this help message
@@ -25,8 +25,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default configuration
-INSTALL_DIR="/opt/mqcmdb"
-SERVICE_USER="mqcmdb"
+INSTALL_DIR="/data/app/EA_Documentation/IBM_MQ"
+SERVICE_USER="microtest"
 SKIP_GRAPHVIZ=false
 SKIP_PYTHON=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -106,8 +106,8 @@ parse_args() {
                 echo "Usage: sudo ./install.sh [OPTIONS]"
                 echo ""
                 echo "Options:"
-                echo "  --install-dir DIR    Installation directory (default: /opt/mqcmdb)"
-                echo "  --user USER          Service user (default: mqcmdb)"
+                echo "  --install-dir DIR    Installation directory (default: /data/app/EA_Documentation/IBM_MQ)"
+                echo "  --user USER          Service user (default: microtest)"
                 echo "  --skip-graphviz      Skip GraphViz installation"
                 echo "  --skip-python        Skip Python installation (use existing)"
                 echo "  --help               Show this help message"
@@ -207,6 +207,21 @@ setup_installation_directory() {
     cp -r "$PROJECT_DIR"/input/* "$INSTALL_DIR/input/" 2>/dev/null || true
     cp -r "$PROJECT_DIR"/deploy "$INSTALL_DIR/"
     cp -r "$PROJECT_DIR"/tools "$INSTALL_DIR/" 2>/dev/null || true
+
+    # Copy reusable scripts to shared location
+    log_info "Copying reusable scripts to /data/app/Scripts..."
+    mkdir -p /data/app/Scripts
+    cp -r "$PROJECT_DIR"/scripts/common/* /data/app/Scripts/ 2>/dev/null || true
+
+    # Copy certificate if present
+    if [ -f "$PROJECT_DIR/mycert.pem" ]; then
+        log_info "Copying certificate to /data/app/EA_Documentation..."
+        cp "$PROJECT_DIR/mycert.pem" /data/app/EA_Documentation/
+        chown "$SERVICE_USER:$SERVICE_USER" /data/app/EA_Documentation/mycert.pem
+    fi
+
+    # Set ownership of shared scripts directory
+    chown -R "$SERVICE_USER:$SERVICE_USER" /data/app/Scripts
 
     # Create email config directory
     mkdir -p /etc/mqcmdb
