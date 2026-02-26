@@ -332,8 +332,37 @@ def publish_consolidated_report(
         comment = version_comment or "Auto-updated by MQ CMDB pipeline"
         updated_time = _dt.now().strftime('%Y-%m-%d %H:%M:%S')
         report_filename = report_path.name
+        base_url = config.get("base_url", "").rstrip("/")
 
-        # Wiki markup body — description with clickable attachment link
+        # Step 1: Create or locate the child page
+        existing_children = client.get_child_pages(parent_id)
+        child_by_title = {child["title"]: child["id"] for child in existing_children}
+
+        if PAGE_TITLE in child_by_title:
+            child_page_id = child_by_title[PAGE_TITLE]
+            logger.info(f"  Found existing consolidated report page (id {child_page_id})")
+        else:
+            placeholder = f"h1. {PAGE_TITLE}\n\nGenerating report... *Last updated:* {updated_time}\n"
+            result = client.create_page(
+                space_key=space_key,
+                title=PAGE_TITLE,
+                body=placeholder,
+                parent_id=parent_id,
+                representation="wiki",
+            )
+            child_page_id = result.get("id")
+            logger.info(f"  Created consolidated report page (id {child_page_id})")
+
+        # Step 2: Attach the HTML report (must be uploaded before the body link can resolve)
+        client.attach_file(
+            page_id=child_page_id,
+            file_path=str(report_path),
+            comment=comment,
+        )
+
+        # Step 3: Update page body with a direct URL link — [text|URL] opens cleanly in the browser
+        # Using the /download/attachments path so the browser opens the file directly, not wrapped in Confluence UI
+        download_url = f"{base_url}/download/attachments/{child_page_id}/{report_filename}"
         body = f"""h1. MQ CMDB Consolidated Report
 
 This page contains the latest consolidated pipeline report generated on {updated_time}.
@@ -345,43 +374,18 @@ The report includes three interactive tabs:
 
 h2. Open Report
 
-[▶ Open Interactive Report^{report_filename}]
+[Open Interactive Report|{download_url}]
 
-Click the link above to open the report directly in your browser. No server required — the file is fully self-contained HTML.
+Click the link above to open the report directly in your browser. The file is fully self-contained HTML — no server required.
 
 *Last updated:* {updated_time}
 """
-
-        # Find existing child page or create new one
-        existing_children = client.get_child_pages(parent_id)
-        child_by_title = {child["title"]: child["id"] for child in existing_children}
-
-        if PAGE_TITLE in child_by_title:
-            child_page_id = child_by_title[PAGE_TITLE]
-            client.update_page(
-                page_id=child_page_id,
-                title=PAGE_TITLE,
-                body=body,
-                representation="wiki",
-                version_comment=comment,
-            )
-            logger.info(f"  Updated consolidated report page (id {child_page_id})")
-        else:
-            result = client.create_page(
-                space_key=space_key,
-                title=PAGE_TITLE,
-                body=body,
-                parent_id=parent_id,
-                representation="wiki",
-            )
-            child_page_id = result.get("id")
-            logger.info(f"  Created consolidated report page (id {child_page_id})")
-
-        # Attach the HTML report to the child page
-        client.attach_file(
+        client.update_page(
             page_id=child_page_id,
-            file_path=str(report_path),
-            comment=comment,
+            title=PAGE_TITLE,
+            body=body,
+            representation="wiki",
+            version_comment=comment,
         )
 
         logger.info(f"✓ Consolidated report published: '{PAGE_TITLE}' (id {child_page_id})")
