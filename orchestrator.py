@@ -282,6 +282,7 @@ class MQCMDBOrchestrator:
                     output_file=consolidated_file,
                     current_timestamp=timestamp,
                     baseline_timestamp=baseline_time_str,
+                    enriched_data=enriched_data,
                 )
                 self._consolidated_report_file = consolidated_file
                 logger.info(f"✓ Consolidated report: {consolidated_file}")
@@ -345,7 +346,7 @@ class MQCMDBOrchestrator:
                     from utils.confluence_shim import (
                         is_configured, attach_diagrams_enabled, app_docs_enabled,
                         publish_ea_documentation, publish_application_diagrams,
-                        publish_app_documentation,
+                        publish_app_documentation, publish_consolidated_report,
                     )
 
                     if is_configured():
@@ -391,6 +392,18 @@ class MQCMDBOrchestrator:
                             if diagram_summary["errors"] > 0:
                                 logger.warning(f"⚠ {diagram_summary['errors']} diagram attachment(s) failed")
                                 self._pipeline_errors.append(f"Confluence: {diagram_summary['errors']} diagram attachment(s) failed")
+
+                        # Attach consolidated report (Changes + Gateway Analytics + Routers)
+                        if self._consolidated_report_file and self._consolidated_report_file.exists():
+                            pub_ok = publish_consolidated_report(
+                                self._consolidated_report_file,
+                                version_comment=f"Pipeline run {timestamp}",
+                            )
+                            if pub_ok:
+                                logger.info("✓ Consolidated report published to Confluence")
+                            else:
+                                logger.warning("⚠ Consolidated report could not be attached to Confluence")
+                                self._pipeline_errors.append("Confluence: consolidated report attachment failed")
                     else:
                         logger.info("⚠ Confluence not configured - skipping publish")
                         logger.info("  → Configure config/confluence_config.json to enable")

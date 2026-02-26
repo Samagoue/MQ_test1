@@ -279,6 +279,49 @@ def publish_application_diagrams(
         return summary
 
 
+def publish_consolidated_report(
+    report_file,
+    page_id: Optional[str] = None,
+    version_comment: Optional[str] = None,
+) -> bool:
+    """
+    Attach the consolidated HTML report to a Confluence page.
+
+    Uses consolidated_report_page_id from config, or falls back to main page_id.
+
+    Args:
+        report_file: Path to the consolidated_report_*.html file
+        page_id: Override page ID (optional)
+        version_comment: Attachment comment string
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        client, config = _get_client()
+        report_path = Path(report_file)
+
+        if not report_path.exists():
+            logger.warning(f"Consolidated report not found: {report_file}")
+            return False
+
+        pid = (page_id
+               or config.get("consolidated_report_page_id")
+               or config.get("page_id"))
+        if not pid:
+            logger.warning("No page_id configured for consolidated report — skipping")
+            return False
+
+        comment = version_comment or "Auto-uploaded by MQ CMDB pipeline"
+        client.attach_file(page_id=pid, file_path=str(report_path), comment=comment)
+        logger.info(f"✓ Consolidated report attached to Confluence page {pid}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to publish consolidated report: {e}")
+        return False
+
+
 def app_docs_enabled() -> bool:
     """Check whether per-application doc publishing is enabled in config."""
     try:

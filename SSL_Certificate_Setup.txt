@@ -1,0 +1,144 @@
+================================================================================
+SSL CERTIFICATE SETUP - CONFLUENCE SELF-SIGNED CERT
+================================================================================
+
+Problem: Python requests was failing with:
+  "SSL: CERTIFICATE_VERIFY_FAILED - self-signed certificate in certificate chain"
+
+Root cause: The mycert.pem file contained only the server leaf certificate.
+Python requires the full CA chain (intermediate + root) to verify trust.
+
+--------------------------------------------------------------------------------
+STEP 1 - Inspect what cert you currently have
+--------------------------------------------------------------------------------
+
+Check if your current cert is the right one:
+
+  openssl x509 -in /data/app/EA_Documentation/mycert.pem -subject -issuer -noout
+
+If subject == issuer, it is a self-signed root (may be correct).
+If subject != issuer, it is a leaf or intermediate cert (wrong file — keep going).
+
+
+--------------------------------------------------------------------------------
+STEP 2 - Pull the full certificate chain from the server
+--------------------------------------------------------------------------------
+
+Run this single command (do NOT split across lines):
+
+  openssl s_client -connect <CONFLUENCE_HOST>:443 -showcerts 2>/dev/null
+
+This prints all certificates the server sends, numbered 0, 1, 2, ...
+  Cert 0 = server leaf certificate      (DO NOT use this one)
+  Cert 1 = intermediate CA certificate  (needed)
+  Cert 2 = root CA certificate          (needed)
+
+Copy the full output to a file for inspection:
+
+  openssl s_client -connect <CONFLUENCE_HOST>:443 -showcerts 2>/dev/null > /tmp/chain_dump.txt
+
+
+--------------------------------------------------------------------------------
+STEP 3 - Extract only the CA certificates (skip the leaf)
+--------------------------------------------------------------------------------
+
+Extract certificates 2 and 3 (i.e. everything except cert 0):
+
+  openssl s_client -connect <CONFLUENCE_HOST>:443 -showcerts 2>/dev/null | awk '/-----BEGIN CERTIFICATE-----/{n++} n>=2' > /tmp/ca_chain.pem
+
+  - n>=2 skips the first BEGIN block (the leaf cert, index 0 in the chain)
+  - The output file will contain 2 PEM blocks: intermediate + root
+
+Note: If the server only sends 2 certs total (leaf + one CA), use n>=2 to get
+just the CA cert. If it sends 3 (leaf + intermediate + root), n>=2 gets both
+CA certs — that is what you want.
+
+
+--------------------------------------------------------------------------------
+STEP 4 - Verify the extracted chain is correct
+--------------------------------------------------------------------------------
+
+  openssl verify -CAfile /tmp/ca_chain.pem /tmp/ca_chain.pem
+
+Expected output:
+  /tmp/ca_chain.pem: OK
+
+If you see "error 2 at 1 depth lookup" it means you only have one cert and it
+is not a trusted root. Go back to Step 3 and make sure n>=2 captured all
+intermediate and root certs.
+
+
+--------------------------------------------------------------------------------
+STEP 5 - Install the certificate
+--------------------------------------------------------------------------------
+
+Copy the verified CA chain to the deployment location:
+
+  sudo cp /tmp/ca_chain.pem /data/app/EA_Documentation/mycert.pem
+
+Set correct ownership and permissions (must be readable — NOT 700):
+
+  sudo chown microtest:microtest /data/app/EA_Documentation/mycert.pem
+  sudo chmod 644 /data/app/EA_Documentation/mycert.pem
+
+Verify permissions:
+
+  ls -la /data/app/EA_Documentation/mycert.pem
+  # Expected: -rw-r--r-- 1 microtest microtest ...
+
+
+--------------------------------------------------------------------------------
+STEP 6 - Test the certificate in Python
+--------------------------------------------------------------------------------
+
+  python3 -c "
+import requests
+r = requests.get('https://<CONFLUENCE_HOST>', verify='/data/app/EA_Documentation/mycert.pem')
+print('Status:', r.status_code)
+print('OK - certificate verified successfully')
+"
+
+Expected output:
+  Status: 200
+  OK - certificate verified successfully
+
+
+--------------------------------------------------------------------------------
+STEP 7 - Verify the application config points to the cert
+--------------------------------------------------------------------------------
+
+In config/confluence_config.json:
+
+  {
+      "certificate_path": "/data/app/EA_Documentation/mycert.pem",
+      "verify_ssl": true,
+      ...
+  }
+
+
+--------------------------------------------------------------------------------
+TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Error: "sed: can't read : no such file or directory"
+  Cause:  A backslash line continuation in the shell command did not work.
+  Fix:    Run the entire openssl | awk command on a single line with no
+          backslashes or line breaks.
+
+Error: "error 2 at 1 depth lookup"
+  Cause:  ca_chain.pem contains only one cert and it is not the root.
+  Fix:    Confirm the server sends 3 certs. Change awk condition to n>=2 to
+          capture both intermediate and root (not just root alone).
+
+Error: "CERTIFICATE_VERIFY_FAILED" still after replacing cert
+  Cause:  File permissions (700 makes it unreadable by the Python process).
+  Fix:    chmod 644 /data/app/EA_Documentation/mycert.pem
+
+Error: Still failing after all of the above
+  Check:  openssl s_client -connect <HOST>:443 -CAfile /data/app/EA_Documentation/mycert.pem
+  Look for: Verify return code: 0 (ok)
+  If not 0, the server chain has changed — repeat from Step 2.
+
+================================================================================
+END OF DOCUMENT
+================================================================================

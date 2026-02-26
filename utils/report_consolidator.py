@@ -20,6 +20,7 @@ def generate_consolidated_report(
     output_file: Path,
     current_timestamp: str,
     baseline_timestamp: str = None,
+    enriched_data: Optional[Dict] = None,
 ) -> Path:
     """
     Generate a single HTML report combining change detection and gateway analytics.
@@ -40,6 +41,7 @@ def generate_consolidated_report(
     from utils.report_styles import get_report_css, get_report_js
 
     report_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    routers = _extract_routers(enriched_data)
 
     # Build CSS: shared base (blue accent default) + tab navigation overrides
     base_css = get_report_css('#3498db')
@@ -60,6 +62,7 @@ def generate_consolidated_report(
         <span class="tab-bar-title">MQ CMDB Report</span>
         <button class="tab-btn active" id="btn-changes" onclick="showTab('changes')">Change Detection</button>
         <button class="tab-btn" id="btn-gateways" onclick="showTab('gateways')">Gateway Analytics</button>
+        <button class="tab-btn" id="btn-routers" onclick="showTab('routers')">Routers</button>
     </div>
 
     <div id="tab-changes" class="tab-pane active">
@@ -77,9 +80,21 @@ def generate_consolidated_report(
     # -- Gateway Analytics tab --
     html += _build_gateways_tab(gateway_analytics, report_time)
 
-    html += f"""
+    html += """
     </div>
 
+    <div id="tab-routers" class="tab-pane">
+"""
+
+    # -- Routers tab --
+    html += _build_routers_tab(routers, report_time)
+
+    html += """
+    </div>
+
+"""
+
+    html += f"""
     <script>{get_report_js()}
 
     /* Tab switching */
@@ -91,7 +106,8 @@ def generate_consolidated_report(
 
         /* Swap accent colour so section borders and cards match the active tab */
         document.documentElement.style.setProperty(
-            '--accent', tab === 'gateways' ? '#9b59b6' : '#3498db'
+            '--accent',
+            tab === 'gateways' ? '#9b59b6' : tab === 'routers' ? '#e67e22' : '#3498db'
         );
     }}
     </script>
@@ -567,6 +583,94 @@ def _build_gateways_tab(gateway_analytics, report_time):
             </details>
 """
         html += _section_close()
+
+    html += """
+    </div>
+"""
+    return html
+
+
+# ---------------------------------------------------------------------------
+# Routers tab
+# ---------------------------------------------------------------------------
+
+def _extract_routers(enriched_data: Optional[Dict]) -> list:
+    """Extract router entries from enriched_data."""
+    routers = []
+    if not enriched_data:
+        return routers
+    for org_name, org_data in enriched_data.items():
+        for dept_name, biz_owners in org_data.get('_departments', {}).items():
+            for biz_ownr, apps in biz_owners.items():
+                for mqmgr_name, mq_data in apps.get('Router', {}).items():
+                    if mq_data.get('IsRouter', False):
+                        routers.append({
+                            'name': mqmgr_name,
+                            'description': mq_data.get('RouterDescription', ''),
+                            'organization': org_name,
+                            'department': dept_name,
+                            'inbound': len(mq_data.get('inbound', [])) + len(mq_data.get('inbound_extra', [])),
+                            'outbound': len(mq_data.get('outbound', [])) + len(mq_data.get('outbound_extra', [])),
+                        })
+    return sorted(routers, key=lambda r: r['name'])
+
+
+def _build_routers_tab(routers: list, report_time: str) -> str:
+    """Build the Routers tab content."""
+    html = f"""
+    <div class="hero" style="background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #e67e22 100%);">
+        <h1>Routers</h1>
+        <p>MQ Manager nodes acting as message routers</p>
+        <div class="meta">
+            <span>Generated: {report_time}</span>
+            <span>Routers found: {len(routers)}</span>
+        </div>
+    </div>
+
+    <div class="container">
+"""
+
+    if not routers:
+        html += """
+        <div class="no-data">
+            <h2>No Routers Configured</h2>
+            <p>No MQ managers have been identified as routers in the current dataset.</p>
+            <p>Add entries to <code>input/routers.json</code> to classify MQ managers as routers.</p>
+        </div>
+"""
+    else:
+        html += f"""
+        <div class="summary">
+            <div class="summary-card accent">
+                <h3>Total Routers</h3>
+                <div class="count">{len(routers)}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Total Inbound</h3>
+                <div class="count">{sum(r['inbound'] for r in routers)}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Total Outbound</h3>
+                <div class="count">{sum(r['outbound'] for r in routers)}</div>
+            </div>
+        </div>
+"""
+        html += _section_open("Router Inventory")
+        html += _table_open(["Router Name", "Description", "Organization", "Department", "Inbound", "Outbound", "Total Connections"])
+        for r in routers:
+            total = r['inbound'] + r['outbound']
+            html += f"""
+                    <tr>
+                        <td><strong>{r['name']}</strong></td>
+                        <td>{r['description'] or '—'}</td>
+                        <td>{r['organization']}</td>
+                        <td>{r['department']}</td>
+                        <td>{r['inbound']}</td>
+                        <td>{r['outbound']}</td>
+                        <td><strong>{total}</strong></td>
+                    </tr>
+"""
+        html += _table_close() + _section_close()
 
     html += """
     </div>
