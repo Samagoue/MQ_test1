@@ -183,7 +183,7 @@ remove_cron_jobs() {
     fi
 
     # Remove marker line and the following job line
-    local new_crontab=$(echo "$current_crontab" | grep -v "$marker" | grep -v "run_pipeline.sh")
+    local new_crontab=$(echo "$current_crontab" | grep -v "$marker" | grep -v "run_pipeline.sh" | grep -v "cron_wrapper.sh")
 
     if [ "$new_crontab" = "$current_crontab" ]; then
         log_info "No MQ CMDB cron jobs found to remove"
@@ -215,8 +215,12 @@ install_cron_job() {
         exit 1
     fi
 
-    # Make sure script is executable
+    # Make sure pipeline script is executable
     chmod +x "$pipeline_script"
+
+    # Create wrapper script first (cron entry will point to it)
+    create_cron_wrapper
+    local wrapper_script="$INSTALL_DIR/deploy/cron_wrapper.sh"
 
     # Remove existing jobs first
     remove_cron_jobs
@@ -224,9 +228,9 @@ install_cron_job() {
     # Get current crontab
     local current_crontab=$(crontab -u "$CRON_USER" -l 2>/dev/null || true)
 
-    # Create new cron entry
+    # Create new cron entry — use the wrapper so environment is set up correctly
     local marker=$(get_cron_marker)
-    local cron_entry="$CRON_SCHEDULE $pipeline_script >> $INSTALL_DIR/logs/cron_\$(date +\\%Y\\%m\\%d).log 2>&1"
+    local cron_entry="$CRON_SCHEDULE $wrapper_script >> $INSTALL_DIR/logs/cron_\$(date +\\%Y\\%m\\%d).log 2>&1"
 
     # Add new job
     local new_crontab="$current_crontab
@@ -238,18 +242,17 @@ $cron_entry"
     log_info "Cron job installed successfully"
     echo ""
     echo "Schedule: $CRON_SCHEDULE"
-    echo "Command:  $pipeline_script"
+    echo "Command:  $wrapper_script"
+    echo "  (wrapper calls $pipeline_script)"
     echo "Log:      $INSTALL_DIR/logs/cron_YYYYMMDD.log"
     echo ""
     echo "The pipeline will run according to the schedule."
     echo ""
     echo -e "${GREEN}NOTE:${NC} DB_MASTER_PASSWORD is loaded automatically from:"
     echo "  $INSTALL_DIR/.env"
-    echo "Ensure that file exists and contains DB_MASTER_PASSWORD=<value>."
+    echo "If that file exists and contains DB_MASTER_PASSWORD=<value>,"
+    echo "no manual edits to cron_wrapper.sh are needed."
     echo ""
-
-    # Create wrapper script with environment
-    create_cron_wrapper
 }
 
 create_cron_wrapper() {
@@ -260,32 +263,24 @@ create_cron_wrapper() {
 #===============================================================================
 # MQ CMDB Cron Wrapper Script
 #
-# This script sets up the environment and runs the pipeline.
-# Edit this file to set your DB_MASTER_PASSWORD securely.
-#
-# Usage: Called by cron, not meant to be run manually
+# Loads environment from .env and runs the pipeline.
+# DB_MASTER_PASSWORD and all other settings are read from:
+#   $INSTALL_DIR/.env
 #===============================================================================
 
-# Set the master password (KEEP THIS FILE SECURE!)
-# Option 1: Set directly (less secure)
-# export DB_MASTER_PASSWORD="your_secure_password"
-
-# Option 2: Read from a secure file (more secure)
-# if [ -f "$INSTALL_DIR/.db_password" ]; then
-#     export DB_MASTER_PASSWORD=\$(cat "$INSTALL_DIR/.db_password")
-# fi
-
-# Option 3: Use environment file
-if [ -f "$INSTALL_DIR/.env" ]; then
-    set -a
-    source "$INSTALL_DIR/.env"
-    set +a
+# Load environment variables from .env
+if [ ! -f "$INSTALL_DIR/.env" ]; then
+    echo "ERROR: .env file not found at $INSTALL_DIR/.env"
+    exit 1
 fi
 
-# Check if password is set
+set -a
+source "$INSTALL_DIR/.env"
+set +a
+
+# Verify required password is present
 if [ -z "\${DB_MASTER_PASSWORD:-}" ]; then
-    echo "ERROR: DB_MASTER_PASSWORD is not set"
-    echo "Edit $wrapper_script to configure the password"
+    echo "ERROR: DB_MASTER_PASSWORD is not set in $INSTALL_DIR/.env"
     exit 1
 fi
 
@@ -294,8 +289,8 @@ exec "$INSTALL_DIR/deploy/run_pipeline.sh" "\$@"
 EOF
 
     chmod 700 "$wrapper_script"
-    log_info "Created cron wrapper script: $wrapper_script"
-    log_warn "Edit $wrapper_script to configure DB_MASTER_PASSWORD"
+    log_info "Created cron wrapper: $wrapper_script"
+    log_info "All credentials loaded from: $INSTALL_DIR/.env"
 }
 
 #-------------------------------------------------------------------------------
