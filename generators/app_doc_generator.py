@@ -383,7 +383,7 @@ class ApplicationDocGenerator:
             "",
             "{expand:title=Integration Diagram}",
             "",
-            f"{{viewfile:name={svg_filename}|height=800}}",
+            f"{{image:name={svg_filename}|height=800}}",
             "",
             "{expand}",
             "",
