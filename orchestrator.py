@@ -367,8 +367,10 @@ class MQCMDBOrchestrator:
 
                         # Attach application diagram SVGs to per-app pages (only when enabled)
                         if attach_diagrams_enabled():
+                            _page_map = app_doc_result.get("page_map", {}) if _app_docs_on else {}
                             diagram_summary = publish_application_diagrams(
                                 comment=f"Pipeline run {timestamp}",
+                                page_map=_page_map,
                             )
                             if diagram_summary["attached"] > 0:
                                 logger.info(f"✓ Attached {diagram_summary['attached']} application diagram(s) to Confluence")

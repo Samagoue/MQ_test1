@@ -185,6 +185,7 @@ def publish_ea_documentation(
 def publish_application_diagrams(
     diagrams_dir: Optional[str] = None,
     comment: Optional[str] = None,
+    page_map: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Attach each application diagram SVG to its own Confluence page.
@@ -217,9 +218,13 @@ def publish_application_diagrams(
     try:
         client, config = _get_client()
 
-        page_map = config.get("diagram_pages", {})
-        # Remove _comment key if present
-        page_map = {k: v for k, v in page_map.items() if not k.startswith("_")}
+        if page_map:
+            # Page map passed directly from publish_app_documentation (auto-create mode)
+            page_map = {k: v for k, v in page_map.items() if not k.startswith("_")}
+        else:
+            # Fall back to diagram_pages in config
+            page_map = config.get("diagram_pages", {})
+            page_map = {k: v for k, v in page_map.items() if not k.startswith("_")}
 
         if not page_map:
             logger.warning("No diagram_pages mapping configured - skipping diagram publish")
@@ -312,7 +317,7 @@ def publish_app_documentation(
     from confluence_client import ConfluenceError
     from generators.app_doc_generator import ApplicationDocGenerator
 
-    summary = {"published": 0, "created": 0, "skipped": 0, "errors": 0}
+    summary = {"published": 0, "created": 0, "skipped": 0, "errors": 0, "page_map": {}}
 
     try:
         client, config = _get_client()
@@ -381,6 +386,8 @@ def publish_app_documentation(
                 except ConfluenceError as e:
                     logger.error(f"  Failed to publish '{page_title}': {e}")
                     summary["errors"] += 1
+
+            summary["page_map"] = child_by_title
 
         else:
             # ---- Manual mode: use diagram_pages mapping ----
