@@ -506,9 +506,9 @@ main() {
     # Print banner
     print_banner
 
-    # Run pipeline steps
-    check_prerequisites
+    # Run pipeline steps (setup_environment first to load .env before prerequisite checks)
     setup_environment
+    check_prerequisites
     cleanup_old_logs
     run_database_export
     run_orchestrator

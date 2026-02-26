@@ -243,10 +243,9 @@ $cron_entry"
     echo ""
     echo "The pipeline will run according to the schedule."
     echo ""
-    echo -e "${YELLOW}IMPORTANT:${NC} Make sure the following environment variable is set:"
-    echo "  DB_MASTER_PASSWORD"
-    echo ""
-    echo "Add to $CRON_USER's environment or use a wrapper script."
+    echo -e "${GREEN}NOTE:${NC} DB_MASTER_PASSWORD is loaded automatically from:"
+    echo "  $INSTALL_DIR/.env"
+    echo "Ensure that file exists and contains DB_MASTER_PASSWORD=<value>."
     echo ""
 
     # Create wrapper script with environment
