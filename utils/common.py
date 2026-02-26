@@ -218,6 +218,8 @@ def lighten_color(hex_color: str, factor: float = 0.15) -> str:
         Lightened hex color string (e.g., '#ff8866')
     """
     hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        raise ValueError(f"Invalid hex color: must be 6 hex digits, got '{hex_color}'")
     r = int(hex_color[0:2], 16)
     g = int(hex_color[2:4], 16)
     b = int(hex_color[4:6], 16)
@@ -241,6 +243,8 @@ def darken_color(hex_color: str, factor: float = 0.15) -> str:
         Darkened hex color string (e.g., '#cc4629')
     """
     hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        raise ValueError(f"Invalid hex color: must be 6 hex digits, got '{hex_color}'")
     r = int(hex_color[0:2], 16)
     g = int(hex_color[2:4], 16)
     b = int(hex_color[4:6], 16)

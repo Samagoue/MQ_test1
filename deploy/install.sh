@@ -250,9 +250,10 @@ setup_environment_file() {
 # MQ CMDB Environment Configuration
 # Edit this file to configure the application
 
-# Database Master Password (set this securely)
-# This is used to decrypt database credentials
-DB_MASTER_PASSWORD=S@magoue
+# Database Master Password (REQUIRED — set this before running the pipeline)
+# This is used to decrypt database credentials stored in the credentials file.
+# Example: DB_MASTER_PASSWORD=your_secure_password_here
+DB_MASTER_PASSWORD=
 
 # Python settings
 PYTHONIOENCODING=utf-8

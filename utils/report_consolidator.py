@@ -187,7 +187,7 @@ def _build_changes_tab(changes, current_timestamp, baseline_timestamp, report_ti
         </div>
 """
 
-    summary = changes['summary']
+    summary = changes.get('summary', {})
 
     html = f"""
     <div class="hero">
@@ -204,174 +204,188 @@ def _build_changes_tab(changes, current_timestamp, baseline_timestamp, report_ti
         <div class="summary">
             <div class="summary-card accent">
                 <h3>Total Changes</h3>
-                <div class="count">{summary['total_changes']}</div>
+                <div class="count">{summary.get('total_changes', 0)}</div>
             </div>
             <div class="summary-card added">
                 <h3>Managers Added</h3>
-                <div class="count">{summary['mqmanagers_added']}</div>
+                <div class="count">{summary.get('mqmanagers_added', 0)}</div>
             </div>
             <div class="summary-card removed">
                 <h3>Managers Removed</h3>
-                <div class="count">{summary['mqmanagers_removed']}</div>
+                <div class="count">{summary.get('mqmanagers_removed', 0)}</div>
             </div>
             <div class="summary-card modified">
                 <h3>Managers Modified</h3>
-                <div class="count">{summary['mqmanagers_modified']}</div>
+                <div class="count">{summary.get('mqmanagers_modified', 0)}</div>
             </div>
             <div class="summary-card added">
                 <h3>Connections Added</h3>
-                <div class="count">{summary['connections_added']}</div>
+                <div class="count">{summary.get('connections_added', 0)}</div>
             </div>
             <div class="summary-card removed">
                 <h3>Connections Removed</h3>
-                <div class="count">{summary['connections_removed']}</div>
+                <div class="count">{summary.get('connections_removed', 0)}</div>
             </div>
         </div>
 """
 
+    mqmgrs = changes.get('mqmanagers', {})
+    conns = changes.get('connections', {})
+    gateways = changes.get('gateways', {})
+
     # MQ Managers Added
-    if changes['mqmanagers']['added']:
+    if mqmgrs.get('added'):
         html += _section_open("MQ Managers Added")
         html += _table_open(["MQ Manager", "Organization", "Department", "Application", "Type"])
-        for mgr in changes['mqmanagers']['added']:
-            gateway_badge = '<span class="badge badge-gateway">Gateway</span>' if mgr['is_gateway'] else ''
-            html += f"""
+        rows = []
+        for mgr in mqmgrs['added']:
+            gateway_badge = '<span class="badge badge-gateway">Gateway</span>' if mgr.get('is_gateway') else ''
+            rows.append(f"""
                     <tr>
-                        <td><strong>{mgr['name']}</strong></td>
-                        <td>{mgr['organization']}</td>
-                        <td>{mgr['department']}</td>
-                        <td>{mgr['application']}</td>
+                        <td><strong>{mgr.get('name', '')}</strong></td>
+                        <td>{mgr.get('organization', '')}</td>
+                        <td>{mgr.get('department', '')}</td>
+                        <td>{mgr.get('application', '')}</td>
                         <td>{gateway_badge}</td>
-                    </tr>
-"""
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
 
     # MQ Managers Removed
-    if changes['mqmanagers']['removed']:
+    if mqmgrs.get('removed'):
         html += _section_open("MQ Managers Removed")
         html += _table_open(["MQ Manager", "Organization", "Department", "Application"])
-        for mgr in changes['mqmanagers']['removed']:
-            html += f"""
+        rows = []
+        for mgr in mqmgrs['removed']:
+            rows.append(f"""
                     <tr>
-                        <td><strong>{mgr['name']}</strong></td>
-                        <td>{mgr['organization']}</td>
-                        <td>{mgr['department']}</td>
-                        <td>{mgr['application']}</td>
-                    </tr>
-"""
+                        <td><strong>{mgr.get('name', '')}</strong></td>
+                        <td>{mgr.get('organization', '')}</td>
+                        <td>{mgr.get('department', '')}</td>
+                        <td>{mgr.get('application', '')}</td>
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
 
     # MQ Managers Modified
-    if changes['mqmanagers']['modified']:
+    if mqmgrs.get('modified'):
         html += _section_open("MQ Managers Modified")
         html += _table_open(["MQ Manager", "Changes"])
-        for mgr in changes['mqmanagers']['modified']:
+        rows = []
+        for mgr in mqmgrs['modified']:
             changes_text = '<br>'.join(
-                f"{field}: {c['old']} &rarr; {c['new']}" for field, c in mgr['changes'].items()
+                f"{field}: {c.get('old', '')} &rarr; {c.get('new', '')}"
+                for field, c in mgr.get('changes', {}).items()
             )
-            html += f"""
+            rows.append(f"""
                     <tr>
-                        <td><strong>{mgr['name']}</strong></td>
+                        <td><strong>{mgr.get('name', '')}</strong></td>
                         <td class="change-detail">{changes_text}</td>
-                    </tr>
-"""
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
 
     # Connections Added
-    if changes['connections']['added']:
+    if conns.get('added'):
         html += _section_open("Connections Added")
         html += _table_open(["Source", "Target", "Source Org", "Target Org"])
-        for conn in changes['connections']['added']:
-            html += f"""
+        rows = []
+        for conn in conns['added']:
+            rows.append(f"""
                     <tr>
-                        <td>{conn['source']}</td>
-                        <td>{conn['target']}</td>
-                        <td>{conn['source_org']}</td>
-                        <td>{conn['target_org']}</td>
-                    </tr>
-"""
+                        <td>{conn.get('source', '')}</td>
+                        <td>{conn.get('target', '')}</td>
+                        <td>{conn.get('source_org', '')}</td>
+                        <td>{conn.get('target_org', '')}</td>
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
 
     # Connections Removed
-    if changes['connections']['removed']:
+    if conns.get('removed'):
         html += _section_open("Connections Removed")
         html += _table_open(["Source", "Target", "Source Org", "Target Org"])
-        for conn in changes['connections']['removed']:
-            html += f"""
+        rows = []
+        for conn in conns['removed']:
+            rows.append(f"""
                     <tr>
-                        <td>{conn['source']}</td>
-                        <td>{conn['target']}</td>
-                        <td>{conn['source_org']}</td>
-                        <td>{conn['target_org']}</td>
-                    </tr>
-"""
+                        <td>{conn.get('source', '')}</td>
+                        <td>{conn.get('target', '')}</td>
+                        <td>{conn.get('source_org', '')}</td>
+                        <td>{conn.get('target_org', '')}</td>
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
 
     # Gateway Changes
-    if changes['gateways']['added'] or changes['gateways']['removed'] or changes['gateways']['modified']:
+    if gateways.get('added') or gateways.get('removed') or gateways.get('modified'):
         html += _section_open("Gateway Changes")
 
-        if changes['gateways']['added']:
+        if gateways.get('added'):
             html += _details_open("Added Gateways")
             html += _table_open(["Gateway Name", "Scope", "Organization", "Department"])
-            for gw in changes['gateways']['added']:
-                html += f"""
+            rows = []
+            for gw in gateways['added']:
+                rows.append(f"""
                     <tr>
-                        <td><strong>{gw['name']}</strong></td>
-                        <td><span class="badge badge-gateway">{gw['scope']}</span></td>
-                        <td>{gw['organization']}</td>
-                        <td>{gw['department']}</td>
-                    </tr>
-"""
+                        <td><strong>{gw.get('name', '')}</strong></td>
+                        <td><span class="badge badge-gateway">{gw.get('scope', '')}</span></td>
+                        <td>{gw.get('organization', '')}</td>
+                        <td>{gw.get('department', '')}</td>
+                    </tr>""")
+            html += "".join(rows)
             html += _table_close() + _details_close()
 
-        if changes['gateways']['removed']:
+        if gateways.get('removed'):
             html += _details_open("Removed Gateways")
             html += _table_open(["Gateway Name", "Scope", "Organization"])
-            for gw in changes['gateways']['removed']:
-                html += f"""
+            rows = []
+            for gw in gateways['removed']:
+                rows.append(f"""
                     <tr>
-                        <td><strong>{gw['name']}</strong></td>
-                        <td><span class="badge badge-gateway">{gw['scope']}</span></td>
-                        <td>{gw['organization']}</td>
-                    </tr>
-"""
+                        <td><strong>{gw.get('name', '')}</strong></td>
+                        <td><span class="badge badge-gateway">{gw.get('scope', '')}</span></td>
+                        <td>{gw.get('organization', '')}</td>
+                    </tr>""")
+            html += "".join(rows)
             html += _table_close() + _details_close()
 
-        if changes['gateways']['modified']:
+        if gateways.get('modified'):
             html += _details_open("Modified Gateway Scopes")
             html += _table_open(["Gateway Name", "Old Scope", "New Scope"])
-            for gw in changes['gateways']['modified']:
-                html += f"""
+            rows = []
+            for gw in gateways['modified']:
+                rows.append(f"""
                     <tr>
-                        <td><strong>{gw['name']}</strong></td>
-                        <td>{gw['old_scope']}</td>
-                        <td>{gw['new_scope']}</td>
-                    </tr>
-"""
+                        <td><strong>{gw.get('name', '')}</strong></td>
+                        <td>{gw.get('old_scope', '')}</td>
+                        <td>{gw.get('new_scope', '')}</td>
+                    </tr>""")
+            html += "".join(rows)
             html += _table_close() + _details_close()
 
         html += _section_close()
 
     # Queue Count Changes
-    if changes['queue_counts']:
+    if changes.get('queue_counts'):
         html += _section_open("Significant Queue Count Changes (&gt;20%)")
         html += _table_open(["MQ Manager", "Queue Type", "Old Count", "New Count", "Change %"])
+        rows = []
         for qc in changes['queue_counts']:
-            direction = "added" if qc['new_count'] > qc['old_count'] else "removed"
-            html += f"""
+            direction = "added" if qc.get('new_count', 0) > qc.get('old_count', 0) else "removed"
+            rows.append(f"""
                     <tr>
-                        <td>{qc['mqmanager']}</td>
-                        <td>{qc['queue_type']}</td>
-                        <td>{qc['old_count']}</td>
-                        <td>{qc['new_count']}</td>
-                        <td><span class="badge badge-{direction}">{qc['change_percent']}%</span></td>
-                    </tr>
-"""
+                        <td>{qc.get('mqmanager', '')}</td>
+                        <td>{qc.get('queue_type', '')}</td>
+                        <td>{qc.get('old_count', '')}</td>
+                        <td>{qc.get('new_count', '')}</td>
+                        <td><span class="badge badge-{direction}">{qc.get('change_percent', '')}%</span></td>
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
 
     # No changes message
-    if summary['total_changes'] == 0:
+    if summary.get('total_changes', 0) == 0:
         html += """
         <div class="no-changes">
             <h2>No Changes Detected</h2>
@@ -399,11 +413,12 @@ def _build_gateways_tab(gateway_analytics, report_time):
         </div>
 """
 
-    summary = gateway_analytics['summary']
+    summary = gateway_analytics.get('summary', {})
 
     # Max load score for CSS bar charts
-    all_loads = (gateway_analytics['load_distribution']['internal_gateways'] +
-                 gateway_analytics['load_distribution']['external_gateways'])
+    load_dist = gateway_analytics.get('load_distribution', {})
+    all_loads = (load_dist.get('internal_gateways', []) +
+                 load_dist.get('external_gateways', []))
     max_load = max((ld['load_score'] for ld in all_loads), default=1) or 1
 
     html = f"""
@@ -412,7 +427,7 @@ def _build_gateways_tab(gateway_analytics, report_time):
         <p>Traffic patterns, dependencies, and redundancy analysis</p>
         <div class="meta">
             <span>Generated: {report_time}</span>
-            <span>Gateways analyzed: {summary['total_gateways']}</span>
+            <span>Gateways analyzed: {summary.get('total_gateways', 0)}</span>
         </div>
     </div>
 
@@ -420,19 +435,19 @@ def _build_gateways_tab(gateway_analytics, report_time):
         <div class="summary">
             <div class="summary-card accent">
                 <h3>Total Gateways</h3>
-                <div class="count">{summary['total_gateways']}</div>
+                <div class="count">{summary.get('total_gateways', 0)}</div>
             </div>
             <div class="summary-card internal">
                 <h3>Internal</h3>
-                <div class="count">{summary['internal_gateways']}</div>
+                <div class="count">{summary.get('internal_gateways', 0)}</div>
             </div>
             <div class="summary-card external">
                 <h3>External</h3>
-                <div class="count">{summary['external_gateways']}</div>
+                <div class="count">{summary.get('external_gateways', 0)}</div>
             </div>
             <div class="summary-card">
                 <h3>Total Connections</h3>
-                <div class="count">{summary['total_gateway_connections']}</div>
+                <div class="count">{summary.get('total_gateway_connections', 0)}</div>
             </div>
         </div>
 
@@ -454,22 +469,24 @@ def _build_gateways_tab(gateway_analytics, report_time):
                 <tbody>
 """
 
-    for gw_name, traffic in sorted(gateway_analytics['gateway_traffic'].items(),
-                                     key=lambda x: x[1]['total_connections'], reverse=True):
-        scope_class = traffic['scope'].lower() if traffic['scope'] else 'internal'
-        scope_badge = f'<span class="badge badge-{scope_class}">{traffic["scope"]}</span>'
-        html += f"""
+    rows = []
+    for gw_name, traffic in sorted(gateway_analytics.get('gateway_traffic', {}).items(),
+                                    key=lambda x: x[1].get('total_connections', 0), reverse=True):
+        scope = traffic.get('scope', '')
+        scope_class = scope.lower() if scope else 'internal'
+        scope_badge = f'<span class="badge badge-{scope_class}">{scope}</span>'
+        rows.append(f"""
                     <tr>
                         <td><strong>{gw_name}</strong></td>
                         <td>{scope_badge}</td>
-                        <td>{traffic['organization']}</td>
-                        <td>{traffic['inbound_connections']}</td>
-                        <td>{traffic['outbound_connections']}</td>
-                        <td><strong>{traffic['total_connections']}</strong></td>
-                        <td>{traffic['connected_organizations']}</td>
-                        <td>{traffic['connected_departments']}</td>
-                    </tr>
-"""
+                        <td>{traffic.get('organization', '')}</td>
+                        <td>{traffic.get('inbound_connections', 0)}</td>
+                        <td>{traffic.get('outbound_connections', 0)}</td>
+                        <td><strong>{traffic.get('total_connections', 0)}</strong></td>
+                        <td>{traffic.get('connected_organizations', 0)}</td>
+                        <td>{traffic.get('connected_departments', 0)}</td>
+                    </tr>""")
+    html += "".join(rows)
 
     html += """
                 </tbody>
@@ -478,25 +495,26 @@ def _build_gateways_tab(gateway_analytics, report_time):
 """
 
     # Redundancy Analysis
-    redundancy = gateway_analytics['redundancy_analysis']
-    if redundancy['spof_count'] > 0:
+    redundancy = gateway_analytics.get('redundancy_analysis', {})
+    if redundancy.get('spof_count', 0) > 0:
         html += f"""
         <div class="alert alert-danger">
             <h3>Single Points of Failure Detected</h3>
-            <p>Found <strong>{redundancy['spof_count']}</strong> critical routes with no gateway redundancy.</p>
+            <p>Found <strong>{redundancy.get('spof_count', 0)}</strong> critical routes with no gateway redundancy.</p>
         </div>
 """
         html += _section_open("Single Points of Failure")
         html += _table_open(["Route", "Type", "Gateway", "Connections"])
-        for spof in redundancy['single_points_of_failure']:
-            html += f"""
+        rows = []
+        for spof in redundancy.get('single_points_of_failure', []):
+            rows.append(f"""
                     <tr>
-                        <td>{spof['route']}</td>
-                        <td>{spof['type']}</td>
-                        <td><strong>{spof['gateway']}</strong></td>
-                        <td>{spof['connection_count']}</td>
-                    </tr>
-"""
+                        <td>{spof.get('route', '')}</td>
+                        <td>{spof.get('type', '')}</td>
+                        <td><strong>{spof.get('gateway', '')}</strong></td>
+                        <td>{spof.get('connection_count', 0)}</td>
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
     else:
         html += """
@@ -509,44 +527,46 @@ def _build_gateways_tab(gateway_analytics, report_time):
     # Load Distribution with CSS bar charts
     html += _section_open("Load Distribution")
 
-    if gateway_analytics['load_distribution']['internal_gateways']:
+    if load_dist.get('internal_gateways'):
         html += _details_open("Internal Gateways")
         html += _table_open(["Gateway", "Connections", "Queues", "Load Score"])
-        for ld in gateway_analytics['load_distribution']['internal_gateways']:
-            bar_pct = int(ld['load_score'] / max_load * 100)
-            html += f"""
+        rows = []
+        for ld in load_dist['internal_gateways']:
+            bar_pct = int(ld.get('load_score', 0) / max_load * 100)
+            rows.append(f"""
                     <tr>
-                        <td>{ld['gateway']}</td>
-                        <td>{ld['connections']}</td>
-                        <td>{ld['queues']}</td>
+                        <td>{ld.get('gateway', '')}</td>
+                        <td>{ld.get('connections', 0)}</td>
+                        <td>{ld.get('queues', 0)}</td>
                         <td>
                             <div class="bar-wrap">
                                 <div class="bar" style="width:{bar_pct}%"></div>
-                                <span class="bar-label">{ld['load_score']}</span>
+                                <span class="bar-label">{ld.get('load_score', 0)}</span>
                             </div>
                         </td>
-                    </tr>
-"""
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _details_close()
 
-    if gateway_analytics['load_distribution']['external_gateways']:
+    if load_dist.get('external_gateways'):
         html += _details_open("External Gateways")
         html += _table_open(["Gateway", "Connections", "Queues", "Load Score"])
-        for ld in gateway_analytics['load_distribution']['external_gateways']:
-            bar_pct = int(ld['load_score'] / max_load * 100)
-            html += f"""
+        rows = []
+        for ld in load_dist['external_gateways']:
+            bar_pct = int(ld.get('load_score', 0) / max_load * 100)
+            rows.append(f"""
                     <tr>
-                        <td>{ld['gateway']}</td>
-                        <td>{ld['connections']}</td>
-                        <td>{ld['queues']}</td>
+                        <td>{ld.get('gateway', '')}</td>
+                        <td>{ld.get('connections', 0)}</td>
+                        <td>{ld.get('queues', 0)}</td>
                         <td>
                             <div class="bar-wrap">
                                 <div class="bar" style="width:{bar_pct}%"></div>
-                                <span class="bar-label">{ld['load_score']}</span>
+                                <span class="bar-label">{ld.get('load_score', 0)}</span>
                             </div>
                         </td>
-                    </tr>
-"""
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _details_close()
 
     html += _section_close()
@@ -554,19 +574,21 @@ def _build_gateways_tab(gateway_analytics, report_time):
     # Organization Connectivity Matrix
     html += _section_open("Organization Connectivity Matrix")
     html += _table_open(["Organization Route", "Gateways", "Connections", "Redundancy"])
-    for route, data in sorted(gateway_analytics['org_connectivity'].items(),
-                                key=lambda x: x[1]['connection_count'], reverse=True):
+    rows = []
+    for route, data in sorted(gateway_analytics.get('org_connectivity', {}).items(),
+                               key=lambda x: x[1].get('connection_count', 0), reverse=True):
+        gws = data.get('gateways', [])
         redundancy_badge = ('<span class="badge badge-ok">Yes</span>'
-                            if len(data['gateways']) > 1
+                            if len(gws) > 1
                             else '<span class="badge badge-warning">No</span>')
-        html += f"""
+        rows.append(f"""
                     <tr>
                         <td>{route}</td>
-                        <td>{', '.join(data['gateways'])}</td>
-                        <td>{data['connection_count']}</td>
+                        <td>{', '.join(gws)}</td>
+                        <td>{data.get('connection_count', 0)}</td>
                         <td>{redundancy_badge}</td>
-                    </tr>
-"""
+                    </tr>""")
+    html += "".join(rows)
     html += _table_close() + _section_close()
 
     # Gateway Dependencies (collapsible per gateway)
@@ -657,9 +679,10 @@ def _build_routers_tab(routers: list, report_time: str) -> str:
 """
         html += _section_open("Router Inventory")
         html += _table_open(["Router Name", "Description", "Organization", "Department", "Inbound", "Outbound", "Total Connections"])
+        rows = []
         for r in routers:
             total = r['inbound'] + r['outbound']
-            html += f"""
+            rows.append(f"""
                     <tr>
                         <td><strong>{r['name']}</strong></td>
                         <td>{r['description'] or '—'}</td>
@@ -668,8 +691,8 @@ def _build_routers_tab(routers: list, report_time: str) -> str:
                         <td>{r['inbound']}</td>
                         <td>{r['outbound']}</td>
                         <td><strong>{total}</strong></td>
-                    </tr>
-"""
+                    </tr>""")
+        html += "".join(rows)
         html += _table_close() + _section_close()
 
     html += """

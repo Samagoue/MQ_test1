@@ -37,6 +37,11 @@ if _SHARED_SCRIPTS_DIR not in sys.path:
 _PROJECT_ROOT = Path(__file__).parent.parent
 _CONFIG_FILE = _PROJECT_ROOT / "config" / "confluence_config.json"
 
+# Module-level caches: avoid re-reading the config file and re-creating the
+# HTTP client on every API call within the same pipeline run.
+_config_cache: Optional[Dict[str, Any]] = None
+_client_cache: Optional[Any] = None
+
 
 def _load_config() -> Dict[str, Any]:
     """
@@ -47,17 +52,28 @@ def _load_config() -> Dict[str, Any]:
         2. config/confluence_config.json
 
     Returns:
-        Configuration dictionary
+        Configuration dictionary (shallow copy of cache — safe to read, not mutate)
 
     Raises:
+        ValueError: If config file contains invalid JSON or required fields are missing
         FileNotFoundError: If config file is missing and env vars are not set
     """
+    global _config_cache
+
+    if _config_cache is not None:
+        return dict(_config_cache)
+
     config = {}
 
     # Load from JSON file if it exists
     if _CONFIG_FILE.exists():
-        with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
-            config = json.load(f)
+        try:
+            with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"confluence_config.json contains invalid JSON at position {e.pos}: {e.msg}"
+            ) from e
 
     # Environment variable overrides (take precedence)
     env_mappings = {
@@ -85,27 +101,33 @@ def _load_config() -> Dict[str, Any]:
             "Set CONFLUENCE_PAT env var or configure config/confluence_config.json"
         )
 
-    return config
+    _config_cache = config
+    return dict(_config_cache)
 
 
 def _get_client():
-    """Create a ConfluenceClient from project config."""
+    """Return a cached ConfluenceClient and the current config."""
+    global _client_cache
     from confluence_client import ConfluenceClient
 
     config = _load_config()
+
+    if _client_cache is not None:
+        return _client_cache, config
 
     cert_path = config.get("certificate_path") or None
     if cert_path and not Path(cert_path).exists():
         logger.warning(f"Certificate path does not exist: {cert_path}, ignoring")
         cert_path = None
 
-    return ConfluenceClient(
+    _client_cache = ConfluenceClient(
         base_url=config["base_url"],
         personal_access_token=config["personal_access_token"],
         certificate_path=cert_path,
         verify_ssl=config.get("verify_ssl", True),
         timeout=config.get("timeout", 30),
-    ), config
+    )
+    return _client_cache, config
 
 
 def is_configured() -> bool:
@@ -301,6 +323,7 @@ def publish_consolidated_report(
     """
     from confluence_client import ConfluenceError
     from datetime import datetime as _dt
+    from urllib.parse import quote as _url_quote
 
     PAGE_TITLE = "MQ CMDB Consolidated Report"
 
@@ -328,6 +351,8 @@ def publish_consolidated_report(
                 logger.info(f"  Resolved space_key '{space_key}' from parent page {parent_id}")
             except Exception as e:
                 logger.warning(f"  Could not resolve space_key from page {parent_id}: {e}")
+        if not space_key:
+            logger.warning("  space_key is empty — page creation may fail if child page does not yet exist")
 
         comment = version_comment or "Auto-updated by MQ CMDB pipeline"
         updated_time = _dt.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -335,7 +360,7 @@ def publish_consolidated_report(
         base_url = config.get("base_url", "").rstrip("/")
 
         # Step 1: Create or locate the child page
-        existing_children = client.get_child_pages(parent_id)
+        existing_children = client.get_child_pages(parent_id) or []
         child_by_title = {child["title"]: child["id"] for child in existing_children}
 
         if PAGE_TITLE in child_by_title:
@@ -350,7 +375,10 @@ def publish_consolidated_report(
                 parent_id=parent_id,
                 representation="wiki",
             )
-            child_page_id = result.get("id")
+            child_page_id = result.get("id") if result else None
+            if not child_page_id:
+                logger.error("  create_page() returned no page ID — cannot attach report")
+                return False
             logger.info(f"  Created consolidated report page (id {child_page_id})")
 
         # Step 2: Attach the HTML report (must be uploaded before the body link can resolve)
@@ -360,9 +388,10 @@ def publish_consolidated_report(
             comment=comment,
         )
 
-        # Step 3: Update page body with a direct URL link — [text|URL] opens cleanly in the browser
-        # Using the /download/attachments path so the browser opens the file directly, not wrapped in Confluence UI
-        download_url = f"{base_url}/download/attachments/{child_page_id}/{report_filename}"
+        # Step 3: Update page body with a direct URL link — [text|URL] opens cleanly in the browser.
+        # URL-encode the filename so spaces or special characters don't break the link.
+        safe_filename = _url_quote(report_filename)
+        download_url = f"{base_url}/download/attachments/{child_page_id}/{safe_filename}"
         body = f"""h1. MQ CMDB Consolidated Report
 
 This page contains the latest consolidated pipeline report generated on {updated_time}.
@@ -464,7 +493,7 @@ def publish_app_documentation(
             logger.info(f"  {len(known_apps)} application(s) to publish")
 
             # Build lookup of existing child pages by title
-            existing_children = client.get_child_pages(parent_page_id)
+            existing_children = client.get_child_pages(parent_page_id) or []
             child_by_title = {child["title"]: child["id"] for child in existing_children}
             logger.info(f"  {len(child_by_title)} existing child page(s) found under parent")
 
@@ -792,6 +821,7 @@ def sync_input_files() -> Dict[str, Any]:
 
     for name, page_config in input_pages.items():
         if not isinstance(page_config, dict):
+            logger.warning(f"  Skipping input page config '{name}': expected a dict, got {type(page_config).__name__}")
             continue
         page_id = page_config.get("page_id", "")
         output_file = page_config.get("output_file", "")

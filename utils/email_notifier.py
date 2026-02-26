@@ -50,7 +50,12 @@ class EmailConfig:
         config = cls()
 
         config.smtp_server = os.environ.get("SMTP_SERVER", "localhost")
-        config.smtp_port = int(os.environ.get("SMTP_PORT", "25"))
+        _port_str = os.environ.get("SMTP_PORT", "25")
+        try:
+            config.smtp_port = int(_port_str)
+        except ValueError:
+            logger.warning(f"Invalid SMTP_PORT value '{_port_str}' — defaulting to 25")
+            config.smtp_port = 25
         config.smtp_user = os.environ.get("SMTP_USER")
         config.smtp_password = os.environ.get("SMTP_PASSWORD")
         config.from_address = os.environ.get("SMTP_FROM", "mqcmdb@localhost")
@@ -207,8 +212,8 @@ class EmailNotifier:
             # Add attachments
             if attachments:
                 for filepath in attachments:
-                    if not filepath.exists():
-                        logger.warning(f"Attachment not found: {filepath}")
+                    if not filepath.is_file():
+                        logger.warning(f"Attachment not found or not a regular file: {filepath}")
                         continue
 
                     with open(filepath, "rb") as f:

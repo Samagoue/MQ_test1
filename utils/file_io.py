@@ -241,13 +241,16 @@ def clean_old_files(directory: Path, days: int, pattern: str = '*') -> int:
 
     Args:
         directory: Directory to clean
-        days: Files older than this many days will be deleted
+        days: Files older than this many days will be deleted (must be > 0)
         pattern: File pattern to match (default: '*')
 
     Returns:
         Number of files deleted
     """
     from datetime import datetime, timedelta
+
+    if days <= 0:
+        raise ValueError(f"days must be a positive integer, got {days}")
 
     if not directory.exists():
         return 0
@@ -259,8 +262,11 @@ def clean_old_files(directory: Path, days: int, pattern: str = '*') -> int:
         if filepath.is_file():
             file_time = datetime.fromtimestamp(filepath.stat().st_mtime)
             if file_time < cutoff:
-                filepath.unlink()
-                deleted_count += 1
+                try:
+                    filepath.unlink()
+                    deleted_count += 1
+                except FileNotFoundError:
+                    pass  # deleted concurrently by another process
 
     return deleted_count
 

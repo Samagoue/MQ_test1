@@ -202,8 +202,9 @@ def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'p
 
     max_workers = min(4, total)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        for per_file in as_completed(pool.submit(_export_one, f) for f in dot_files):
-            for fmt, ok in per_file.result().items():
+        futures = {pool.submit(_export_one, f): f for f in dot_files}
+        for future in as_completed(futures):
+            for fmt, ok in future.result().items():
                 if ok:
                     success_count[fmt] += 1
 

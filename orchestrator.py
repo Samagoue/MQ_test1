@@ -248,6 +248,7 @@ class MQCMDBOrchestrator:
 
             # Gateway Analytics (if gateways exist)
             logger.info("\n[10/14] Running gateway analytics...")
+            gateway_analytics = None  # initialised here so the consolidated report step can always reference it
             try:
                 analyzer = GatewayAnalyzer(enriched_data)
                 gateway_analytics = analyzer.analyze()
@@ -367,6 +368,7 @@ class MQCMDBOrchestrator:
                         # Publish per-application documentation pages (then attach SVGs)
                         _app_docs_on = app_docs_enabled()
                         logger.info(f"  publish_app_docs enabled: {_app_docs_on}")
+                        app_doc_result = {}  # initialised so line below is safe even if publishing is skipped
                         if _app_docs_on:
                             logger.info("  Calling publish_app_documentation()...")
                             app_doc_result = publish_app_documentation(
