@@ -285,18 +285,25 @@ def publish_consolidated_report(
     version_comment: Optional[str] = None,
 ) -> bool:
     """
-    Attach the consolidated HTML report to a Confluence page.
+    Publish the consolidated HTML report as a child page.
 
-    Uses consolidated_report_page_id from config, or falls back to main page_id.
+    Creates (or updates) a child page titled "MQ CMDB Consolidated Report"
+    under consolidated_report_page_id (or page_id) from config, then attaches
+    the HTML file to that child page so users can download it directly.
 
     Args:
         report_file: Path to the consolidated_report_*.html file
-        page_id: Override page ID (optional)
-        version_comment: Attachment comment string
+        page_id: Override parent page ID (optional)
+        version_comment: Version comment string
 
     Returns:
         True if successful, False otherwise
     """
+    from confluence_client import ConfluenceError
+    from datetime import datetime as _dt
+
+    PAGE_TITLE = "MQ CMDB Consolidated Report"
+
     try:
         client, config = _get_client()
         report_path = Path(report_file)
@@ -305,18 +312,81 @@ def publish_consolidated_report(
             logger.warning(f"Consolidated report not found: {report_file}")
             return False
 
-        pid = (page_id
-               or config.get("consolidated_report_page_id")
-               or config.get("page_id"))
-        if not pid:
+        parent_id = (page_id
+                     or config.get("consolidated_report_page_id")
+                     or config.get("page_id"))
+        if not parent_id:
             logger.warning("No page_id configured for consolidated report — skipping")
             return False
 
-        comment = version_comment or "Auto-uploaded by MQ CMDB pipeline"
-        client.attach_file(page_id=pid, file_path=str(report_path), comment=comment)
-        logger.info(f"✓ Consolidated report attached to Confluence page {pid}")
+        # Resolve space_key from parent page if not set in config
+        space_key = config.get("space_key", "")
+        if not space_key:
+            try:
+                parent_page = client.get_page(parent_id, expand="space")
+                space_key = parent_page.get("space", {}).get("key", "")
+                logger.info(f"  Resolved space_key '{space_key}' from parent page {parent_id}")
+            except Exception as e:
+                logger.warning(f"  Could not resolve space_key from page {parent_id}: {e}")
+
+        comment = version_comment or "Auto-updated by MQ CMDB pipeline"
+        updated_time = _dt.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Wiki markup body — brief description with download prompt
+        body = f"""h1. MQ CMDB Consolidated Report
+
+This page contains the latest consolidated pipeline report generated on {updated_time}.
+
+The report includes three interactive tabs:
+* *Change Detection* — MQ managers and connections added, removed, or modified since the last baseline
+* *Gateway Analytics* — gateway traffic patterns, load distribution, and redundancy analysis
+* *Routers* — MQ router inventory with connection counts
+
+h2. How to view
+
+Download and open the attached HTML file in any web browser. No server required.
+
+*Last updated:* {updated_time}
+"""
+
+        # Find existing child page or create new one
+        existing_children = client.get_child_pages(parent_id)
+        child_by_title = {child["title"]: child["id"] for child in existing_children}
+
+        if PAGE_TITLE in child_by_title:
+            child_page_id = child_by_title[PAGE_TITLE]
+            client.update_page(
+                page_id=child_page_id,
+                title=PAGE_TITLE,
+                body=body,
+                representation="wiki",
+                version_comment=comment,
+            )
+            logger.info(f"  Updated consolidated report page (id {child_page_id})")
+        else:
+            result = client.create_page(
+                space_key=space_key,
+                title=PAGE_TITLE,
+                body=body,
+                parent_id=parent_id,
+                representation="wiki",
+            )
+            child_page_id = result.get("id")
+            logger.info(f"  Created consolidated report page (id {child_page_id})")
+
+        # Attach the HTML report to the child page
+        client.attach_file(
+            page_id=child_page_id,
+            file_path=str(report_path),
+            comment=comment,
+        )
+
+        logger.info(f"✓ Consolidated report published: '{PAGE_TITLE}' (id {child_page_id})")
         return True
 
+    except ConfluenceError as e:
+        logger.error(f"Confluence API error publishing consolidated report: {e}")
+        return False
     except Exception as e:
         logger.error(f"Failed to publish consolidated report: {e}")
         return False
