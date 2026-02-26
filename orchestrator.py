@@ -3,9 +3,11 @@
 
 import os
 import sys
+import logging
 import traceback
 from pathlib import Path
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from config.settings import Config
 from utils.common import setup_utf8_output
 from utils.logging_config import setup_logging, get_logger
@@ -175,47 +177,59 @@ class MQCMDBOrchestrator:
             else:
                 logger.warning("⚠ Baseline NOT updated due to change detection failure")
 
-            # Generate hierarchical topology
-            logger.info("\n[6/14] Generating hierarchical topology diagram...")
-            pdf_generated = False
-            try:
-                gen = HierarchicalGraphVizGenerator(enriched_data, Config)
-                gen.save_to_file(Config.TOPOLOGY_DOT)
-                pdf_generated = gen.generate_pdf(Config.TOPOLOGY_DOT, Config.TOPOLOGY_PDF)
-                if not pdf_generated:
-                    logger.warning("⚠ GraphViz not found - DOT file created, PDF skipped")
-                    logger.info(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
-            except Exception as e:
-                logger.warning(f"⚠ Hierarchical topology generation failed: {e}")
-                self._pipeline_errors.append(f"Topology diagram: {e}")
+            # Generate diagrams in parallel (steps 6, 7, 8 are independent)
+            logger.info("\n[6-8/14] Generating diagrams in parallel (topology + application + individual)...")
 
-            # Generate application diagrams
-            logger.info("\n[7/14] Generating application diagrams...")
-            try:
-                app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
-                app_gen = ApplicationDiagramGenerator(enriched_data, Config)
-                count = app_gen.generate_all(app_diagrams_dir)
-                if count > 0:
-                    logger.info(f"✓ Generated {count} application diagrams in {app_diagrams_dir}")
-                else:
-                    logger.warning("⚠ No application diagrams generated")
-            except Exception as e:
-                logger.warning(f"⚠ Application diagram generation failed: {e}")
-                self._pipeline_errors.append(f"Application diagrams: {e}")
+            def _run_step6():
+                try:
+                    gen = HierarchicalGraphVizGenerator(enriched_data, Config)
+                    gen.save_to_file(Config.TOPOLOGY_DOT)
+                    pdf_ok = gen.generate_pdf(Config.TOPOLOGY_DOT, Config.TOPOLOGY_PDF)
+                    if not pdf_ok:
+                        logger.warning("⚠ [6] GraphViz not found - DOT file created, PDF skipped")
+                        logger.info(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
+                    else:
+                        logger.info("✓ [6] Hierarchical topology diagram generated")
+                except Exception as e:
+                    logger.warning(f"⚠ [6] Hierarchical topology generation failed: {e}")
+                    self._pipeline_errors.append(f"Topology diagram: {e}")
 
-            # Generate individual MQ manager diagrams
-            logger.info("\n[8/14] Generating individual MQ manager diagrams...")
-            try:
-                individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
-                individual_gen = IndividualDiagramGenerator(directorate_data, Config)
-                individual_count = individual_gen.generate_all(individual_diagrams_dir)
-                if individual_count > 0:
-                    logger.info(f"✓ Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
-                else:
-                    logger.warning("⚠ No individual diagrams generated")
-            except Exception as e:
-                logger.warning(f"⚠ Individual diagram generation failed: {e}")
-                self._pipeline_errors.append(f"Individual diagrams: {e}")
+            def _run_step7():
+                try:
+                    app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
+                    app_gen = ApplicationDiagramGenerator(enriched_data, Config)
+                    count = app_gen.generate_all(app_diagrams_dir)
+                    if count > 0:
+                        logger.info(f"✓ [7] Generated {count} application diagrams in {app_diagrams_dir}")
+                    else:
+                        logger.warning("⚠ [7] No application diagrams generated")
+                except Exception as e:
+                    logger.warning(f"⚠ [7] Application diagram generation failed: {e}")
+                    self._pipeline_errors.append(f"Application diagrams: {e}")
+
+            def _run_step8():
+                try:
+                    individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
+                    individual_gen = IndividualDiagramGenerator(directorate_data, Config)
+                    individual_count = individual_gen.generate_all(individual_diagrams_dir)
+                    if individual_count > 0:
+                        logger.info(f"✓ [8] Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
+                    else:
+                        logger.warning("⚠ [8] No individual diagrams generated")
+                except Exception as e:
+                    logger.warning(f"⚠ [8] Individual diagram generation failed: {e}")
+                    self._pipeline_errors.append(f"Individual diagrams: {e}")
+
+            with ThreadPoolExecutor(max_workers=3) as _diagram_pool:
+                futures = [
+                    _diagram_pool.submit(_run_step6),
+                    _diagram_pool.submit(_run_step7),
+                    _diagram_pool.submit(_run_step8),
+                ]
+                for f in futures:
+                    f.result()  # propagate any uncaught exceptions
+
+            logger.info("✓ [6-8/14] Diagram generation complete")
 
             # Smart Filtered Views
             logger.info("\n[9/14] Generating smart filtered views...")
@@ -490,9 +504,17 @@ class MQCMDBOrchestrator:
                 else:
                     error_message = f"Warnings during execution:\n{error_details}"
 
+            # Find log file from active file handlers
+            log_file = None
+            for handler in logging.getLogger("app").handlers:
+                if hasattr(handler, 'baseFilename'):
+                    log_file = Path(handler.baseFilename)
+                    break
+
             result = notifier.send_pipeline_notification(
                 success=success,
                 summary=summary,
+                log_file=log_file,
                 error_message=error_message,
             )
 

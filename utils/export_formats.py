@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils.logging_config import get_logger
 
 logger = get_logger("export_formats")
@@ -190,14 +191,21 @@ def export_directory_to_formats(directory: Path, formats: List[str] = ['svg', 'p
     success_count = {fmt: 0 for fmt in formats}
     total = len(dot_files)
 
-    for dot_file in dot_files:
+    def _export_one(dot_file: Path) -> dict:
+        results = {}
         for fmt in formats:
             if fmt == 'svg':
-                if export_dot_to_svg(dot_file):
-                    success_count['svg'] += 1
+                results['svg'] = export_dot_to_svg(dot_file)
             elif fmt == 'png':
-                if export_dot_to_png(dot_file, dpi=dpi):
-                    success_count['png'] += 1
+                results['png'] = export_dot_to_png(dot_file, dpi=dpi)
+        return results
+
+    max_workers = min(4, total)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        for per_file in as_completed(pool.submit(_export_one, f) for f in dot_files):
+            for fmt, ok in per_file.result().items():
+                if ok:
+                    success_count[fmt] += 1
 
     logger.info(f"\n✓ Export Summary:")
     for fmt in formats:
