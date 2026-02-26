@@ -331,8 +331,9 @@ def publish_consolidated_report(
 
         comment = version_comment or "Auto-updated by MQ CMDB pipeline"
         updated_time = _dt.now().strftime('%Y-%m-%d %H:%M:%S')
+        report_filename = report_path.name
 
-        # Wiki markup body — brief description with download prompt
+        # Wiki markup body — description with clickable attachment link
         body = f"""h1. MQ CMDB Consolidated Report
 
 This page contains the latest consolidated pipeline report generated on {updated_time}.
@@ -342,9 +343,11 @@ The report includes three interactive tabs:
 * *Gateway Analytics* — gateway traffic patterns, load distribution, and redundancy analysis
 * *Routers* — MQ router inventory with connection counts
 
-h2. How to view
+h2. Open Report
 
-Download and open the attached HTML file in any web browser. No server required.
+[▶ Open Interactive Report^{report_filename}]
+
+Click the link above to open the report directly in your browser. No server required — the file is fully self-contained HTML.
 
 *Last updated:* {updated_time}
 """
