@@ -442,7 +442,7 @@ def _sanitize_filename(name: str) -> str:
     sanitized = re.sub(r'[^\w\s-]', '_', name)
     sanitized = re.sub(r'\s+', '_', sanitized)
     sanitized = re.sub(r'_+', '_', sanitized)
-    return sanitized.strip('_')
+    return sanitized.strip('_').lower()
 
 
 # ------------------------------------------------------------------ #
