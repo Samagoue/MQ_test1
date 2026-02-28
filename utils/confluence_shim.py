@@ -843,3 +843,97 @@ def sync_input_files() -> Dict[str, Any]:
             summary["errors"] += 1
 
     return summary
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Publisher, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=12.5)
+class ConfluencePublisherStep(Publisher):
+    """Publish EA docs, app docs, diagrams, and consolidated report to Confluence (step 12.5).
+
+    Reads:  context.ea_doc_file, context.consolidated_report_file,
+            context.enriched_data, Config.ENABLE_CONFLUENCE_PUBLISH
+    Runs only when Confluence is configured. Individual sub-steps are
+    non-fatal so a single publish failure does not abort the others.
+    """
+
+    name             = "Confluence Publishing"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config    = context.config
+        timestamp = context.timestamp
+
+        if not config.ENABLE_CONFLUENCE_PUBLISH:
+            return
+
+        if not is_configured():
+            logger.info("⚠ Confluence not configured — skipping publish")
+            logger.info("  → Configure config/confluence_config.json to enable")
+            return
+
+        # ── EA documentation ──────────────────────────────────────────────
+        if context.ea_doc_file and context.ea_doc_file.exists():
+            result = publish_ea_documentation(
+                doc_file=str(context.ea_doc_file),
+                version_comment=f"Pipeline run {timestamp}",
+            )
+            if result:
+                logger.info(f"✓ EA documentation published to Confluence (page {result.get('id', 'N/A')})")
+            else:
+                logger.warning("⚠ Confluence page update returned no result")
+                context.record_error(self.name, Exception("EA doc page update returned no result"))
+        else:
+            logger.warning("⚠ No EA documentation file to publish")
+
+        # ── Per-application documentation ─────────────────────────────────
+        app_doc_result = {}
+        _app_docs_on   = app_docs_enabled()
+        logger.info(f"  publish_app_docs enabled: {_app_docs_on}")
+        if _app_docs_on:
+            app_doc_result = publish_app_documentation(
+                enriched_data=context.enriched_data,
+                version_comment=f"Pipeline run {timestamp}",
+            )
+            if app_doc_result["published"] > 0:
+                logger.info(f"✓ Published {app_doc_result['published']} per-app doc(s) to Confluence")
+            if app_doc_result["errors"] > 0:
+                context.record_error(
+                    self.name,
+                    Exception(f"{app_doc_result['errors']} per-app doc(s) failed"),
+                )
+
+        # ── Application diagram SVGs ──────────────────────────────────────
+        if attach_diagrams_enabled():
+            page_map     = app_doc_result.get("page_map", {}) if _app_docs_on else {}
+            diag_summary = publish_application_diagrams(
+                comment=f"Pipeline run {timestamp}",
+                page_map=page_map,
+            )
+            if diag_summary["attached"] > 0:
+                logger.info(f"✓ Attached {diag_summary['attached']} diagram(s) to Confluence")
+            if diag_summary["errors"] > 0:
+                context.record_error(
+                    self.name,
+                    Exception(f"{diag_summary['errors']} diagram attachment(s) failed"),
+                )
+
+        # ── Consolidated report ───────────────────────────────────────────
+        if context.consolidated_report_file and context.consolidated_report_file.exists():
+            pub_ok = publish_consolidated_report(
+                context.consolidated_report_file,
+                version_comment=f"Pipeline run {timestamp}",
+            )
+            if pub_ok:
+                logger.info("✓ Consolidated report published to Confluence")
+            else:
+                logger.warning("⚠ Consolidated report could not be attached to Confluence")
+                context.record_error(
+                    self.name, Exception("consolidated report attachment failed")
+                )

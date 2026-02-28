@@ -357,3 +357,40 @@ class HierarchyMashup:
 
         return enriched
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Processor, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+from utils.file_io import save_json                     # noqa: E402
+
+
+@PluginRegistry.register(order=4)
+class HierarchyEnrichmentStep(Processor):
+    """Overlay org hierarchy, application mappings, and gateway metadata (step 4).
+
+    Reads:  context.directorate_data
+    Writes: context.enriched_data  (Org→Dept→BizOwner→App→QM tree)
+    Also saves the enriched JSON to Config.PROCESSED_JSON for inspection.
+
+    abort_on_failure=True: generators and analytics all need enriched_data.
+    """
+
+    name             = "Hierarchy Enrichment"
+    abort_on_failure = True
+
+    def execute(self, context: PipelineContext) -> None:
+        config = context.config
+        mashup = HierarchyMashup(
+            config.ORG_HIERARCHY_JSON,
+            config.APP_TO_QMGR_JSON,
+            config.GATEWAYS_JSON,
+            config.HOSTS_JSON,
+            config.ROUTERS_JSON,
+        )
+        context.enriched_data = mashup.enrich_data(context.directorate_data)
+        save_json(context.enriched_data, config.PROCESSED_JSON)
+        logger.info(f"✓ Enriched data saved: {config.PROCESSED_JSON}")
+

@@ -739,4 +739,42 @@ def _details_close() -> str:
 """
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=10.5)
+class ConsolidatedReportStep(Generator):
+    """Combine change detection + gateway analytics into one HTML report (step 10.5).
+
+    Reads:  context.changes, context.gateway_analytics, context.enriched_data
+    Writes: context.consolidated_report_file  (Path to the generated HTML)
+    """
+
+    name             = "Consolidated Report"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config    = context.config
+        timestamp = context.timestamp
+        try:
+            output = config.REPORTS_DIR / f"consolidated_report_{timestamp}.html"
+            generate_consolidated_report(
+                changes            = context.changes,
+                gateway_analytics  = context.gateway_analytics,
+                output_file        = output,
+                current_timestamp  = timestamp,
+                baseline_timestamp = context.baseline_time_str,
+                enriched_data      = context.enriched_data,
+            )
+            context.consolidated_report_file = output
+            logger.info(f"✓ Consolidated report: {output}")
+        except Exception as exc:
+            context.record_error(self.name, exc)
+
+
 

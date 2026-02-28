@@ -1252,3 +1252,36 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                 border_color="#c1c7d0",
             ),
         ]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=12)
+class EADocumentationStep(Generator):
+    """Generate TOGAF-aligned Enterprise Architecture documentation (step 12).
+
+    Reads:  context.enriched_data
+    Writes: context.ea_doc_file  (Path to the generated markup .txt file)
+    """
+
+    name             = "EA Documentation"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config    = context.config
+        timestamp = context.timestamp
+        try:
+            gen    = EADocumentationGenerator(context.enriched_data)
+            output = config.EXPORTS_DIR / f"EA_Documentation_{timestamp}.txt"
+            gen.generate_confluence_markup(output)
+            context.ea_doc_file = output
+            logger.info(f"✓ EA Documentation: {output}")
+            logger.info("  → Import into Confluence using Insert → Markup")
+        except Exception as exc:
+            context.record_error(self.name, exc)

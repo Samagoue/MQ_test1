@@ -1,0 +1,79 @@
+{
+    "_comment": [
+        "Confluence Round-Trip Demo — Configuration File",
+        "",
+        "Fill in every field marked with TODO before running the demo.",
+        "This file is read exclusively by confluence_roundtrip_demo.py and",
+        "is completely separate from the project's main confluence_config.json.",
+        "",
+        "HOW TO GET THESE VALUES",
+        "  base_url           : The root URL of your Confluence server, e.g. https://wiki.example.com",
+        "  personal_access_token: In Confluence → Profile → Personal Access Tokens → Create token",
+        "  source page_id     : Open any Confluence page, look at the URL: /pages/<number>/...",
+        "  target parent_page_id: The page under which the new demo page will be created",
+        "  space_key          : Short code shown in URLs and page breadcrumbs, e.g. 'TEAM'"
+    ],
+
+    "confluence": {
+        "_comment": "Connection details for your Confluence server",
+
+        "base_url": "https://confluence.example.com",
+
+        "personal_access_token": "TODO_REPLACE_WITH_YOUR_PAT",
+
+        "certificate_path": "",
+        "_certificate_comment": "Path to a PEM certificate file for self-signed or internal CAs. Leave blank to use system trust store.",
+
+        "verify_ssl": true,
+        "_verify_ssl_comment": "Set to false ONLY for testing against servers with untrusted certificates — never in production.",
+
+        "timeout": 30,
+        "_timeout_comment": "HTTP request timeout in seconds. Increase if your Confluence server is slow."
+    },
+
+    "source_page": {
+        "_comment": "The Confluence page the demo will READ data FROM. It must contain at least one HTML table.",
+
+        "page_id": "TODO_REPLACE_WITH_SOURCE_PAGE_ID",
+        "_page_id_comment": "Numeric page ID from the Confluence URL: /pages/<ID>/page-title",
+
+        "description": "Source page containing data to extract",
+
+        "required_column": "",
+        "_required_column_comment": [
+            "Optional. If your page has multiple tables, name a column header that uniquely",
+            "identifies the table you want (e.g. 'Queue Manager', 'Application', 'Server').",
+            "Leave blank to use the first table on the page."
+        ]
+    },
+
+    "target_page": {
+        "_comment": "The new Confluence page the demo will CREATE with the extracted data.",
+
+        "space_key": "TODO_REPLACE_WITH_SPACE_KEY",
+        "_space_key_comment": "The Confluence space key where the new page will be created, e.g. 'TEAM' or 'IT'.",
+
+        "parent_page_id": "TODO_REPLACE_WITH_PARENT_PAGE_ID",
+        "_parent_page_id_comment": "The new page will appear as a child of this page.",
+
+        "title": "Demo - Data Imported from Confluence",
+        "_title_comment": "Title of the new page. Change this to avoid naming conflicts.",
+
+        "description": "Auto-generated demo page — safe to delete"
+    },
+
+    "output": {
+        "_comment": "Where to save the extracted JSON file on disk",
+
+        "json_file": "Demo/output/extracted_data.json",
+        "_json_file_comment": "Path relative to the project root. The directory is created automatically."
+    },
+
+    "shared_scripts_dir": "/data/app/Scripts",
+    "_shared_scripts_comment": [
+        "Path to the directory containing confluence_client.py.",
+        "On RHEL this is /data/app/Scripts (installed by install.sh).",
+        "On Windows/dev machines, point this to the folder where confluence_client.py lives.",
+        "If confluence_client is already on sys.path or installed as a package, set this to ''."
+    ]
+}

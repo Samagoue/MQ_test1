@@ -191,6 +191,41 @@ class Config:
     ENABLE_CONFLUENCE_PUBLISH = True   # Enable auto-publish to Confluence after doc generation
     CONFLUENCE_CONFIG_FILE = BASE_DIR / "config" / "confluence_config.json"
 
+    # ── Open Architecture: per-step enable/disable ─────────────────────────
+    # Controls which registered pipeline steps actually run.
+    # Keys are class names (as returned by type.__name__).
+    # True = run (default for any step not listed here).
+    # False = skip silently — no code change needed, just set to False.
+    #
+    # To disable a step:    PIPELINE_STEPS["MyStepClass"] = False
+    # To add a new step:    create the class with @PluginRegistry.register(order=N)
+    #                       — it will be enabled by default (not listed here = True)
+    PIPELINE_STEPS: dict = {
+        # Infrastructure
+        "OutputCleanupStep":          True,
+        "DataIngestionStep":          True,
+        "ConfluenceSyncStep":         True,
+        # Processors
+        "MQManagerProcessorStep":     True,
+        "HierarchyEnrichmentStep":    True,
+        "ChangeDetectionStep":        True,
+        # Diagram generators (run concurrently in the "diagrams" parallel group)
+        "TopologyDiagramStep":        True,
+        "ApplicationDiagramStep":     True,
+        "IndividualDiagramStep":      True,
+        # Other generators
+        "SmartFilterStep":            True,
+        "GatewayAnalyticsStep":       True,
+        "ConsolidatedReportStep":     True,
+        "ExportStep":                 True,
+        "EADocumentationStep":        True,
+        "AppDocumentationStep":       True,
+        # Publishers
+        "ConfluencePublisherStep":    True,
+        # Notifiers
+        "EmailNotifierStep":          True,
+    }
+
     # Deduplication
     DEDUP_ASSET_FIELD = "asset"
     DEDUP_IGNORE_TYPE = "QCluster"

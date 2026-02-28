@@ -647,3 +647,76 @@ def generate_html_report(changes: Dict, output_file: Path, current_timestamp: st
 
     logger.info(f"✓ Change report generated: {output_file}")
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from datetime import datetime                           # noqa: E402
+from core.interfaces import Analyzer, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry               # noqa: E402
+from utils.file_io import load_json, save_json         # noqa: E402
+
+
+@PluginRegistry.register(order=5)
+class ChangeDetectionStep(Analyzer):
+    """Compare enriched data against the saved baseline and detect changes (step 5).
+
+    Reads:  context.enriched_data, Config.BASELINE_JSON
+    Writes: context.changes, context.baseline_time_str
+    Also generates an HTML change report and saves changes as JSON.
+    Updates the baseline file when detection succeeds.
+    """
+
+    name             = "Change Detection"
+    abort_on_failure = False   # missing baseline is expected on first run
+
+    def execute(self, context: PipelineContext) -> None:
+        config    = context.config
+        timestamp = context.timestamp
+        baseline  = config.BASELINE_JSON
+
+        detection_ok = True
+
+        if baseline.exists():
+            try:
+                baseline_data = load_json(baseline)
+                detector      = ChangeDetector()
+                context.changes = detector.compare(context.enriched_data, baseline_data)
+
+                # Record when the baseline was last captured.
+                baseline_mtime = baseline.stat().st_mtime
+                context.baseline_time_str = datetime.fromtimestamp(baseline_mtime).strftime(
+                    '%Y-%m-%d %H:%M:%S'
+                )
+
+                # Write HTML change report.
+                report_file = config.REPORTS_DIR / f"change_report_{timestamp}.html"
+                generate_html_report(
+                    context.changes, report_file, timestamp, context.baseline_time_str
+                )
+                logger.info(
+                    f"✓ Detected {context.changes['summary']['total_changes']} changes"
+                )
+                logger.info(f"✓ Change report: {report_file}")
+
+                # Persist change data as JSON for programmatic consumers.
+                save_json(context.changes, config.DATA_DIR / f"changes_{timestamp}.json")
+
+            except Exception as exc:
+                logger.warning(
+                    f"⚠ Change detection failed: {exc}\n"
+                    "⚠ Baseline will NOT be updated to preserve change detection capability"
+                )
+                context.record_error(self.name, exc)
+                detection_ok = False
+        else:
+            logger.warning("⚠ No baseline found — this will be the first baseline")
+
+        # Update baseline only when detection succeeded (or no baseline existed yet).
+        if detection_ok:
+            save_json(context.enriched_data, baseline)
+            logger.info(f"✓ Baseline updated: {baseline}")
+        else:
+            logger.warning("⚠ Baseline NOT updated due to change detection failure")
+

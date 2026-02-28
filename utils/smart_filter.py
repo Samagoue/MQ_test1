@@ -131,3 +131,37 @@ def generate_filtered_diagrams(enriched_data: Dict, output_dir: Path, Config):
             generated_count += 1
 
     return generated_count
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=9)
+class SmartFilterStep(Generator):
+    """Generate filtered topology views (per-org, gateways-only, etc.) (step 9)."""
+
+    name             = "Smart Filtered Views"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        try:
+            count = generate_filtered_diagrams(
+                context.enriched_data,
+                context.config.FILTERED_VIEWS_DIR,
+                context.config,
+            )
+            if count > 0:
+                logger.info(
+                    f"✓ Generated {count} filtered view diagrams in "
+                    f"{context.config.FILTERED_VIEWS_DIR}\n"
+                    "  Views: per-organization, gateways-only, internal/external gateways"
+                )
+            else:
+                logger.warning("⚠ No filtered views generated")
+        except Exception as exc:
+            context.record_error(self.name, exc)

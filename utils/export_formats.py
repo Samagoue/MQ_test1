@@ -420,3 +420,50 @@ def generate_excel_inventory(enriched_data: Dict, output_file: Path) -> bool:
     wb.save(output_file)
     logger.info(f"✓ Excel inventory generated: {output_file}")
     return True
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=11)
+class ExportStep(Generator):
+    """Convert DOT diagrams to SVG and generate the Excel inventory (step 11)."""
+
+    name             = "Multi-Format Exports"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config    = context.config
+        timestamp = context.timestamp
+        try:
+            # Main topology → SVG only (PNG too slow for large layouts)
+            if config.TOPOLOGY_DOT.exists():
+                export_dot_to_svg(
+                    config.TOPOLOGY_DOT,
+                    config.TOPOLOGY_DIR / "mq_topology.svg",
+                )
+
+            # Application diagrams → SVG
+            if config.APPLICATION_DIAGRAMS_DIR.exists():
+                export_directory_to_formats(
+                    config.APPLICATION_DIAGRAMS_DIR, formats=['svg'], dpi=150
+                )
+
+            # Individual diagrams → SVG
+            if config.INDIVIDUAL_DIAGRAMS_DIR.exists():
+                export_directory_to_formats(
+                    config.INDIVIDUAL_DIAGRAMS_DIR, formats=['svg'], dpi=150
+                )
+
+            # Excel inventory
+            excel_file = config.EXPORTS_DIR / f"mqcmdb_inventory_{timestamp}.xlsx"
+            if generate_excel_inventory(context.enriched_data, excel_file):
+                logger.info(f"✓ Excel inventory: {excel_file}")
+
+        except Exception as exc:
+            context.record_error(self.name, exc)

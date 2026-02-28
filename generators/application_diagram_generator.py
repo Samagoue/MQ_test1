@@ -738,3 +738,35 @@ class ApplicationDiagramGenerator:
         sanitized = re.sub(r'_+', '_', sanitized)
         result = sanitized.strip('_').lower()
         return result if result else 'unnamed_app'
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=7, parallel_group="diagrams")
+class ApplicationDiagramStep(Generator):
+    """Generate per-application connection diagrams (step 7).
+
+    Runs concurrently with TopologyDiagramStep and IndividualDiagramStep.
+    """
+
+    name             = "Application Diagrams"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config     = context.config
+        output_dir = config.APPLICATION_DIAGRAMS_DIR
+        try:
+            gen   = ApplicationDiagramGenerator(context.enriched_data, config)
+            count = gen.generate_all(output_dir)
+            if count > 0:
+                logger.info(f"✓ Generated {count} application diagrams in {output_dir}")
+            else:
+                logger.warning("⚠ No application diagrams generated")
+        except Exception as exc:
+            context.record_error(self.name, exc)

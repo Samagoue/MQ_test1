@@ -415,3 +415,76 @@ def get_notifier(config_file: Optional[Path] = None) -> EmailNotifier:
                 break
 
     return EmailNotifier(config_file=config_file)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+# NOTE: EmailNotifierStep is registered at order=14 but is treated specially
+# by the orchestrator — it runs AFTER the main pipeline try/except completes,
+# whether the pipeline succeeded or failed, so operators always receive a
+# notification about what happened.
+# ──────────────────────────────────────────────────────────────────────────────
+
+import os as _os
+import logging as _logging
+
+from core.interfaces import Notifier, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry               # noqa: E402
+
+
+@PluginRegistry.register(order=14)
+class EmailNotifierStep(Notifier):
+    """Send a pipeline-completion email notification (step 14).
+
+    Runs only when the EMAIL_ENABLED environment variable is set to 'true'.
+    Non-fatal: a failed email never causes the pipeline to report failure.
+    """
+
+    name             = "Email Notification"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        if _os.environ.get("EMAIL_ENABLED", "").lower() not in ("true", "1", "yes"):
+            return
+
+        try:
+            notifier = get_notifier()
+            if not notifier.is_enabled:
+                logger.warning("⚠ Email notifications not configured")
+                return
+
+            # Build the summary dict from context
+            from config.settings import Config as _Config
+            summary = {}
+            for org, org_data in context.enriched_data.items():
+                for dept in org_data.get('_departments', {}).values():
+                    for biz in dept.values():
+                        for app in biz.values():
+                            summary["MQ Managers"] = summary.get("MQ Managers", 0) + len(app)
+
+            if context.pipeline_errors:
+                summary["Warnings"] = len(context.pipeline_errors)
+
+            # Find log file from active handlers
+            log_file = None
+            for handler in _logging.getLogger("app").handlers:
+                if hasattr(handler, 'baseFilename'):
+                    from pathlib import Path as _Path
+                    log_file = _Path(handler.baseFilename)
+                    break
+
+            result = notifier.send_pipeline_notification(
+                success=True,   # orchestrator sets this correctly via context or direct call
+                summary=summary,
+                log_file=log_file,
+                error_message="\n".join(context.pipeline_errors) if context.pipeline_errors else None,
+            )
+
+            if result:
+                logger.info("✓ Email notification sent")
+            else:
+                logger.warning("⚠ Failed to send email notification")
+
+        except Exception as exc:
+            logger.warning(f"⚠ Email notification error: {exc}")

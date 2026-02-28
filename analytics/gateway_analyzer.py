@@ -590,3 +590,47 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
         f.write(html)
 
     logger.info(f"✓ Gateway analytics report generated: {output_file}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Analyzer, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry               # noqa: E402
+from utils.file_io import save_json                    # noqa: E402
+
+
+@PluginRegistry.register(order=10)
+class GatewayAnalyticsStep(Analyzer):
+    """Analyze gateway traffic, redundancy, and load distribution (step 10).
+
+    Reads:  context.enriched_data
+    Writes: context.gateway_analytics
+    Also generates an HTML gateway analytics report and saves JSON data.
+    """
+
+    name             = "Gateway Analytics"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config    = context.config
+        timestamp = context.timestamp
+        try:
+            analyzer               = GatewayAnalyzer(context.enriched_data)
+            context.gateway_analytics = analyzer.analyze()
+
+            total_gws = context.gateway_analytics['summary']['total_gateways']
+            if total_gws > 0:
+                report = config.REPORTS_DIR / f"gateway_analytics_{timestamp}.html"
+                generate_gateway_report_html(context.gateway_analytics, report)
+                save_json(
+                    context.gateway_analytics,
+                    config.DATA_DIR / f"gateway_analytics_{timestamp}.json",
+                )
+                logger.info(f"✓ Gateway analytics: {total_gws} gateways analyzed")
+                logger.info(f"✓ Report: {report}")
+            else:
+                logger.warning("⚠ No gateways found in data")
+        except Exception as exc:
+            context.record_error(self.name, exc)

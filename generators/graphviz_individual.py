@@ -265,3 +265,36 @@ class IndividualDiagramGenerator:
                 count += 1
 
         return count
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=8, parallel_group="diagrams")
+class IndividualDiagramStep(Generator):
+    """Generate per-MQ-manager connection diagrams (step 8).
+
+    Runs concurrently with TopologyDiagramStep and ApplicationDiagramStep.
+    Note: uses directorate_data (flat), not enriched_data (hierarchical).
+    """
+
+    name             = "Individual MQ Manager Diagrams"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config     = context.config
+        output_dir = config.INDIVIDUAL_DIAGRAMS_DIR
+        try:
+            gen   = IndividualDiagramGenerator(context.directorate_data, config)
+            count = gen.generate_all(output_dir)
+            if count > 0:
+                logger.info(f"✓ Generated {count} individual diagrams in {output_dir}")
+            else:
+                logger.warning("⚠ No individual diagrams generated")
+        except Exception as exc:
+            context.record_error(self.name, exc)

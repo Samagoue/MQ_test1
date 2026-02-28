@@ -733,3 +733,40 @@ class HierarchicalGraphVizGenerator:
             logger.error(f"✗ PDF generation failed: {e}")
             return False
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=6, parallel_group="diagrams")
+class TopologyDiagramStep(Generator):
+    """Generate the main hierarchical topology DOT diagram (step 6).
+
+    Runs concurrently with ApplicationDiagramStep and IndividualDiagramStep
+    because all three are independent (they only read enriched_data).
+    """
+
+    name             = "Hierarchical Topology Diagram"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config = context.config
+        try:
+            gen    = HierarchicalGraphVizGenerator(context.enriched_data, config)
+            gen.save_to_file(config.TOPOLOGY_DOT)
+            pdf_ok = gen.generate_pdf(config.TOPOLOGY_DOT, config.TOPOLOGY_PDF)
+            if not pdf_ok:
+                logger.warning(
+                    f"⚠ GraphViz not found — DOT file created, PDF skipped\n"
+                    f"  → Install GraphViz, then run: "
+                    f"sfdp -Tpdf {config.TOPOLOGY_DOT} -o {config.TOPOLOGY_PDF}"
+                )
+            else:
+                logger.info("✓ Hierarchical topology diagram generated")
+        except Exception as exc:
+            context.record_error(self.name, exc)
+

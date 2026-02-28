@@ -422,3 +422,36 @@ class ApplicationDocGenerator:
 
         logger.info(f"Generated {summary['generated']} per-application documentation files in {output_dir}")
         return summary
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Generator, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=12.1)
+class AppDocumentationStep(Generator):
+    """Generate per-application documentation pages (step 12.1).
+
+    Runs right after EADocumentationStep (order 12) with no parallel group,
+    so it executes sequentially.
+    """
+
+    name             = "Per-Application Documentation"
+    abort_on_failure = False
+
+    def execute(self, context: PipelineContext) -> None:
+        config = context.config
+        try:
+            output_dir = config.EXPORTS_DIR / "app_docs"
+            gen        = ApplicationDocGenerator(context.enriched_data)
+            summary    = gen.generate_all(output_dir)
+            if summary['generated'] > 0:
+                logger.info(
+                    f"✓ Generated {summary['generated']} per-application doc(s): {output_dir}"
+                )
+        except Exception as exc:
+            context.record_error(self.name, exc)

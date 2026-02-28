@@ -8,11 +8,36 @@ It orchestrates the complete workflow from data loading through diagram generati
 """
 
 import sys
+import importlib
+import pkgutil
 from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
+
+# ── Plugin auto-discovery ─────────────────────────────────────────────────────
+# Import every module in the four plugin packages so that all
+# @PluginRegistry.register() decorators fire before the pipeline starts.
+# Dropping a new .py file into processors/, generators/, analytics/, or utils/
+# is enough for it to be picked up automatically.
+import processors  # noqa: E402
+import generators  # noqa: E402
+import analytics   # noqa: E402
+import utils       # noqa: E402
+
+for _pkg in (processors, generators, analytics, utils):
+    for _, _mod_name, _ in pkgutil.iter_modules(_pkg.__path__):
+        try:
+            importlib.import_module(f"{_pkg.__name__}.{_mod_name}")
+        except Exception:
+            # Non-plugin modules that fail to import at discovery time should
+            # not prevent the pipeline from starting; errors surface when the
+            # step executes.
+            pass
+
+del _pkg, _mod_name  # tidy up loop variables from module namespace
+# ─────────────────────────────────────────────────────────────────────────────
 
 from orchestrator import MQCMDBOrchestrator
 from utils.logging_config import setup_logging, get_logger

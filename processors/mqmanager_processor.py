@@ -355,3 +355,41 @@ class MQManagerProcessor:
         logger.info(f"Aliases resolved:     {self.stats['aliases_resolved']}")
         logger.info("=" * 70)
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Open-Architecture wrapper — registered with the PluginRegistry
+# The MQManagerProcessor class above is unchanged; this thin shell adapts it
+# to the PipelineComponent interface so the generic orchestrator can run it.
+# ──────────────────────────────────────────────────────────────────────────────
+
+from core.interfaces import Processor, PipelineContext  # noqa: E402
+from core.registry import PluginRegistry                # noqa: E402
+
+
+@PluginRegistry.register(order=2)
+class MQManagerProcessorStep(Processor):
+    """Extract MQ Manager relationships from raw CMDB assets (step 2 + 3).
+
+    Runs steps 2 and 3 of the original pipeline together:
+        step 2 — process_assets() builds the directorate-level structure
+        step 3 — convert_to_json() converts sets to sorted lists
+
+    abort_on_failure=True: downstream steps need directorate_data to proceed.
+    """
+
+    name             = "Process MQ Manager Relationships"
+    abort_on_failure = True
+
+    def execute(self, context: PipelineContext) -> None:
+        processor = MQManagerProcessor(
+            context.raw_data,
+            context.config.FIELD_MAPPINGS,
+            context.host_directorate_map,
+            context.alias_to_canonical,
+        )
+        # step 2
+        directorate_data = processor.process_assets()
+        processor.print_stats()
+        # step 3 — convert sets to sorted lists in-place
+        context.directorate_data = processor.convert_to_json(directorate_data)
+

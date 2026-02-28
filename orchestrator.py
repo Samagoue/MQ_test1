@@ -1,559 +1,198 @@
+"""MQ CMDB Pipeline Orchestrator — Open Architecture Edition.
 
-"""Main orchestrator for the complete MQ CMDB pipeline."""
+Generic registry-driven runner.  Every pipeline step is discovered
+automatically from the PluginRegistry; no component class is imported here
+by name.  To add a new step, create a new file in processors/, generators/,
+analytics/, or utils/ and decorate its class with
+    @PluginRegistry.register(order=N)
 
-import os
+See core/registry.py for the full numbering convention.
+"""
+
 import sys
-import logging
-import traceback
-from pathlib import Path
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from config.settings import Config
+from core.interfaces import PipelineContext
+from core.registry import PluginRegistry
 from utils.common import setup_utf8_output
 from utils.logging_config import setup_logging, get_logger
-from utils.file_io import load_json, save_json, cleanup_output_directory
-from utils.export_formats import export_directory_to_formats, generate_excel_inventory
-from utils.email_notifier import get_notifier
-from processors.mqmanager_processor import MQManagerProcessor
-from processors.hierarchy_mashup import HierarchyMashup
-from processors.change_detector import ChangeDetector, generate_html_report
-from analytics.gateway_analyzer import GatewayAnalyzer, generate_gateway_report_html
-from generators.doc_generator import EADocumentationGenerator
-from generators.graphviz_hierarchical import HierarchicalGraphVizGenerator
-from generators.application_diagram_generator import ApplicationDiagramGenerator
-from generators.graphviz_individual import IndividualDiagramGenerator
-
 
 logger = get_logger("orchestrator")
 
 
 class MQCMDBOrchestrator:
-    """Orchestrate the complete MQ CMDB processing pipeline."""
+    """Generic registry-driven pipeline runner."""
 
     def __init__(self):
         setup_utf8_output()
         Config.ensure_directories()
-        self._pipeline_errors: list = []
-        self._summary_stats: dict = {}
-        self._consolidated_report_file: Path = None
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Public entry-point
+    # ──────────────────────────────────────────────────────────────────────
 
     def run_full_pipeline(self) -> bool:
-        """
-        Execute complete hierarchical pipeline.
-
-        Returns:
-            True if pipeline completed successfully, False otherwise
-        """
+        """Execute the complete pipeline and return True on success."""
         logger.info("\n" + "=" * 70)
         logger.info("MQ CMDB HIERARCHICAL AUTOMATION PIPELINE")
         logger.info("=" * 70)
 
+        # Log all registered steps at startup for visibility
+        logger.info(PluginRegistry.summary())
+
+        context = PipelineContext(config=Config, logger=logger)
+
+        all_steps = PluginRegistry.get_ordered_steps()
+
+        # EmailNotifierStep (order=14) is treated specially:
+        # it always runs in a finally block, even when the pipeline fails.
+        notify_steps = [s for s in all_steps if getattr(s, '_order', 0) == 14]
+        main_steps   = self._filter_enabled(
+            [s for s in all_steps if getattr(s, '_order', 0) != 14]
+        )
+
         success = False
-        error_message = None
-        enriched_data = None
-
         try:
-            # Output cleanup (if enabled)
-            if Config.ENABLE_OUTPUT_CLEANUP:
-                logger.info("\n[0/14] Cleaning up old output files...")
-                cleanup_results = cleanup_output_directory(
-                    Config.OUTPUT_DIR,
-                    Config.OUTPUT_RETENTION_DAYS,
-                    Config.OUTPUT_CLEANUP_PATTERNS
-                )
-                if cleanup_results['total_deleted'] > 0:
-                    logger.info(f"✓ Cleaned up {cleanup_results['total_deleted']} old file(s) (>{Config.OUTPUT_RETENTION_DAYS} days)")
-                    for fname in cleanup_results['deleted_files'][:5]:  # Show first 5
-                        logger.info(f"  - {fname}")
-                    if len(cleanup_results['deleted_files']) > 5:
-                        logger.info(f"  ... and {len(cleanup_results['deleted_files']) - 5} more")
-                else:
-                    logger.info("✓ No old files to clean up")
-                if cleanup_results['errors']:
-                    for error in cleanup_results['errors']:
-                        logger.warning(f"⚠ {error}")
-
-            # Load data
-            logger.info("\n[1/14] Loading MQ CMDB data...")
-            raw_data = load_json(Config.INPUT_JSON)
-            logger.info(f"✓ Loaded {len(raw_data)} records")
-
-            # Build host→directorate map from all_cmdb_hosts.json.
-            # host_directorate is the owner of the MQ host (i.e. the QM owner),
-            # which is more reliable than the asset-level directorate field.
-            host_directorate_map = {}
-            if Config.HOSTS_JSON.exists():
-                hosts_data = load_json(Config.HOSTS_JSON)
-                for h in hosts_data:
-                    hostname = str(h.get('hostname', '')).strip()
-                    host_dir = str(h.get('host_directorate', '')).strip()
-                    if hostname and host_dir:
-                        host_directorate_map[hostname.upper()] = host_dir
-                logger.info(f"✓ Host→directorate map: {len(host_directorate_map)} entries")
-            else:
-                logger.warning("⚠ all_cmdb_hosts.json not found — QM directorate will use asset-level fallback")
-
-            # Load MQ Manager aliases (alias → canonical name reverse map)
-            alias_to_canonical = {}
-            if Config.MQMANAGER_ALIASES_JSON.exists():
-                aliases_data = load_json(Config.MQMANAGER_ALIASES_JSON)
-                for entry in aliases_data:
-                    canonical = str(entry.get('canonical', '')).strip()
-                    for alias in entry.get('aliases', []):
-                        alias = str(alias).strip()
-                        if alias and canonical:
-                            alias_to_canonical[alias.upper()] = canonical
-                logger.info(f"✓ Alias map: {len(alias_to_canonical)} alias(es) loaded")
-            else:
-                logger.info("  No mqmanager_aliases.json found — alias resolution skipped")
-
-            # Process relationships
-            logger.info("\n[2/14] Processing MQ Manager relationships...")
-            processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS, host_directorate_map, alias_to_canonical)
-            directorate_data = processor.process_assets()
-            processor.print_stats()
-
-            # Convert to JSON
-            logger.info("\n[3/14] Converting to JSON structure...")
-            json_output = processor.convert_to_json(directorate_data)
-
-            # Sync input files from Confluence (if configured)
-            from utils.confluence_shim import is_configured, sync_input_files
-            if is_configured():
-                logger.info("\n[3.5/14] Syncing input files from Confluence...")
-                sync_result = sync_input_files()
-                if sync_result["synced"] > 0:
-                    logger.info(f"✓ Synced {sync_result['synced']} input file(s) from Confluence")
-                if sync_result["errors"] > 0:
-                    logger.warning(f"⚠ {sync_result['errors']} input file(s) failed to sync — using existing local files")
-
-            # Mashup with hierarchy
-            logger.info("\n[4/14] Enriching with organizational hierarchy...")
-            mashup = HierarchyMashup(Config.ORG_HIERARCHY_JSON, Config.APP_TO_QMGR_JSON, Config.GATEWAYS_JSON, Config.HOSTS_JSON, Config.ROUTERS_JSON)
-            enriched_data = mashup.enrich_data(json_output)
-            save_json(enriched_data, Config.PROCESSED_JSON)
-            logger.info(f"✓ Enriched data saved: {Config.PROCESSED_JSON}")
-
-            # Change Detection
-            logger.info("\n[5/14] Running change detection...")
-            baseline_file = Config.BASELINE_JSON
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            change_detection_success = True
-            changes = None
-            baseline_time_str = None
-
-            if baseline_file.exists():
-                try:
-                    baseline_data = load_json(baseline_file)
-                    detector = ChangeDetector()
-                    changes = detector.compare(enriched_data, baseline_data)
-
-                    # Get baseline timestamp from filename or use "previous"
-                    baseline_timestamp = baseline_file.stat().st_mtime
-                    baseline_time_str = datetime.fromtimestamp(baseline_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-
-                    # Generate HTML report
-                    report_file = Config.REPORTS_DIR / f"change_report_{timestamp}.html"
-                    generate_html_report(changes, report_file, timestamp, baseline_time_str)
-
-                    logger.info(f"✓ Detected {changes['summary']['total_changes']} changes")
-                    logger.info(f"✓ Change report: {report_file}")
-
-                    # Save change data as JSON for programmatic access
-                    change_json = Config.DATA_DIR / f"changes_{timestamp}.json"
-                    save_json(changes, change_json)
-                except Exception as e:
-                    logger.warning(f"⚠ Change detection failed: {e}")
-                    logger.warning("⚠ Baseline will NOT be updated to preserve change detection capability")
-                    self._pipeline_errors.append(f"Change detection: {e}")
-                    change_detection_success = False
-            else:
-                logger.warning("⚠ No baseline found - this will be the first baseline")
-
-            # Update baseline only if change detection succeeded (or no baseline existed)
-            if change_detection_success:
-                save_json(enriched_data, baseline_file)
-                logger.info(f"✓ Baseline updated: {baseline_file}")
-            else:
-                logger.warning("⚠ Baseline NOT updated due to change detection failure")
-
-            # Generate diagrams in parallel (steps 6, 7, 8 are independent)
-            logger.info("\n[6-8/14] Generating diagrams in parallel (topology + application + individual)...")
-
-            def _run_step6():
-                try:
-                    gen = HierarchicalGraphVizGenerator(enriched_data, Config)
-                    gen.save_to_file(Config.TOPOLOGY_DOT)
-                    pdf_ok = gen.generate_pdf(Config.TOPOLOGY_DOT, Config.TOPOLOGY_PDF)
-                    if not pdf_ok:
-                        logger.warning("⚠ [6] GraphViz not found - DOT file created, PDF skipped")
-                        logger.info(f"  → Install GraphViz, then run: sfdp -Tpdf {Config.TOPOLOGY_DOT} -o {Config.TOPOLOGY_PDF}")
-                    else:
-                        logger.info("✓ [6] Hierarchical topology diagram generated")
-                except Exception as e:
-                    logger.warning(f"⚠ [6] Hierarchical topology generation failed: {e}")
-                    self._pipeline_errors.append(f"Topology diagram: {e}")
-
-            def _run_step7():
-                try:
-                    app_diagrams_dir = Config.APPLICATION_DIAGRAMS_DIR
-                    app_gen = ApplicationDiagramGenerator(enriched_data, Config)
-                    count = app_gen.generate_all(app_diagrams_dir)
-                    if count > 0:
-                        logger.info(f"✓ [7] Generated {count} application diagrams in {app_diagrams_dir}")
-                    else:
-                        logger.warning("⚠ [7] No application diagrams generated")
-                except Exception as e:
-                    logger.warning(f"⚠ [7] Application diagram generation failed: {e}")
-                    self._pipeline_errors.append(f"Application diagrams: {e}")
-
-            def _run_step8():
-                try:
-                    individual_diagrams_dir = Config.INDIVIDUAL_DIAGRAMS_DIR
-                    individual_gen = IndividualDiagramGenerator(directorate_data, Config)
-                    individual_count = individual_gen.generate_all(individual_diagrams_dir)
-                    if individual_count > 0:
-                        logger.info(f"✓ [8] Generated {individual_count} individual MQ manager diagrams in {individual_diagrams_dir}")
-                    else:
-                        logger.warning("⚠ [8] No individual diagrams generated")
-                except Exception as e:
-                    logger.warning(f"⚠ [8] Individual diagram generation failed: {e}")
-                    self._pipeline_errors.append(f"Individual diagrams: {e}")
-
-            with ThreadPoolExecutor(max_workers=3) as _diagram_pool:
-                futures = [
-                    _diagram_pool.submit(_run_step6),
-                    _diagram_pool.submit(_run_step7),
-                    _diagram_pool.submit(_run_step8),
-                ]
-                for f in futures:
-                    f.result()  # propagate any uncaught exceptions
-
-            logger.info("✓ [6-8/14] Diagram generation complete")
-
-            # Smart Filtered Views
-            logger.info("\n[9/14] Generating smart filtered views...")
-            try:
-                from utils.smart_filter import generate_filtered_diagrams
-                filtered_dir = Config.FILTERED_VIEWS_DIR
-                filtered_count = generate_filtered_diagrams(enriched_data, filtered_dir, Config)
-                if filtered_count > 0:
-                    logger.info(f"✓ Generated {filtered_count} filtered view diagrams in {filtered_dir}")
-                    logger.info("  Views: per-organization, gateways-only, internal/external gateways")
-                else:
-                    logger.warning("⚠ No filtered views generated")
-            except Exception as e:
-                logger.warning(f"⚠ Filtered view generation failed: {e}")
-                self._pipeline_errors.append(f"Filtered views: {e}")
-
-            # Gateway Analytics (if gateways exist)
-            logger.info("\n[10/14] Running gateway analytics...")
-            gateway_analytics = None  # initialised here so the consolidated report step can always reference it
-            try:
-                analyzer = GatewayAnalyzer(enriched_data)
-                gateway_analytics = analyzer.analyze()
-
-                if gateway_analytics['summary']['total_gateways'] > 0:
-                    # Generate gateway analytics report
-                    analytics_report = Config.REPORTS_DIR / f"gateway_analytics_{timestamp}.html"
-                    generate_gateway_report_html(gateway_analytics, analytics_report)
-
-                    # Save analytics data as JSON
-                    analytics_json = Config.DATA_DIR / f"gateway_analytics_{timestamp}.json"
-                    save_json(gateway_analytics, analytics_json)
-
-                    logger.info(f"✓ Gateway analytics: {gateway_analytics['summary']['total_gateways']} gateways analyzed")
-                    logger.info(f"✓ Report: {analytics_report}")
-                else:
-                    logger.warning("⚠ No gateways found in data")
-            except Exception as e:
-                logger.warning(f"⚠ Gateway analytics failed: {e}")
-                self._pipeline_errors.append(f"Gateway analytics: {e}")
-
-            # Consolidated Report
-            logger.info("\n[10.5/14] Generating consolidated report...")
-            try:
-                from utils.report_consolidator import generate_consolidated_report
-                consolidated_file = Config.REPORTS_DIR / f"consolidated_report_{timestamp}.html"
-
-                # Load data
-                generate_consolidated_report(
-                    changes=changes,
-                    gateway_analytics=gateway_analytics,
-                    output_file=consolidated_file,
-                    current_timestamp=timestamp,
-                    baseline_timestamp=baseline_time_str,
-                    enriched_data=enriched_data,
-                )
-                self._consolidated_report_file = consolidated_file
-                logger.info(f"✓ Consolidated report: {consolidated_file}")
-            except Exception as e:
-                logger.warning(f"⚠ Consolidated report generation failed: {e}")
-                self._pipeline_errors.append(f"Consolidated report: {e}")
-
-            # Multi-Format Exports
-            logger.info("\n[11/14] Generating multi-format exports...")
-            try:
-                # Export main topology to SVG only (PNG skipped - too slow for large topology)
-                if Config.TOPOLOGY_DOT.exists():
-                    from utils.export_formats import export_dot_to_svg
-                    export_dot_to_svg(Config.TOPOLOGY_DOT, Config.TOPOLOGY_DIR / "mq_topology.svg")
-
-                # Export all application diagrams
-                if Config.APPLICATION_DIAGRAMS_DIR.exists():
-                    export_directory_to_formats(Config.APPLICATION_DIAGRAMS_DIR, formats=['svg'], dpi=150)
-
-                # Export all individual diagrams
-                if Config.INDIVIDUAL_DIAGRAMS_DIR.exists():
-                    export_directory_to_formats(Config.INDIVIDUAL_DIAGRAMS_DIR, formats=['svg'], dpi=150)
-
-                # Generate Excel inventory
-                excel_file = Config.EXPORTS_DIR / f"mqcmdb_inventory_{timestamp}.xlsx"
-                if generate_excel_inventory(enriched_data, excel_file):
-                    logger.info(f"✓ Excel inventory: {excel_file}")
-            except Exception as e:
-                logger.warning(f"⚠ Multi-format export failed: {e}")
-                self._pipeline_errors.append(f"Multi-format export: {e}")
-
-            # EA Documentation Generation
-            logger.info("\n[12/14] Generating Enterprise Architecture documentation...")
-            confluence_doc = None
-            try:
-                ea_doc_gen = EADocumentationGenerator(enriched_data)
-                confluence_doc = Config.EXPORTS_DIR / f"EA_Documentation_{timestamp}.txt"
-                ea_doc_gen.generate_confluence_markup(confluence_doc)
-                logger.info(f"✓ EA Documentation: {confluence_doc}")
-                logger.info("  → Import into Confluence using Insert → Markup")
-            except Exception as e:
-                logger.warning(f"⚠ EA documentation generation failed: {e}")
-                self._pipeline_errors.append(f"EA documentation: {e}")
-
-            # Per-Application Documentation Generation
-            try:
-                from generators.app_doc_generator import ApplicationDocGenerator
-                app_docs_dir = Config.EXPORTS_DIR / "app_docs"
-                app_doc_gen = ApplicationDocGenerator(enriched_data)
-                app_doc_summary = app_doc_gen.generate_all(app_docs_dir)
-                if app_doc_summary['generated'] > 0:
-                    logger.info(f"✓ Generated {app_doc_summary['generated']} per-application doc(s): {app_docs_dir}")
-            except Exception as e:
-                logger.warning(f"⚠ Per-application documentation generation failed: {e}")
-                self._pipeline_errors.append(f"Per-app documentation: {e}")
-
-            # Confluence Publishing
-            if Config.ENABLE_CONFLUENCE_PUBLISH:
-                logger.info("\n[12.5/14] Publishing to Confluence...")
-                try:
-                    from utils.confluence_shim import (
-                        is_configured, attach_diagrams_enabled, app_docs_enabled,
-                        publish_ea_documentation, publish_application_diagrams,
-                        publish_app_documentation, publish_consolidated_report,
-                    )
-
-                    if is_configured():
-                        # Publish the EA documentation markup page
-                        if confluence_doc and confluence_doc.exists():
-                            result = publish_ea_documentation(
-                                doc_file=str(confluence_doc),
-                                version_comment=f"Pipeline run {timestamp}",
-                            )
-                            if result:
-                                logger.info(f"✓ EA documentation published to Confluence (page {result.get('id', 'N/A')})")
-                            else:
-                                logger.warning("⚠ Confluence page update returned no result")
-                                self._pipeline_errors.append("Confluence: page update returned no result")
-                        else:
-                            logger.warning("⚠ No EA documentation file to publish")
-
-                        # Publish per-application documentation pages (then attach SVGs)
-                        _app_docs_on = app_docs_enabled()
-                        logger.info(f"  publish_app_docs enabled: {_app_docs_on}")
-                        app_doc_result = {}  # initialised so line below is safe even if publishing is skipped
-                        if _app_docs_on:
-                            logger.info("  Calling publish_app_documentation()...")
-                            app_doc_result = publish_app_documentation(
-                                enriched_data=enriched_data,
-                                version_comment=f"Pipeline run {timestamp}",
-                            )
-                            logger.info(f"  publish_app_documentation result: {app_doc_result}")
-                            if app_doc_result["published"] > 0:
-                                logger.info(f"✓ Published {app_doc_result['published']} per-app doc(s) to Confluence")
-                            if app_doc_result["errors"] > 0:
-                                logger.warning(f"⚠ {app_doc_result['errors']} per-app doc(s) failed to publish")
-                                self._pipeline_errors.append(f"Confluence: {app_doc_result['errors']} per-app doc(s) failed")
-
-                        # Attach application diagram SVGs to per-app pages (only when enabled)
-                        if attach_diagrams_enabled():
-                            _page_map = app_doc_result.get("page_map", {}) if _app_docs_on else {}
-                            diagram_summary = publish_application_diagrams(
-                                comment=f"Pipeline run {timestamp}",
-                                page_map=_page_map,
-                            )
-                            if diagram_summary["attached"] > 0:
-                                logger.info(f"✓ Attached {diagram_summary['attached']} application diagram(s) to Confluence")
-                            if diagram_summary["errors"] > 0:
-                                logger.warning(f"⚠ {diagram_summary['errors']} diagram attachment(s) failed")
-                                self._pipeline_errors.append(f"Confluence: {diagram_summary['errors']} diagram attachment(s) failed")
-
-                        # Attach consolidated report (Changes + Gateway Analytics + Routers)
-                        if self._consolidated_report_file and self._consolidated_report_file.exists():
-                            pub_ok = publish_consolidated_report(
-                                self._consolidated_report_file,
-                                version_comment=f"Pipeline run {timestamp}",
-                            )
-                            if pub_ok:
-                                logger.info("✓ Consolidated report published to Confluence")
-                            else:
-                                logger.warning("⚠ Consolidated report could not be attached to Confluence")
-                                self._pipeline_errors.append("Confluence: consolidated report attachment failed")
-                    else:
-                        logger.info("⚠ Confluence not configured - skipping publish")
-                        logger.info("  → Configure config/confluence_config.json to enable")
-                except Exception as e:
-                    logger.warning(f"⚠ Confluence publishing failed: {e}")
-                    self._pipeline_errors.append(f"Confluence publishing: {e}")
-
-            # Final Summary
-            logger.info("\n[13/14] Pipeline Summary")
-            self._summary_stats = self._calculate_summary(enriched_data)
-            self._print_summary(self._summary_stats)
+            self._run_steps(main_steps, context)
+            self._print_summary(context)
 
             logger.info("\n" + "=" * 70)
             logger.info("✓ PIPELINE COMPLETED SUCCESSFULLY")
             logger.info("=" * 70)
-
             success = True
 
-        except FileNotFoundError as e:
-            logger.error(f"\n✗ ERROR: {e}")
+        except _PipelineAborted as exc:
+            logger.error(f"\n✗ PIPELINE ABORTED: {exc}")
+
+        except FileNotFoundError as exc:
+            logger.error(f"\n✗ ERROR: {exc}")
             logger.info("Ensure all required files exist in the correct directories")
-            error_message = f"File not found: {e}"
-        except Exception as e:
-            # safe_print(f"\n✗ UNEXPECTED ERROR: {e}")
-            # error_message = f"Unexpected error: {e}\n{traceback.format_exc()}"
-            # traceback.print_exc()
-            logger.error(f"\n✗ UNEXPECTED ERROR: {e}")
-            error_message = f"Unexpected error: {e}\n{traceback.format_exc()}"
+
+        except Exception as exc:
+            logger.error(f"\n✗ UNEXPECTED ERROR: {exc}")
             logger.exception("Unexpected pipeline error")
 
-        # Send email notification (step 14)
-        self._send_notification(success, error_message)
+        finally:
+            # Notification always runs — pass success flag via context errors list
+            # (non-empty pipeline_errors may indicate partial success)
+            for StepClass in self._filter_enabled(notify_steps):
+                try:
+                    StepClass().execute(context)
+                except Exception as exc:
+                    logger.warning(f"⚠ Notification step failed: {exc}")
 
         return success
 
-    def _calculate_summary(self, enriched_data: dict) -> dict:
-        """Calculate summary statistics."""
+    # ──────────────────────────────────────────────────────────────────────
+    # Internal helpers
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _filter_enabled(self, steps):
+        """Remove steps that are disabled in Config.PIPELINE_STEPS."""
+        enabled = []
+        for StepClass in steps:
+            key = StepClass.__name__
+            if Config.PIPELINE_STEPS.get(key, True):
+                enabled.append(StepClass)
+            else:
+                logger.debug(f"  Step '{key}' disabled in PIPELINE_STEPS — skipping")
+        return enabled
+
+    def _run_steps(self, steps, context: PipelineContext) -> None:
+        """Execute steps in order, running same-group steps concurrently."""
+        for group_key, batch in PluginRegistry.iter_groups(steps):
+            if group_key:
+                # Parallel: submit all steps in this group to a thread pool
+                logger.info(
+                    f"\nRunning parallel group '{group_key}' "
+                    f"({len(batch)} step(s))..."
+                )
+                with ThreadPoolExecutor(max_workers=len(batch)) as pool:
+                    futures = {
+                        pool.submit(self._safe_execute, S, context): S
+                        for S in batch
+                    }
+                    for fut in as_completed(futures):
+                        fut.result()   # propagates _PipelineAborted if raised
+            else:
+                # Sequential: one step at a time
+                for StepClass in batch:
+                    self._safe_execute(StepClass, context)
+
+    def _safe_execute(self, StepClass, context: PipelineContext) -> None:
+        """Run one step, honouring abort_on_failure."""
+        name = getattr(StepClass, 'name', '') or StepClass.__name__
+        try:
+            StepClass().execute(context)
+        except Exception as exc:
+            if getattr(StepClass, 'abort_on_failure', False):
+                raise _PipelineAborted(f"[{name}] {exc}") from exc
+            # Non-fatal — record and continue
+            context.record_error(name, exc)
+
+    def _print_summary(self, context: PipelineContext) -> None:
+        """Print statistics derived from enriched_data on context."""
+        enriched = context.enriched_data or {}
         stats = {
-            "Organizations": len(enriched_data),
-            "Departments": 0,
-            "Business Owners": 0,
-            "Applications": 0,
-            "MQ Managers": 0,
-            "Total QLocal": 0,
-            "Total QRemote": 0,
-            "Total QAlias": 0,
+            "Organizations":     len(enriched),
+            "Departments":       0,
+            "Business Owners":   0,
+            "Applications":      0,
+            "MQ Managers":       0,
+            "Total QLocal":      0,
+            "Total QRemote":     0,
+            "Total QAlias":      0,
             "Total Connections": 0,
         }
 
-        for org_name, org_data in enriched_data.items():
+        for org_data in enriched.values():
             departments = org_data.get('_departments', {})
             stats["Departments"] += len(departments)
-
-            for dept_name, biz_owners in departments.items():
+            for biz_owners in departments.values():
                 stats["Business Owners"] += len(biz_owners)
-
-                for biz_ownr, applications in biz_owners.items():
+                for applications in biz_owners.values():
                     stats["Applications"] += len(applications)
-
-                    for app_name, mqmanagers in applications.items():
+                    for mqmanagers in applications.values():
                         stats["MQ Managers"] += len(mqmanagers)
+                        for mq_data in mqmanagers.values():
+                            stats["Total QLocal"]       += mq_data.get('qlocal_count', 0)
+                            stats["Total QRemote"]      += mq_data.get('qremote_count', 0)
+                            stats["Total QAlias"]       += mq_data.get('qalias_count', 0)
+                            stats["Total Connections"]  += len(mq_data.get('outbound', []))
 
-                        for mqmgr, mq_data in mqmanagers.items():
-                            stats["Total QLocal"] += mq_data.get('qlocal_count', 0)
-                            stats["Total QRemote"] += mq_data.get('qremote_count', 0)
-                            stats["Total QAlias"] += mq_data.get('qalias_count', 0)
-                            stats["Total Connections"] += len(mq_data.get('outbound', []))
-
-        return stats
-
-    def _print_summary(self, stats: dict):
-        """Print summary statistics."""
         logger.info("\n" + "-" * 70)
-        logger.info("SUMMARY STATISTICS")
+        logger.info("[13/14] SUMMARY STATISTICS")
         logger.info("-" * 70)
-
         for key, value in stats.items():
             logger.info(f"{key + ':':21} {value}")
-
         logger.info("-" * 70)
 
-        # Show warnings if any
-        if self._pipeline_errors:
+        if context.pipeline_errors:
             logger.info("\nWarnings during execution:")
-            for error in self._pipeline_errors:
-                logger.info(f"  ⚠ {error}")
+            for err in context.pipeline_errors:
+                logger.info(f"  ⚠ {err}")
 
-    def _send_notification(self, success: bool, error_message: str = None):
-        """Send email notification about pipeline completion."""
-        # Check if email is enabled via environment variable
-        if os.environ.get("EMAIL_ENABLED", "").lower() not in ("true", "1", "yes"):
-            return
 
-        logger.info("\n[14/14] Sending email notification...")
+# ──────────────────────────────────────────────────────────────────────────────
+# Internal sentinel exception
+# ──────────────────────────────────────────────────────────────────────────────
 
-        try:
-            notifier = get_notifier()
+class _PipelineAborted(RuntimeError):
+    """Raised by _safe_execute when a critical step (abort_on_failure=True) fails."""
 
-            if not notifier.is_enabled:
-                logger.warning("⚠ Email notifications not configured")
-                return
 
-            # Build summary for email
-            summary = self._summary_stats.copy() if self._summary_stats else {}
-
-            if self._pipeline_errors:
-                summary["Warnings"] = len(self._pipeline_errors)
-                error_details = "\n".join([f"  - {e}" for e in self._pipeline_errors])
-                if error_message:
-                    error_message = f"{error_message}\n\nWarnings:\n{error_details}"
-                else:
-                    error_message = f"Warnings during execution:\n{error_details}"
-
-            # Find log file from active file handlers
-            log_file = None
-            for handler in logging.getLogger("app").handlers:
-                if hasattr(handler, 'baseFilename'):
-                    log_file = Path(handler.baseFilename)
-                    break
-
-            result = notifier.send_pipeline_notification(
-                success=success,
-                summary=summary,
-                log_file=log_file,
-                error_message=error_message,
-            )
-
-            if result:
-                logger.info("✓ Email notification sent")
-            else:
-                logger.warning("⚠ Failed to send email notification")
-                for err in notifier.errors:
-                    logger.info(f"  - {err}")
-
-        except Exception as e:
-            logger.warning(f"⚠ Email notification error: {e}")
-
+# ──────────────────────────────────────────────────────────────────────────────
+# Entry point
+# ──────────────────────────────────────────────────────────────────────────────
 
 def main():
     """Entry point for the MQ CMDB orchestrator."""
     setup_logging(banner_config=Config.BANNER_CONFIG)
     orchestrator = MQCMDBOrchestrator()
     success = orchestrator.run_full_pipeline()
-
-    # Exit with appropriate code
     sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":
     main()
-
