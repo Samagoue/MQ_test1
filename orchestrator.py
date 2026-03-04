@@ -107,6 +107,15 @@ class MQCMDBOrchestrator:
             raw_data = load_json(Config.INPUT_JSON)
             logger.info(f"✓ Loaded {len(raw_data)} records")
 
+            # Asset association
+            logger.info("\n[1.5/14] Running asset association...")
+            try:
+                from processors.asset_association import run as run_asset_association
+                run_asset_association(raw_data, Config, logger)
+            except Exception as e:
+                logger.warning(f"⚠ Asset association failed: {e}")
+                self._pipeline_errors.append(f"Asset association: {e}")
+
             # Process relationships
             logger.info("\n[2/14] Processing MQ Manager relationships...")
             processor = MQManagerProcessor(raw_data, Config.FIELD_MAPPINGS)

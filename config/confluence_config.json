@@ -1,0 +1,32 @@
+{
+    "_comment": "Confluence API configuration. Copy this file and fill in your values. This file is gitignored.",
+    "base_url": "https://confluence.example.com",
+    "personal_access_token": "",
+    "certificate_path": "",
+    "verify_ssl": true,
+    "page_id": "",
+    "page_title": "IBM MQ Integration Architecture",
+    "space_key": "",
+    "timeout": 30,
+    "attach_diagrams": true,
+    "consolidated_report_page_id": "",
+    "_comment_consolidated": "Parent page under which the 'MQ CMDB Consolidated Report' child page is created. Defaults to page_id if blank.",
+    "publish_app_docs": true,
+    "app_docs_parent_page_id": "",
+    "diagram_pages": {
+        "_comment_1": "Map application names to their Confluence page IDs for SVG diagram attachment."
+    },
+    "input_pages": {
+        "_comment": "Map input file names to Confluence pages. Each page should contain a single table. Headers become JSON keys.",
+        "app_to_qmgr": {
+            "page_id": "",
+            "output_file": "input/app_to_qmgr.json",
+            "required_header": "QmgrName"
+        },
+        "gateways": {
+            "page_id": "",
+            "output_file": "input/gateways.json",
+            "required_header": "QmgrName"
+        }
+    }
+}
