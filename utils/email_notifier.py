@@ -446,6 +446,7 @@ class EmailNotifierStep(Notifier):
 
     def execute(self, context: PipelineContext) -> None:
         if _os.environ.get("EMAIL_ENABLED", "").lower() not in ("true", "1", "yes"):
+            logger.info("  Skipped: EMAIL_ENABLED not set")
             return
 
         try:

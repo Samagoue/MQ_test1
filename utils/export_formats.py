@@ -443,22 +443,33 @@ class ExportStep(Generator):
         try:
             # Main topology → SVG only (PNG too slow for large layouts)
             if config.TOPOLOGY_DOT.exists():
+                logger.info(f"  Exporting topology SVG from {config.TOPOLOGY_DOT.name}")
                 export_dot_to_svg(
                     config.TOPOLOGY_DOT,
                     config.TOPOLOGY_DIR / "mq_topology.svg",
                 )
+            else:
+                logger.info(f"  Topology DOT not found — skipping SVG export ({config.TOPOLOGY_DOT})")
 
             # Application diagrams → SVG
             if config.APPLICATION_DIAGRAMS_DIR.exists():
+                dot_count = len(list(config.APPLICATION_DIAGRAMS_DIR.glob("*.dot")))
+                logger.info(f"  Exporting {dot_count} application diagram(s) to SVG")
                 export_directory_to_formats(
                     config.APPLICATION_DIAGRAMS_DIR, formats=['svg'], dpi=150
                 )
+            else:
+                logger.info("  Application diagrams directory not found — skipping")
 
             # Individual diagrams → SVG
             if config.INDIVIDUAL_DIAGRAMS_DIR.exists():
+                dot_count = len(list(config.INDIVIDUAL_DIAGRAMS_DIR.glob("*.dot")))
+                logger.info(f"  Exporting {dot_count} individual diagram(s) to SVG")
                 export_directory_to_formats(
                     config.INDIVIDUAL_DIAGRAMS_DIR, formats=['svg'], dpi=150
                 )
+            else:
+                logger.info("  Individual diagrams directory not found — skipping")
 
             # Excel inventory
             excel_file = config.EXPORTS_DIR / f"mqcmdb_inventory_{timestamp}.xlsx"

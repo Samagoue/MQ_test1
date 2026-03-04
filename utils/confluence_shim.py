@@ -871,6 +871,7 @@ class ConfluencePublisherStep(Publisher):
         timestamp = context.timestamp
 
         if not config.ENABLE_CONFLUENCE_PUBLISH:
+            logger.info("  Skipped: ENABLE_CONFLUENCE_PUBLISH=False")
             return
 
         if not is_configured():

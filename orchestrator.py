@@ -122,7 +122,9 @@ class MQCMDBOrchestrator:
 
     def _safe_execute(self, StepClass, context: PipelineContext) -> None:
         """Run one step, honouring abort_on_failure."""
-        name = getattr(StepClass, 'name', '') or StepClass.__name__
+        name  = getattr(StepClass, 'name', '') or StepClass.__name__
+        order = getattr(StepClass, '_order', '?')
+        logger.info(f"\n▶ [{order}] {name}")
         try:
             StepClass().execute(context)
         except Exception as exc:
