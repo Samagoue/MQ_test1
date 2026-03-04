@@ -141,6 +141,12 @@ class Config:
     MQMANAGER_ALIASES_JSON = INPUT_DIR / "mqmanager_aliases.json"
     EXTERNAL_APPS_JSON = INPUT_DIR / "external_apps.json"
     HOSTS_JSON = OUTPUT_DIR / "all_cmdb_hosts.json"
+
+    # Asset association input files
+    COUNTRY_CODE_JSON = INPUT_DIR / "countryCode.json"
+    PATTERNS_JSON = INPUT_DIR / "patterns.json"
+    # Asset association output
+    ASSET_ASSOCIATIONS_JSON = DATA_DIR / "asset_associations.json"
  
     # ==================== DATABASE ====================
     DEFAULT_PROFILE = "production"
@@ -206,6 +212,7 @@ class Config:
         "DataIngestionStep":          True,
         "ConfluenceSyncStep":         True,
         # Processors
+        "AssetAssociationStep":       True,
         "MQManagerProcessorStep":     True,
         "HierarchyEnrichmentStep":    True,
         "ChangeDetectionStep":        True,
