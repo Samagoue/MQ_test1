@@ -214,8 +214,9 @@ class AssociationDocGenerator:
 
             # Row number in grey for easy scanning
             row_num = f"{{color:#999999}}{i}{{color}}"
+            channel_display = channel or "\u2014"
             lines.append(
-                f"|{row_num}|*{country}*|{{color:#555555}}{channel or '\u2014'}{{color}}"
+                f"|{row_num}|*{country}*|{{color:#555555}}{channel_display}{{color}}"
                 f"|{count}|{status}|"
             )
 
@@ -244,9 +245,10 @@ class AssociationDocGenerator:
                 badge = "QUEUES ONLY"
                 count_str = f"{count} association{plural}"
 
+            channel_label = channel or "no channel"
             expand_title = (
                 f"{country}  [{badge}]"
-                f"  \u2014  {channel or 'no channel'}"
+                f"  \u2014  {channel_label}"
                 f"  ({count_str})"
             )
             lines.append(f"{{expand:title={expand_title}}}")
