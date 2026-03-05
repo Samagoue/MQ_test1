@@ -13,6 +13,10 @@
     "_comment_consolidated": "Parent page under which the 'MQ CMDB Consolidated Report' child page is created. Defaults to page_id if blank.",
     "publish_app_docs": true,
     "app_docs_parent_page_id": "",
+    "publish_asset_associations": true,
+    "asset_association_parent_page_name": "",
+    "_comment_asset_association": "Parent page for the Asset Associations child page. Set the application name here — the script resolves it to a page ID at runtime via get_page_by_title(). Use asset_association_parent_page_id instead if you already know the ID (faster, skips the lookup).",
+    "asset_association_parent_page_id": "",
     "diagram_pages": {
         "_comment_1": "Map application names to their Confluence page IDs for SVG diagram attachment."
     },

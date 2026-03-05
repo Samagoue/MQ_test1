@@ -331,7 +331,16 @@ class MQCMDBOrchestrator:
                     assoc_file = Config.EXPORTS_DIR / f"Asset_Associations_{timestamp}.txt"
                     assoc_doc.generate_confluence_markup(assoc_file)
                     logger.info(f"✓ Asset Association doc: {assoc_file}")
-                    logger.info("  → Import into Confluence using Insert → Markup")
+
+                    # Publish to Confluence (parent resolved by name from config)
+                    try:
+                        from utils.confluence_shim import publish_asset_association_doc
+                        published = publish_asset_association_doc(assoc_file, timestamp)
+                        if not published:
+                            logger.info("  → Import manually into Confluence using Insert → Markup")
+                    except Exception as pub_e:
+                        logger.warning(f"⚠ Confluence publish skipped: {pub_e}")
+                        logger.info("  → Import manually into Confluence using Insert → Markup")
                 else:
                     logger.info("  Skipped: asset_associations.json not found")
             except Exception as e:

@@ -63,7 +63,8 @@ logger = logging.getLogger(__name__)
 # Each entry: (source_template, asset_type_override)
 # $$ = two-char country code,  $$$ = three-char country code
 BUILTIN_PATTERNS: List[Tuple[str, str]] = [
-    ("ORG_AP_COUNTRY$$", "channel"),
+    ("ORG_AP_COUNTRY$$",  "channel"),   # underscore variant
+    ("ORG.AP.COUNTRY$$",  "channel"),   # dot variant
 ]
 
 # ── Worker-process globals (populated once per worker by Pool initializer) ──
