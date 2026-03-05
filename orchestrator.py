@@ -322,6 +322,22 @@ class MQCMDBOrchestrator:
                 logger.warning(f"⚠ EA documentation generation failed: {e}")
                 self._pipeline_errors.append(f"EA documentation: {e}")
 
+            # Asset Association Confluence Page
+            logger.info("\n[12.5/14] Generating asset association documentation...")
+            try:
+                if Config.ASSET_ASSOCIATIONS_JSON.exists():
+                    from generators.association_doc_generator import AssociationDocGenerator
+                    assoc_doc = AssociationDocGenerator(Config.ASSET_ASSOCIATIONS_JSON)
+                    assoc_file = Config.EXPORTS_DIR / f"Asset_Associations_{timestamp}.txt"
+                    assoc_doc.generate_confluence_markup(assoc_file)
+                    logger.info(f"✓ Asset Association doc: {assoc_file}")
+                    logger.info("  → Import into Confluence using Insert → Markup")
+                else:
+                    logger.info("  Skipped: asset_associations.json not found")
+            except Exception as e:
+                logger.warning(f"⚠ Asset association doc failed: {e}")
+                self._pipeline_errors.append(f"Asset association doc: {e}")
+
             # Final Summary
             logger.info("\n[13/14] Pipeline Summary")
             self._summary_stats = self._calculate_summary(enriched_data)

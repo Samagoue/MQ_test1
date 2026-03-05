@@ -41,10 +41,19 @@ Output is written to Config.ASSET_ASSOCIATIONS_JSON, sorted by country name.
 from __future__ import annotations
 
 import logging
+import sys
 import time
 from collections import defaultdict
 from multiprocessing import Pool, cpu_count
+from pathlib import Path
 from typing import Dict, List, Tuple
+
+# Ensure the project root is in sys.path for multiprocessing worker processes.
+# On macOS/Windows, Pool uses 'spawn' so each worker reimports this module
+# from scratch without inheriting the parent's sys.path.
+_project_root = str(Path(__file__).parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 from utils.file_io import load_json, save_json
 
