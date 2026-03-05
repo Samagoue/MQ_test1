@@ -8,7 +8,7 @@ Pass 1 — JSON patterns (patterns.json, parallel)
 
 Pass 2 — Built-in patterns (hardcoded in BUILTIN_PATTERNS, sequential)
     Source-only patterns not in patterns.json.
-    Currently: ORG_AP_COUNTRY$$ → identifies the per-country channel.
+    Currently: ORG_AP_COUNTRY$$ / ORG.AP.COUNTRY$$ / ORG.$NAME → per-country channel.
 
 Join + group step
     Records are grouped by country in the output.  Because one country maps to
@@ -61,10 +61,13 @@ logger = logging.getLogger(__name__)
 
 # ── Built-in source patterns (not in patterns.json) ────────────────────────
 # Each entry: (source_template, asset_type_override)
-# $$ = two-char country code,  $$$ = three-char country code
+# $$   = two-char country code   (e.g. UK, FR)
+# $$$  = three-char country code (e.g. GBR, FRA)
+# $NAME = full country name uppercased (e.g. ARGENTINA, KUWAIT)
 BUILTIN_PATTERNS: List[Tuple[str, str]] = [
-    ("ORG_AP_COUNTRY$$",  "channel"),   # underscore variant
-    ("ORG.AP.COUNTRY$$",  "channel"),   # dot variant
+    ("ORG_AP_COUNTRY$$",  "channel"),   # underscore + 2-char code, e.g. ORG_AP_COUNTRYUK
+    ("ORG.AP.COUNTRY$$",  "channel"),   # dot + 2-char code,        e.g. ORG.AP.COUNTRYUK
+    ("ORG.$NAME",         "channel"),   # full country name,         e.g. ORG.ARGENTINA
 ]
 
 # ── Worker-process globals (populated once per worker by Pool initializer) ──
@@ -146,8 +149,9 @@ def _scan_builtin_patterns(
             for c in countries:
                 test_src = (
                     src_template
-                    .replace("$$$", c["three"])
-                    .replace("$$",  c["two"])
+                    .replace("$NAME", c["name"].upper())
+                    .replace("$$$",   c["three"])
+                    .replace("$$",    c["two"])
                 )
                 if test_src == src_upper:
                     channel_map[c["name"]] = src_asset
