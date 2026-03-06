@@ -1,4 +1,3 @@
-
 """
 Enterprise Architecture Documentation Generator - TOGAF Aligned
 
@@ -13,6 +12,10 @@ Generates comprehensive EA documentation following TOGAF framework:
 - Architecture Roadmap & Recommendations
 
 Reference: TOGAF 9.2 Architecture Content Framework
+
+Subclasses ``ConfluenceDocGenerator`` — loaded from the shared scripts
+directory in production, falling back to the local ``scripts/common/``
+copy during development.
 """
 
 import os
@@ -23,9 +26,7 @@ from datetime import datetime
 from collections import defaultdict
 from utils.logging_config import get_logger
 
-logger = get_logger("generators.doc_generator")
-
-# Import base class (supports both shared-scripts and project-local paths)
+# Shared scripts directory (same convention as confluence_shim.py)
 _SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", "/data/app/Scripts")
 if _SHARED_SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SHARED_SCRIPTS_DIR)
@@ -34,6 +35,8 @@ try:
     from confluence_doc_generator import ConfluenceDocGenerator
 except ImportError:
     from scripts.common.confluence_doc_generator import ConfluenceDocGenerator
+
+logger = get_logger("generators.doc_generator")
 
 
 class EADocumentationGenerator(ConfluenceDocGenerator):
@@ -68,10 +71,12 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             'applications': set(),
             'mqmanagers': {},
             'gateways': [],
+            'routers': [],
             'connections': {'internal': 0, 'cross_dept': 0, 'cross_org': 0, 'external': 0},
             'queues': {'qlocal': 0, 'qremote': 0, 'qalias': 0, 'total': 0}
         }
         seen_gateways = set()
+        seen_routers = set()
 
         for org_name, org_data in self.data.items():
             if not isinstance(org_data, dict) or '_departments' not in org_data:
@@ -90,10 +95,12 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                 stats['organizations'][org_name]['departments'].add(dept_name)
 
                 for biz_ownr, applications in dept_data.items():
-                    stats['biz_owners'].add(biz_ownr)
+                    # Only count internal-org biz_owners as "application stakeholders"
+                    if org_type == 'Internal':
+                        stats['biz_owners'].add(biz_ownr)
 
                     for app_name, mqmgr_dict in applications.items():
-                        if not app_name.startswith('Gateway (') and app_name != 'No Application':
+                        if not app_name.startswith('Gateway (') and app_name not in ('No Application', 'Router'):
                             stats['applications'].add(app_name)
                             stats['organizations'][org_name]['applications'].add(app_name)
 
@@ -108,6 +115,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                                 'app': app_name,
                                 'is_gateway': mqmgr_data.get('IsGateway', False),
                                 'gateway_scope': mqmgr_data.get('GatewayScope', ''),
+                                'is_router': mqmgr_data.get('IsRouter', False),
                                 'qlocal': mqmgr_data.get('qlocal_count', 0),
                                 'qremote': mqmgr_data.get('qremote_count', 0),
                                 'qalias': mqmgr_data.get('qalias_count', 0),
@@ -122,6 +130,15 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                                 stats['gateways'].append({
                                     'name': mqmgr_name,
                                     'scope': mqmgr_data.get('GatewayScope', ''),
+                                    'org': org_name,
+                                    'dept': dept_name
+                                })
+
+                            if mqmgr_data.get('IsRouter', False) and mqmgr_name not in seen_routers:
+                                seen_routers.add(mqmgr_name)
+                                stats['routers'].append({
+                                    'name': mqmgr_name,
+                                    'description': mqmgr_data.get('RouterDescription', ''),
                                     'org': org_name,
                                     'dept': dept_name
                                 })
@@ -404,7 +421,17 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         return maturity
 
-    # ── ConfluenceDocGenerator interface ─────────────────────────────────
+    # ------------------------------------------------------------------ #
+    #  Backward-compatible aliases for base class markup helpers
+    # ------------------------------------------------------------------ #
+
+    _styled_panel = staticmethod(ConfluenceDocGenerator.styled_panel)
+    _status_lozenge = staticmethod(ConfluenceDocGenerator.status_lozenge)
+    _expandable = staticmethod(ConfluenceDocGenerator.expandable)
+
+    # ------------------------------------------------------------------ #
+    #  ConfluenceDocGenerator abstract method implementations
+    # ------------------------------------------------------------------ #
 
     def build_header(self) -> List[str]:
         return self._generate_document_header()
@@ -431,27 +458,19 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
     def build_footer(self) -> List[str]:
         return self._generate_footer()
 
-    def generate(self, output_file: Path) -> bool:
-        """Override to assemble the document without _sanitize_table_rows()."""
-        doc = []
-        doc.extend(self.build_header())
-        doc.extend(self.build_toc())
-        for _, section_fn in self.get_sections():
-            doc.extend(section_fn())
-        doc.extend(self.build_footer())
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(doc))
-        logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
-        return True
+    # ------------------------------------------------------------------ #
+    #  Public API (backward-compatible entry point)
+    # ------------------------------------------------------------------ #
 
     def generate_confluence_markup(self, output_file: Path) -> bool:
-        """Compatibility alias — delegates to generate()."""
-        return self.generate(output_file)
+        """Generate comprehensive TOGAF-aligned Confluence documentation."""
+        result = self.generate(output_file)
+        logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
+        return result
 
     def _generate_document_header(self) -> List[str]:
         """Generate document control header."""
-        return [
-            "{panel:title=TOGAF Architecture Document|borderStyle=solid}",
+        header_content = [
             "h1. MQ Integration Architecture",
             "",
             "||Document Property||Value||",
@@ -459,35 +478,64 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             f"|*Generated*|{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}|",
             "|*Framework*|TOGAF 9.2 Architecture Content Framework|",
             "|*Scope*|IBM MQ Middleware Integration Topology|",
-            "|*Classification*|Internal Use Only|",
-            "|*Status*|Current State Architecture|",
-            "{panel}",
-            "",
-            "{toc}",
+            f"|*Classification*|{self._status_lozenge('Internal Use Only', 'Blue')}|",
+            f"|*Status*|{self._status_lozenge('Current State Architecture', 'Green')}|",
+        ]
+        lines = self._styled_panel(
+            "TOGAF Architecture Document",
+            header_content,
+            bg_color="#f7f9fb",
+            title_bg="#1a3c5e",
+            title_color="#ffffff",
+            border_color="#1a3c5e",
+        )
+        lines.extend([
             "",
             "----",
-            ""
-        ]
+            "",
+        ])
+        return lines
 
     def _generate_toc(self) -> List[str]:
-        """Generate navigation panel."""
-        return [
-            "{panel:title=Quick Navigation}",
-            "* [1. Architecture Vision|#architecture-vision]",
-            "* [2. Stakeholder Analysis|#stakeholder-analysis]",
-            "* [3. Architecture Principles|#architecture-principles]",
-            "* [4. Business Architecture|#business-architecture]",
-            "* [5. Data Architecture|#data-architecture]",
-            "* [6. Application Architecture|#application-architecture]",
-            "* [7. Technology Architecture|#technology-architecture]",
-            "* [8. Integration Patterns|#integration-patterns]",
-            "* [9. Gap Analysis|#gap-analysis]",
-            "* [10. Risk Assessment|#risk-assessment]",
-            "* [11. Architecture Roadmap|#architecture-roadmap]",
-            "* [12. Appendices|#appendices]",
-            "{panel}",
-            ""
+        """Generate table of contents as a styled navigation panel."""
+        nav_content = [
+            "{section}",
+            "{column:width=50%}",
+            "",
+            "h5. Architecture Foundation",
+            f"| *1* | [Architecture Vision|#architecture-vision] |",
+            f"| *2* | [Stakeholder Analysis|#stakeholder-analysis] |",
+            f"| *3* | [Architecture Principles|#architecture-principles] |",
+            "",
+            "h5. Architecture Domains",
+            f"| *4* | [Business Architecture|#business-architecture] |",
+            f"| *5* | [Data Architecture|#data-architecture] |",
+            f"| *6* | [Application Architecture|#application-architecture] |",
+            "{column}",
+            "{column:width=50%}",
+            "",
+            "h5. Infrastructure & Patterns",
+            f"| *7* | [Technology Architecture|#technology-architecture] |",
+            f"| *8* | [Integration Patterns|#integration-patterns] |",
+            "",
+            "h5. Governance & Planning",
+            f"| *9*  | [Gap Analysis|#gap-analysis] |",
+            f"| *10* | [Risk Assessment|#risk-assessment] |",
+            f"| *11* | [Architecture Roadmap|#architecture-roadmap] |",
+            f"| *12* | [Appendices|#appendices] |",
+            "{column}",
+            "{section}",
         ]
+        lines = self._styled_panel(
+            "Table of Contents",
+            nav_content,
+            bg_color="#f7f9fb",
+            title_bg="#1a3c5e",
+            title_color="#ffffff",
+            border_color="#1a3c5e",
+        )
+        lines.append("")
+        return lines
 
     def _generate_architecture_vision(self) -> List[str]:
         """Generate Architecture Vision section."""
@@ -508,13 +556,46 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h2. 1.2 Key Metrics Dashboard",
             "",
-            "||Metric||Value||Details||",
-            f"|*Organizations*|{len(self.stats['organizations'])}|{internal_orgs} Internal, {external_orgs} External|",
-            f"|*Applications*|{len(self.stats['applications'])}|Integrated via MQ|",
-            f"|*MQ Managers*|{len(self.stats['mqmanagers'])}|{internal_gw + external_gw} Gateways|",
-            f"|*Message Queues*|{self.stats['queues']['total']:,}|Local: {self.stats['queues']['qlocal']:,}, Remote: {self.stats['queues']['qremote']:,}, Alias: {self.stats['queues']['qalias']:,}|",
-            f"|*Departments*|{len(self.stats['departments'])}|Across all organizations|",
-            f"|*Business Owners*|{len(self.stats['biz_owners'])}|Application stakeholders|",
+            "{section}",
+            "{column:width=33%}",
+            *self._styled_panel("Organizations", [
+                f"h2. {len(self.stats['organizations'])}",
+                f"{internal_orgs} Internal, {external_orgs} External",
+            ], bg_color="#e8f5e9", title_bg="#2e7d32", title_color="#fff", border_color="#a5d6a7"),
+            "{column}",
+            "{column:width=33%}",
+            *self._styled_panel("Applications", [
+                f"h2. {len(self.stats['applications'])}",
+                "Integrated via MQ",
+            ], bg_color="#e3f2fd", title_bg="#1565c0", title_color="#fff", border_color="#90caf9"),
+            "{column}",
+            "{column:width=33%}",
+            *self._styled_panel("MQ Managers", [
+                f"h2. {len(self.stats['mqmanagers'])}",
+                f"{internal_gw + external_gw} Gateways | {len(self.stats['routers'])} Routers",
+            ], bg_color="#fff3e0", title_bg="#e65100", title_color="#fff", border_color="#ffcc80"),
+            "{column}",
+            "{section}",
+            "{section}",
+            "{column:width=33%}",
+            *self._styled_panel("Message Queues", [
+                f"h2. {self.stats['queues']['total']:,}",
+                f"Local: {self.stats['queues']['qlocal']:,} | Remote: {self.stats['queues']['qremote']:,} | Alias: {self.stats['queues']['qalias']:,}",
+            ], bg_color="#fce4ec", title_bg="#c62828", title_color="#fff", border_color="#ef9a9a"),
+            "{column}",
+            "{column:width=33%}",
+            *self._styled_panel("Departments", [
+                f"h2. {len(self.stats['departments'])}",
+                "Across all organizations",
+            ], bg_color="#f3e5f5", title_bg="#6a1b9a", title_color="#fff", border_color="#ce93d8"),
+            "{column}",
+            "{column:width=33%}",
+            *self._styled_panel("Business Owners", [
+                f"h2. {len(self.stats['biz_owners'])}",
+                "Internal application stakeholders",
+            ], bg_color="#e0f2f1", title_bg="#00695c", title_color="#fff", border_color="#80cbc4"),
+            "{column}",
+            "{section}",
             "",
             "h2. 1.3 Scope and Boundaries",
             "",
@@ -526,11 +607,13 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h2. 1.4 Architecture Goals",
             "",
+            "{quote}",
             "# *Reliability* - Ensure message delivery guarantees across all integration paths",
             "# *Scalability* - Support growing message volumes and new integrations",
             "# *Security* - Protect message content and control access to queues",
             "# *Maintainability* - Enable efficient operations and change management",
             "# *Visibility* - Provide clear documentation and monitoring capabilities",
+            "{quote}",
             "",
             "----",
             ""
@@ -555,28 +638,77 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h2. 2.2 Business Owner Distribution",
             "",
-            "||Business Owner||Department||Applications||MQ Managers||",
         ]
 
-        # Group by business owner
+        # Group by business owner (internal orgs only, matching the header metric)
         biz_owner_stats = defaultdict(lambda: {'dept': '', 'apps': set(), 'mqmgrs': 0})
         for mqmgr_name, info in self.stats['mqmanagers'].items():
+            if info.get('org_type') != 'Internal':
+                continue
             biz_ownr = info.get('biz_ownr', 'Unknown')
             biz_owner_stats[biz_ownr]['dept'] = info.get('dept', '')
-            if info['app'] and not info['app'].startswith('Gateway ('):
+            if info['app'] and not info['app'].startswith('Gateway (') and info['app'] not in ('No Application', 'Router'):
                 biz_owner_stats[biz_ownr]['apps'].add(info['app'])
             biz_owner_stats[biz_ownr]['mqmgrs'] += 1
 
-        for biz_ownr, stats in sorted(biz_owner_stats.items()):
-            if biz_ownr != 'Unknown':
-                lines.append(f"|{biz_ownr}|{stats['dept']}|{len(stats['apps'])}|{stats['mqmgrs']}|")
+        shown_owners = {b: s for b, s in biz_owner_stats.items() if b != 'Unknown'}
+        biz_table = ["||Business Owner||Department||Applications||MQ Managers||"]
+        for biz_ownr, stats in sorted(shown_owners.items()):
+            biz_table.append(f"|{biz_ownr}|{stats['dept']}|{len(stats['apps'])}|{stats['mqmgrs']}|")
+
+        lines.extend(self._expandable(
+            f"Business Owner Distribution ({len(shown_owners)} owners)", biz_table
+        ))
 
         lines.extend(["", "----", ""])
         return lines
 
     def _generate_architecture_principles(self) -> List[str]:
         """Generate Architecture Principles section."""
-        return [
+        principles = [
+            {
+                "id": "PRIN-01", "name": "Gateway-Mediated Integration",
+                "statement": "All cross-organizational and cross-departmental integrations SHOULD be mediated through designated gateway MQ managers.",
+                "rationale": "Centralized integration points provide better control, monitoring, and security enforcement.",
+                "implications": [
+                    "Gateway infrastructure must be highly available",
+                    "All external connections must route through external gateways",
+                    "Direct point-to-point connections should be reviewed for migration",
+                ],
+            },
+            {
+                "id": "PRIN-02", "name": "Asynchronous Messaging",
+                "statement": "Message-based integrations SHALL use asynchronous, guaranteed delivery patterns.",
+                "rationale": "Asynchronous messaging provides loose coupling, resilience, and temporal decoupling between systems.",
+                "implications": [
+                    "Applications must handle message persistence",
+                    "Dead letter queue handling must be implemented",
+                    "Message ordering may require additional design consideration",
+                ],
+            },
+            {
+                "id": "PRIN-03", "name": "Hierarchical Organization",
+                "statement": "MQ infrastructure SHALL be organized following the organizational hierarchy: Organization -> Department -> Business Owner -> Application.",
+                "rationale": "Alignment with organizational structure enables clear ownership, governance, and change management.",
+                "implications": [
+                    "Naming conventions must reflect hierarchy",
+                    "Access controls align with organizational boundaries",
+                    "Capacity planning follows departmental structures",
+                ],
+            },
+            {
+                "id": "PRIN-04", "name": "Separation of Concerns",
+                "statement": "Internal and external integration gateways SHALL be separated.",
+                "rationale": "Different security, compliance, and operational requirements apply to internal vs. external integrations.",
+                "implications": [
+                    "Separate gateway infrastructure for internal/external",
+                    "Different security policies per gateway type",
+                    "External gateways require additional hardening",
+                ],
+            },
+        ]
+
+        lines = [
             "{anchor:architecture-principles}",
             "h1. 3. Architecture Principles",
             "",
@@ -586,53 +718,29 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h2. 3.1 Integration Principles",
             "",
-            "{panel:title=PRIN-01: Gateway-Mediated Integration}",
-            "*Statement:* All cross-organizational and cross-departmental integrations SHOULD be mediated through designated gateway MQ managers.",
-            "",
-            "*Rationale:* Centralized integration points provide better control, monitoring, and security enforcement.",
-            "",
-            "*Implications:*",
-            "* Gateway infrastructure must be highly available",
-            "* All external connections must route through external gateways",
-            "* Direct point-to-point connections should be reviewed for migration",
-            "{panel}",
-            "",
-            "{panel:title=PRIN-02: Asynchronous Messaging}",
-            "*Statement:* Message-based integrations SHALL use asynchronous, guaranteed delivery patterns.",
-            "",
-            "*Rationale:* Asynchronous messaging provides loose coupling, resilience, and temporal decoupling between systems.",
-            "",
-            "*Implications:*",
-            "* Applications must handle message persistence",
-            "* Dead letter queue handling must be implemented",
-            "* Message ordering may require additional design consideration",
-            "{panel}",
-            "",
-            "{panel:title=PRIN-03: Hierarchical Organization}",
-            "*Statement:* MQ infrastructure SHALL be organized following the organizational hierarchy: Organization -> Department -> Business Owner -> Application.",
-            "",
-            "*Rationale:* Alignment with organizational structure enables clear ownership, governance, and change management.",
-            "",
-            "*Implications:*",
-            "* Naming conventions must reflect hierarchy",
-            "* Access controls align with organizational boundaries",
-            "* Capacity planning follows departmental structures",
-            "{panel}",
-            "",
-            "{panel:title=PRIN-04: Separation of Concerns}",
-            "*Statement:* Internal and external integration gateways SHALL be separated.",
-            "",
-            "*Rationale:* Different security, compliance, and operational requirements apply to internal vs. external integrations.",
-            "",
-            "*Implications:*",
-            "* Separate gateway infrastructure for internal/external",
-            "* Different security policies per gateway type",
-            "* External gateways require additional hardening",
-            "{panel}",
-            "",
-            "----",
-            ""
         ]
+
+        for p in principles:
+            impl_lines = [f"* {impl}" for impl in p["implications"]]
+            panel_content = [
+                "{quote}",
+                f"*Statement:* {p['statement']}",
+                "{quote}",
+                "",
+                f"*Rationale:* {p['rationale']}",
+                "",
+                f"{{tip:title=Implications}}",
+                *impl_lines,
+                "{tip}",
+            ]
+            lines.extend(self._styled_panel(
+                f"{p['id']}: {p['name']}",
+                panel_content,
+            ))
+            lines.append("")
+
+        lines.extend(["----", ""])
+        return lines
 
     def _generate_business_architecture(self) -> List[str]:
         """Generate Business Architecture section."""
@@ -658,25 +766,32 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         ]
 
         for org_name, org_info in sorted(self.stats['organizations'].items()):
-            org_type_label = "(Internal)" if org_info['type'] == 'Internal' else "(External)"
-            lines.extend([
-                f"h3. {org_name} {org_type_label}",
+            org_type_label = self._status_lozenge("Internal", "Green") if org_info['type'] == 'Internal' else self._status_lozenge("External", "Blue")
+            org_type_text = "Internal" if org_info['type'] == 'Internal' else "External"
+            org_table = [
+                f"*Type:* {org_type_label}",
                 "",
                 "||Metric||Value||",
                 f"|Departments|{len(org_info['departments'])}|",
                 f"|Applications|{len(org_info['applications'])}|",
                 f"|MQ Managers|{org_info['mqmanagers']}|",
-                ""
-            ])
+            ]
+            lines.extend(self._expandable(f"{org_name} ({org_type_text})", org_table))
+            lines.append("")
 
         lines.extend([
             "h2. 4.3 Department Capability Matrix",
             "",
-            "||Department||Applications||MQ Managers||Total Queues||",
         ])
 
+        dept_table = ["||Department||Applications||MQ Managers||Total Queues||"]
         for dept, info in sorted(self.capabilities['by_department'].items()):
-            lines.append(f"|{dept}|{len(info['apps'])}|{info['mqmanagers']}|{info['queues']:,}|")
+            dept_table.append(f"|{dept}|{len(info['apps'])}|{info['mqmanagers']}|{info['queues']:,}|")
+
+        lines.extend(self._expandable(
+            f"Department Capability Matrix ({len(self.capabilities['by_department'])} departments)",
+            dept_table,
+        ))
 
         lines.extend(["", "----", ""])
         return lines
@@ -709,7 +824,6 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h2. 5.3 Data Ownership",
             "",
-            "||Data Domain||Owner||Primary Application(s)||",
         ]
 
         # Show top applications by queue count
@@ -719,8 +833,11 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             reverse=True
         )[:10]
 
+        ownership_table = ["||Data Domain||Owner||Primary Application(s)||"]
         for app_name, app_info in sorted_apps:
-            lines.append(f"|{app_info['dept']}|{app_info['biz_ownr']}|{app_name}|")
+            ownership_table.append(f"|{app_info['dept']}|{app_info['biz_ownr']}|{app_name}|")
+
+        lines.extend(self._expandable("Top 10 Data Owners by Queue Count", ownership_table))
 
         lines.extend(["", "----", ""])
         return lines
@@ -739,7 +856,6 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h3. Top Applications by Integration Complexity",
             "",
-            "||Application||Organization||Department||MQ Managers||Connections||Queues||",
         ]
 
         sorted_apps = sorted(
@@ -748,8 +864,11 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             reverse=True
         )[:15]
 
+        apps_table = ["||Application||Organization||Department||MQ Managers||Connections||Queues||"]
         for app_name, app_info in sorted_apps:
-            lines.append(f"|{app_name}|{app_info['org']}|{app_info['dept']}|{len(app_info['mqmanagers'])}|{app_info['connections']}|{app_info['total_queues']}|")
+            apps_table.append(f"|{app_name}|{app_info['org']}|{app_info['dept']}|{len(app_info['mqmanagers'])}|{app_info['connections']}|{app_info['total_queues']}|")
+
+        lines.extend(self._expandable("Top 15 Applications by Integration Complexity", apps_table))
 
         lines.extend([
             "",
@@ -758,12 +877,13 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         ])
 
         if self.dependencies['app_to_app']:
-            lines.append("||Source Application||Depends On||")
+            dep_table = ["||Source Application||Depends On||"]
             for source_app, target_apps in sorted(self.dependencies['app_to_app'].items())[:20]:
                 if not source_app.startswith('Gateway ('):
                     target_list = ', '.join([t for t in sorted(target_apps) if not t.startswith('Gateway (')])
                     if target_list:
-                        lines.append(f"|{source_app}|{target_list}|")
+                        dep_table.append(f"|{source_app}|{target_list}|")
+            lines.extend(self._expandable("Application Dependencies", dep_table))
         else:
             lines.append("{tip}No direct application dependencies detected{tip}")
 
@@ -799,6 +919,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             f"|*Message Broker*|IBM MQ|{len(self.stats['mqmanagers'])} Queue Managers|",
             f"|*Internal Gateways*|IBM MQ Gateway Pattern|{len(internal_gateways)} Gateways|",
             f"|*External Gateways*|IBM MQ Gateway Pattern|{len(external_gateways)} Gateways|",
+            f"|*Routers*|IBM MQ Router (MATIP/MQ Airlines)|{len(self.stats['routers'])} Routers|",
             f"|*Message Storage*|IBM MQ Queues|{self.stats['queues']['total']:,} Queues|",
             "",
             "h2. 7.2 Gateway Infrastructure",
@@ -809,37 +930,62 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h3. Internal Gateways",
             "",
-            "||Gateway||Organization||Department||Scope||",
         ]
 
+        int_gw_table = ["||Gateway||Organization||Department||Scope||"]
         for gw in sorted(internal_gateways, key=lambda x: x['name']):
-            lines.append(f"|{gw['name']}|{gw['org']}|{gw['dept']}|Inter-departmental|")
+            int_gw_table.append(f"|{gw['name']}|{gw['org']}|{gw['dept']}|Inter-departmental|")
         if not internal_gateways:
-            lines.append("|_No internal gateways configured_| | | |")
+            int_gw_table.append("|_No internal gateways configured_| | | |")
+
+        lines.extend(self._expandable(f"Internal Gateways ({len(internal_gateways)})", int_gw_table))
 
         lines.extend([
             "",
             "h3. External Gateways",
             "",
-            "||Gateway||Organization||Department||Scope||",
         ])
 
+        ext_gw_table = ["||Gateway||Organization||Department||Scope||"]
         for gw in sorted(external_gateways, key=lambda x: x['name']):
-            lines.append(f"|{gw['name']}|{gw['org']}|{gw['dept']}|External Partners|")
+            ext_gw_table.append(f"|{gw['name']}|{gw['org']}|{gw['dept']}|External Partners|")
         if not external_gateways:
-            lines.append("|_No external gateways configured_| | | |")
+            ext_gw_table.append("|_No external gateways configured_| | | |")
+
+        lines.extend(self._expandable(f"External Gateways ({len(external_gateways)})", ext_gw_table))
+
+        lines.extend([
+            "",
+            "h3. Router Tier",
+            "",
+            "{info:title=Router Infrastructure}",
+            "Routers relay messages between external airline partners (MQ Airlines / MATIP Airlines) and internal gateways. "
+            "They sit between external MQ gateways and internal application gateways.",
+            "{info}",
+            "",
+        ])
+
+        router_table = ["||Router||Organization||Department||Description||"]
+        for rtr in sorted(self.stats['routers'], key=lambda x: x['name']):
+            desc = rtr.get('description', '') or '_No description_'
+            router_table.append(f"|{rtr['name']}|{rtr['org']}|{rtr['dept']}|{desc}|")
+        if not self.stats['routers']:
+            router_table.append("|_No routers configured_| | | |")
+
+        lines.extend(self._expandable(f"Routers ({len(self.stats['routers'])})", router_table))
 
         lines.extend([
             "",
             "h2. 7.3 Infrastructure Distribution",
             "",
-            "||Organization||Type||MQ Managers||Gateways||",
+            "||Organization||Type||MQ Managers||Gateways||Routers||",
         ])
 
         for org_name, org_info in sorted(self.stats['organizations'].items()):
             org_gateways = len([g for g in self.stats['gateways'] if g['org'] == org_name])
-            type_badge = "{color:green}Internal{color}" if org_info['type'] == 'Internal' else "{color:purple}External{color}"
-            lines.append(f"|{org_name}|{type_badge}|{org_info['mqmanagers']}|{org_gateways}|")
+            org_routers = len([r for r in self.stats['routers'] if r['org'] == org_name])
+            type_badge = self._status_lozenge("Internal", "Green") if org_info['type'] == 'Internal' else self._status_lozenge("External", "Blue")
+            lines.append(f"|{org_name}|{type_badge}|{org_info['mqmanagers']}|{org_gateways}|{org_routers}|")
 
         lines.extend(["", "----", ""])
         return lines
@@ -856,8 +1002,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "h2. 8.1 Pattern Analysis",
             "",
             "||Pattern||Count||Percentage||Assessment||",
-            f"|*Gateway-Mediated*|{self.integration_patterns['gateway_mediated']}|{gw_percent}%|{{color:green}}✓ Best Practice{{color}}|",
-            f"|*Direct Point-to-Point*|{self.integration_patterns['direct_integration']}|{100-gw_percent}%|{{color:orange}}⚠ Monitor{{color}}|",
+            f"|*Gateway-Mediated*|{self.integration_patterns['gateway_mediated']}|{gw_percent}%|{self._status_lozenge('Best Practice', 'Green')}|",
+            f"|*Direct Point-to-Point*|{self.integration_patterns['direct_integration']}|{100-gw_percent}%|{self._status_lozenge('Monitor', 'Yellow')}|",
             "",
         ]
 
@@ -869,21 +1015,23 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                 "Hub-and-spoke patterns indicate centralized integration points with high connection counts.",
                 "{info}",
                 "",
-                "||Gateway||Scope||Connections||Risk Level||",
             ])
+            hub_table = ["||Gateway||Scope||Connections||Risk Level||"]
             for hub in sorted(self.integration_patterns['hub_and_spoke'], key=lambda x: x['connections'], reverse=True):
-                risk = "{color:red}High{color}" if hub['connections'] > 20 else "{color:orange}Medium{color}"
-                lines.append(f"|{hub['gateway']}|{hub['scope']}|{hub['connections']}|{risk}|")
+                risk = self._status_lozenge("High", "Red") if hub['connections'] > 20 else self._status_lozenge("Medium", "Yellow")
+                hub_table.append(f"|{hub['gateway']}|{hub['scope']}|{hub['connections']}|{risk}|")
+            lines.extend(self._expandable("Hub-and-Spoke Gateways", hub_table))
             lines.append("")
 
         if self.integration_patterns['high_fanout']:
             lines.extend([
                 "h2. 8.3 High Fan-Out Components",
                 "",
-                "||MQ Manager||Outbound Connections||Recommendation||",
             ])
+            fanout_table = ["||MQ Manager||Outbound Connections||Recommendation||"]
             for item in sorted(self.integration_patterns['high_fanout'], key=lambda x: x['count'], reverse=True):
-                lines.append(f"|{item['mqmgr']}|{item['count']}|Review for potential mediation|")
+                fanout_table.append(f"|{item['mqmgr']}|{item['count']}|Review for potential mediation|")
+            lines.extend(self._expandable("High Fan-Out Components", fanout_table))
             lines.append("")
 
         lines.extend([
@@ -916,8 +1064,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         for dimension, score in self.maturity['dimensions'].items():
             dimension_name = dimension.replace('_', ' ').title()
             gap = 5 - score
-            gap_color = "green" if gap <= 1 else ("orange" if gap <= 2 else "red")
-            lines.append(f"|{dimension_name}|{score}/5|5/5|{{color:{gap_color}}}{gap}{{color}}|")
+            gap_lozenge_colour = "Green" if gap <= 1 else ("Yellow" if gap <= 2 else "Red")
+            lines.append(f"|{dimension_name}|{score}/5|5/5|{self._status_lozenge(f'Gap: {gap}', gap_lozenge_colour)}|")
 
         lines.extend([
             "",
@@ -936,11 +1084,11 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "h2. 9.3 Improvement Opportunities",
             "",
             "||Opportunity||Impact||Effort||Priority||",
-            "|Implement gateway redundancy|High|Medium|{color:red}P1{color}|",
-            "|Standardize naming conventions|Medium|Low|{color:orange}P2{color}|",
-            "|Consolidate high-complexity integrations|Medium|High|{color:orange}P2{color}|",
-            "|Implement centralized monitoring|High|Medium|{color:red}P1{color}|",
-            "|Document message formats/schemas|Medium|Medium|{color:blue}P3{color}|",
+            f"|Implement gateway redundancy|High|Medium|{self._status_lozenge('P1', 'Red')}|",
+            f"|Standardize naming conventions|Medium|Low|{self._status_lozenge('P2', 'Yellow')}|",
+            f"|Consolidate high-complexity integrations|Medium|High|{self._status_lozenge('P2', 'Yellow')}|",
+            f"|Implement centralized monitoring|High|Medium|{self._status_lozenge('P1', 'Red')}|",
+            f"|Document message formats/schemas|Medium|Medium|{self._status_lozenge('P3', 'Blue')}|",
             "",
             "----",
             ""
@@ -964,7 +1112,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         if self.risks['critical']:
             lines.append("||ID||Category||Description||Impact||Mitigation||")
             for risk in self.risks['critical']:
-                lines.append(f"|{{color:red}}{risk['id']}{{color}}|{risk['category']}|{risk['description']}|{risk['impact']}|{risk['mitigation']}|")
+                lines.append(f"|{self._status_lozenge(risk['id'], 'Red')}|{risk['category']}|{risk['description']}|{risk['impact']}|{risk['mitigation']}|")
         else:
             lines.append("{tip}No critical risks identified{tip}")
 
@@ -973,39 +1121,34 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         if self.risks['high']:
             lines.append("||ID||Category||Description||Impact||Mitigation||")
             for risk in self.risks['high']:
-                lines.append(f"|{{color:orange}}{risk['id']}{{color}}|{risk['category']}|{risk['description']}|{risk['impact']}|{risk['mitigation']}|")
+                lines.append(f"|{self._status_lozenge(risk['id'], 'Yellow')}|{risk['category']}|{risk['description']}|{risk['impact']}|{risk['mitigation']}|")
         else:
             lines.append("{tip}No high risks identified{tip}")
 
         lines.extend(["", "h2. 10.3 Medium Risks", ""])
 
         if self.risks['medium']:
-            lines.append("||ID||Category||Description||Mitigation||")
-            for risk in self.risks['medium'][:5]:  # Limit to top 5
-                lines.append(f"|{risk['id']}|{risk['category']}|{risk['description']}|{risk['mitigation']}|")
+            med_table = ["||ID||Category||Description||Mitigation||"]
+            for risk in self.risks['medium'][:5]:
+                med_table.append(f"|{self._status_lozenge(risk['id'], 'Grey')}|{risk['category']}|{risk['description']}|{risk['mitigation']}|")
+            lines.extend(self._expandable(f"Medium Risks ({len(self.risks['medium'])})", med_table))
         else:
             lines.append("{tip}No medium risks identified{tip}")
 
-        lines.extend([
-            "",
-            "h2. 10.4 Assumptions",
-            "",
-            "||ID||Assumption||Owner||Validation Date||",
-        ])
+        lines.extend(["", "h2. 10.4 Assumptions", ""])
 
+        assumption_table = ["||ID||Assumption||Owner||Validation Date||"]
         for assumption in self.risks['assumptions']:
-            lines.append(f"|{assumption['id']}|{assumption['description']}|{assumption['owner']}|{assumption['validation_date']}|")
+            assumption_table.append(f"|{assumption['id']}|{assumption['description']}|{assumption['owner']}|{assumption['validation_date']}|")
+        lines.extend(self._expandable("Assumptions", assumption_table))
 
-        lines.extend([
-            "",
-            "h2. 10.5 Dependencies",
-            "",
-        ])
+        lines.extend(["", "h2. 10.5 Dependencies", ""])
 
         if self.risks['dependencies']:
-            lines.append("||ID||Description||Owner||Status||")
+            dep_table = ["||ID||Description||Owner||Status||"]
             for dep in self.risks['dependencies']:
-                lines.append(f"|{dep['id']}|{dep['description']}|{dep['owner']}|{dep['status']}|")
+                dep_table.append(f"|{dep['id']}|{dep['description']}|{dep['owner']}|{dep['status']}|")
+            lines.extend(self._expandable("Dependencies", dep_table))
         else:
             lines.append("{tip}No external dependencies documented{tip}")
 
@@ -1020,31 +1163,31 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h2. 11.1 Recommended Initiatives",
             "",
-            "{panel:title=Short-Term (0-6 months)|bgColor=#e8f5e9}",
-            "# *Gateway Redundancy* - Implement redundant gateways for organizations with SPOF",
-            "# *Documentation* - Complete queue naming standards documentation",
-            "# *Monitoring* - Deploy centralized MQ monitoring solution",
-            "{panel}",
+            *self._styled_panel("Short-Term (0-6 months)", [
+                "# *Gateway Redundancy* - Implement redundant gateways for organizations with SPOF",
+                "# *Documentation* - Complete queue naming standards documentation",
+                "# *Monitoring* - Deploy centralized MQ monitoring solution",
+            ], bg_color="#e8f5e9", title_bg="#2e7d32", title_color="#fff", border_color="#a5d6a7"),
             "",
-            "{panel:title=Medium-Term (6-12 months)|bgColor=#fff3e0}",
-            "# *Pattern Consolidation* - Migrate point-to-point integrations to gateway pattern",
-            "# *Security Hardening* - Implement TLS 1.3 for all channels",
-            "# *Capacity Planning* - Establish baseline metrics and growth projections",
-            "{panel}",
+            *self._styled_panel("Medium-Term (6-12 months)", [
+                "# *Pattern Consolidation* - Migrate point-to-point integrations to gateway pattern",
+                "# *Security Hardening* - Implement TLS 1.3 for all channels",
+                "# *Capacity Planning* - Establish baseline metrics and growth projections",
+            ], bg_color="#fff3e0", title_bg="#e65100", title_color="#fff", border_color="#ffcc80"),
             "",
-            "{panel:title=Long-Term (12-24 months)|bgColor=#e3f2fd}",
-            "# *Modernization* - Evaluate cloud-native messaging alternatives",
-            "# *Automation* - Implement infrastructure-as-code for MQ provisioning",
-            "# *Self-Service* - Enable application teams to manage their own queues",
-            "{panel}",
+            *self._styled_panel("Long-Term (12-24 months)", [
+                "# *Modernization* - Evaluate cloud-native messaging alternatives",
+                "# *Automation* - Implement infrastructure-as-code for MQ provisioning",
+                "# *Self-Service* - Enable application teams to manage their own queues",
+            ], bg_color="#e3f2fd", title_bg="#1565c0", title_color="#fff", border_color="#90caf9"),
             "",
             "h2. 11.2 Success Metrics",
             "",
             "||Metric||Current||Target||Timeline||",
-            f"|Gateway Redundancy|{len([g for g in self.stats['gateways']])} total|100% redundant|6 months|",
-            f"|Gateway-Mediated %|{round(100 * self.integration_patterns['gateway_mediated'] / max(1, self.integration_patterns['gateway_mediated'] + self.integration_patterns['direct_integration']))}%|>80%|12 months|",
-            "|MTTR for incidents|Unknown|<1 hour|6 months|",
-            "|Documentation coverage|Partial|100%|3 months|",
+            f"|Gateway Redundancy|{len([g for g in self.stats['gateways']])} total|100% redundant|{self._status_lozenge('6 months', 'Red')}|",
+            f"|Gateway-Mediated %|{round(100 * self.integration_patterns['gateway_mediated'] / max(1, self.integration_patterns['gateway_mediated'] + self.integration_patterns['direct_integration']))}%|>80%|{self._status_lozenge('12 months', 'Yellow')}|",
+            f"|MTTR for incidents|Unknown|<1 hour|{self._status_lozenge('6 months', 'Red')}|",
+            f"|Documentation coverage|Partial|100%|{self._status_lozenge('3 months', 'Green')}|",
             "",
             "----",
             ""
@@ -1068,32 +1211,61 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             "",
             "h2. 12.2 Glossary",
             "",
-            "||Term||Definition||",
-            "|*MQ Manager*|IBM MQ Queue Manager - the runtime component that hosts queues|",
-            "|*QLOCAL*|Local Queue - stores messages on the queue manager|",
-            "|*QREMOTE*|Remote Queue - definition pointing to a queue on another manager|",
-            "|*QALIAS*|Alias Queue - provides an alternative name for another queue|",
-            "|*Gateway*|MQ Manager designated for cross-boundary integration|",
-            "|*SPOF*|Single Point of Failure - component without redundancy|",
-            "|*Fan-Out*|Pattern where one source sends to many destinations|",
-            "|*Fan-In*|Pattern where many sources send to one destination|",
+            *self._expandable("Glossary", [
+                "||Term||Definition||",
+                "|*MQ Manager*|IBM MQ Queue Manager - the runtime component that hosts queues|",
+                "|*QLOCAL*|Local Queue - stores messages on the queue manager|",
+                "|*QREMOTE*|Remote Queue - definition pointing to a queue on another manager|",
+                "|*QALIAS*|Alias Queue - provides an alternative name for another queue|",
+                "|*Gateway*|MQ Manager designated for cross-boundary integration|",
+                "|*SPOF*|Single Point of Failure - component without redundancy|",
+                "|*Fan-Out*|Pattern where one source sends to many destinations|",
+                "|*Fan-In*|Pattern where many sources send to one destination|",
+            ]),
             "",
             "h2. 12.3 References",
             "",
-            "* [TOGAF 9.2 Standard|https://pubs.opengroup.org/architecture/togaf9-doc/arch/]",
-            "* [IBM MQ Documentation|https://www.ibm.com/docs/en/ibm-mq]",
-            "* [Integration Patterns|https://www.enterpriseintegrationpatterns.com/]",
+            *self._expandable("References", [
+                "* [TOGAF 9.2 Standard|https://pubs.opengroup.org/architecture/togaf9-doc/arch/]",
+                "* [IBM MQ Documentation|https://www.ibm.com/docs/en/ibm-mq]",
+                "* [Integration Patterns|https://www.enterpriseintegrationpatterns.com/]",
+            ]),
             ""
         ]
 
     def _generate_footer(self) -> List[str]:
         """Generate document footer."""
+        footer_content = [
+            f"_This TOGAF-aligned Enterprise Architecture documentation was automatically generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_",
+            "_by MQ CMDB Automated Documentation System_",
+            "",
+            f"*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* {self._status_lozenge('Internal', 'Blue')} | {self._status_lozenge('AUTO-GENERATED', 'Grey')}",
+        ]
         return [
             "----",
-            "{panel:bgColor=#f0f0f0}",
-            f"_This TOGAF-aligned Enterprise Architecture documentation was automatically generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_",
-            "_by MQ CMDB Hierarchical Automation System_",
-            "",
-            "*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* Internal",
-            "{panel}"
+            *self._styled_panel(
+                "Document Information",
+                footer_content,
+                bg_color="#f0f0f0",
+                title_bg="#2d3e50",
+                title_color="#ffffff",
+                border_color="#c1c7d0",
+            ),
         ]
+
+    def generate(self, output_file: Path) -> bool:
+        """Override to assemble the document without _sanitize_table_rows()."""
+        doc = []
+        doc.extend(self.build_header())
+        doc.extend(self.build_toc())
+        for _, section_fn in self.get_sections():
+            doc.extend(section_fn())
+        doc.extend(self.build_footer())
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(doc))
+        logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
+        return True
+
+    def generate_confluence_markup(self, output_file: Path) -> bool:
+        """Compatibility alias — delegates to generate()."""
+        return self.generate(output_file)

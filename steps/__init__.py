@@ -27,6 +27,7 @@ from steps.s10_gateway_analytics    import GatewayAnalyticsStep
 from steps.s10_5_consolidated_report import ConsolidatedReportStep
 from steps.s11_exports              import MultiFormatExportStep
 from steps.s12_ea_docs              import EADocumentationStep
+from steps.s12_1_app_docs           import AppDocumentationStep
 from steps.s12_5_association_docs   import AssetAssociationDocStep
 from steps.s13_summary              import SummaryStep
 from steps.s14_notification         import NotificationStep
@@ -47,6 +48,7 @@ PIPELINE_STEPS = [
     ConsolidatedReportStep(),
     MultiFormatExportStep(),
     EADocumentationStep(),
+    AppDocumentationStep(),
     AssetAssociationDocStep(),
     SummaryStep(),
     NotificationStep(),
