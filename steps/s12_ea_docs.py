@@ -17,6 +17,7 @@ class EADocumentationStep(PipelineStep):
 
         out = ctx.config.EXPORTS_DIR / f"EA_Documentation_{ctx.timestamp}.txt"
         EADocumentationGenerator(ctx.enriched_data).generate(out)
+        ctx.ea_doc_file = out
         logger.info(f"  EA Documentation: {out}")
         logger.info("  → Import into Confluence using Insert → Markup")
 

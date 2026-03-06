@@ -48,6 +48,7 @@ class PipelineContext:
     baseline_time_str:       Optional[str]  = None
     gateway_analytics:       Optional[Dict] = None
     consolidated_report_file: Optional[Path] = None
+    ea_doc_file:             Optional[Path] = None
     summary_stats:           Dict           = field(default_factory=dict)
     pdf_generated:           bool           = False
 

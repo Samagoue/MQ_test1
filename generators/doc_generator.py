@@ -654,7 +654,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         shown_owners = {b: s for b, s in biz_owner_stats.items() if b != 'Unknown'}
         biz_table = ["||Business Owner||Department||Applications||MQ Managers||"]
         for biz_ownr, stats in sorted(shown_owners.items()):
-            biz_table.append(f"|{biz_ownr}|{stats['dept']}|{len(stats['apps'])}|{stats['mqmgrs']}|")
+            dept = stats['dept'] or " "
+            biz_table.append(f"|{biz_ownr}|{dept}|{len(stats['apps'])}|{stats['mqmgrs']}|")
 
         lines.extend(self._expandable(
             f"Business Owner Distribution ({len(shown_owners)} owners)", biz_table
@@ -786,7 +787,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         dept_table = ["||Department||Applications||MQ Managers||Total Queues||"]
         for dept, info in sorted(self.capabilities['by_department'].items()):
-            dept_table.append(f"|{dept}|{len(info['apps'])}|{info['mqmanagers']}|{info['queues']:,}|")
+            dept_display = dept or " "
+            dept_table.append(f"|{dept_display}|{len(info['apps'])}|{info['mqmanagers']}|{info['queues']:,}|")
 
         lines.extend(self._expandable(
             f"Department Capability Matrix ({len(self.capabilities['by_department'])} departments)",

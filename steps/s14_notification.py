@@ -22,7 +22,7 @@ class NotificationStep(PipelineStep):
 
         notifier = get_notifier()
         if not notifier.is_enabled:
-            logger.warning("  ⚠ Email notifications not configured")
+            logger.info("  Email notifications not configured — skipping")
             return
 
         summary = dict(ctx.summary_stats)
