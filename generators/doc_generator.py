@@ -837,7 +837,9 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         ownership_table = ["||Data Domain||Owner||Primary Application(s)||"]
         for app_name, app_info in sorted_apps:
-            ownership_table.append(f"|{app_info['dept']}|{app_info['biz_ownr']}|{app_name}|")
+            dept = app_info['dept'] or " "
+            biz_ownr = app_info['biz_ownr'] or " "
+            ownership_table.append(f"|{dept}|{biz_ownr}|{app_name}|")
 
         lines.extend(self._expandable("Top 10 Data Owners by Queue Count", ownership_table))
 
@@ -868,7 +870,9 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         apps_table = ["||Application||Organization||Department||MQ Managers||Connections||Queues||"]
         for app_name, app_info in sorted_apps:
-            apps_table.append(f"|{app_name}|{app_info['org']}|{app_info['dept']}|{len(app_info['mqmanagers'])}|{app_info['connections']}|{app_info['total_queues']}|")
+            org = app_info['org'] or " "
+            dept = app_info['dept'] or " "
+            apps_table.append(f"|{app_name}|{org}|{dept}|{len(app_info['mqmanagers'])}|{app_info['connections']}|{app_info['total_queues']}|")
 
         lines.extend(self._expandable("Top 15 Applications by Integration Complexity", apps_table))
 
@@ -936,7 +940,9 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         int_gw_table = ["||Gateway||Organization||Department||Scope||"]
         for gw in sorted(internal_gateways, key=lambda x: x['name']):
-            int_gw_table.append(f"|{gw['name']}|{gw['org']}|{gw['dept']}|Inter-departmental|")
+            gw_org = gw['org'] or " "
+            gw_dept = gw['dept'] or " "
+            int_gw_table.append(f"|{gw['name']}|{gw_org}|{gw_dept}|Inter-departmental|")
         if not internal_gateways:
             int_gw_table.append("|_No internal gateways configured_| | | |")
 
@@ -950,7 +956,9 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         ext_gw_table = ["||Gateway||Organization||Department||Scope||"]
         for gw in sorted(external_gateways, key=lambda x: x['name']):
-            ext_gw_table.append(f"|{gw['name']}|{gw['org']}|{gw['dept']}|External Partners|")
+            gw_org = gw['org'] or " "
+            gw_dept = gw['dept'] or " "
+            ext_gw_table.append(f"|{gw['name']}|{gw_org}|{gw_dept}|External Partners|")
         if not external_gateways:
             ext_gw_table.append("|_No external gateways configured_| | | |")
 
@@ -970,7 +978,9 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         router_table = ["||Router||Organization||Department||Description||"]
         for rtr in sorted(self.stats['routers'], key=lambda x: x['name']):
             desc = rtr.get('description', '') or '_No description_'
-            router_table.append(f"|{rtr['name']}|{rtr['org']}|{rtr['dept']}|{desc}|")
+            rtr_org = rtr['org'] or " "
+            rtr_dept = rtr['dept'] or " "
+            router_table.append(f"|{rtr['name']}|{rtr_org}|{rtr_dept}|{desc}|")
         if not self.stats['routers']:
             router_table.append("|_No routers configured_| | | |")
 
@@ -1021,7 +1031,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             hub_table = ["||Gateway||Scope||Connections||Risk Level||"]
             for hub in sorted(self.integration_patterns['hub_and_spoke'], key=lambda x: x['connections'], reverse=True):
                 risk = self._status_lozenge("High", "Red") if hub['connections'] > 20 else self._status_lozenge("Medium", "Yellow")
-                hub_table.append(f"|{hub['gateway']}|{hub['scope']}|{hub['connections']}|{risk}|")
+                hub_scope = hub['scope'] or " "
+                hub_table.append(f"|{hub['gateway']}|{hub_scope}|{hub['connections']}|{risk}|")
             lines.extend(self._expandable("Hub-and-Spoke Gateways", hub_table))
             lines.append("")
 
