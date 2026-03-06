@@ -22,14 +22,26 @@ Status lozenge logic:
 
 from __future__ import annotations
 
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List, Tuple
 
 from utils.file_io import load_json
 from utils.logging_config import get_logger
 
 logger = get_logger("generators.association_doc_generator")
+
+# Import base class (supports both shared-scripts and project-local paths)
+_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", "/data/app/Scripts")
+if _SHARED_SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SHARED_SCRIPTS_DIR)
+
+try:
+    from confluence_doc_generator import ConfluenceDocGenerator
+except ImportError:
+    from scripts.common.confluence_doc_generator import ConfluenceDocGenerator
 
 # ── Color palette ────────────────────────────────────────────────────────────
 _C = {
@@ -61,7 +73,7 @@ _C = {
 }
 
 
-class AssociationDocGenerator:
+class AssociationDocGenerator(ConfluenceDocGenerator):
     """Generate Confluence markup for the cross-country asset association page."""
 
     def __init__(self, associations_file: Path):
@@ -89,24 +101,30 @@ class AssociationDocGenerator:
             if g.get("channel") and g.get("associations")
         )
 
-    # ── Public API ───────────────────────────────────────────────────────────
+    # ── ConfluenceDocGenerator interface ─────────────────────────────────────
+
+    def build_header(self) -> List[str]:
+        return self._hero_header()
+
+    def build_toc(self) -> List[str]:
+        return ["{toc:maxLevel=2}", "", "----", ""]
+
+    def get_sections(self) -> List[Tuple[str, Callable[[], List[str]]]]:
+        return [
+            ("Intro",           self._intro_panel),
+            ("Summary",         self._metric_cards),
+            ("Country Index",   self._index_table),
+            ("Country Details", self._country_details),
+        ]
+
+    def build_footer(self) -> List[str]:
+        return self._footer()
 
     def generate_confluence_markup(self, output_file: Path) -> bool:
-        """Build the full page and write to output_file."""
-        doc: List[str] = []
-        doc.extend(self._hero_header())
-        doc.extend(self._intro_panel())
-        doc.extend(self._metric_cards())
-        doc.extend(self._index_table())
-        doc.extend(self._country_details())
-        doc.extend(self._footer())
-
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(doc))
-
+        """Compatibility alias — delegates to generate()."""
+        result = self.generate(output_file)
         logger.info(f"✓ Asset Association documentation generated: {output_file}")
-        return True
+        return result
 
     # ── Section builders ─────────────────────────────────────────────────────
 
@@ -128,10 +146,6 @@ class AssociationDocGenerator:
             f"  |  *Associations:* {self._n_associations:,}{{color}}",
             "",
             "{panel}",
-            "",
-            "{toc:maxLevel=2}",
-            "",
-            "----",
             "",
         ]
 

@@ -15,16 +15,28 @@ Generates comprehensive EA documentation following TOGAF framework:
 Reference: TOGAF 9.2 Architecture Content Framework
 """
 
+import os
+import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List, Tuple
 from datetime import datetime
 from collections import defaultdict
 from utils.logging_config import get_logger
 
 logger = get_logger("generators.doc_generator")
 
+# Import base class (supports both shared-scripts and project-local paths)
+_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", "/data/app/Scripts")
+if _SHARED_SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SHARED_SCRIPTS_DIR)
 
-class EADocumentationGenerator:
+try:
+    from confluence_doc_generator import ConfluenceDocGenerator
+except ImportError:
+    from scripts.common.confluence_doc_generator import ConfluenceDocGenerator
+
+
+class EADocumentationGenerator(ConfluenceDocGenerator):
     """Generate TOGAF-aligned Enterprise Architecture documentation for MQ CMDB topology."""
 
     def __init__(self, enriched_data: Dict):
@@ -392,61 +404,38 @@ class EADocumentationGenerator:
 
         return maturity
 
-    def generate_confluence_markup(self, output_file: Path):
-        """Generate comprehensive TOGAF-aligned Confluence documentation."""
-        doc = []
+    # ── ConfluenceDocGenerator interface ─────────────────────────────────
 
-        # Document Header
-        doc.extend(self._generate_document_header())
+    def build_header(self) -> List[str]:
+        return self._generate_document_header()
 
-        # Table of Contents
-        doc.extend(self._generate_toc())
+    def build_toc(self) -> List[str]:
+        return self._generate_toc()
 
-        # 1. Architecture Vision
-        doc.extend(self._generate_architecture_vision())
+    def get_sections(self) -> List[Tuple[str, Callable[[], List[str]]]]:
+        return [
+            ("Architecture Vision",      self._generate_architecture_vision),
+            ("Stakeholder Analysis",     self._generate_stakeholder_analysis),
+            ("Architecture Principles",  self._generate_architecture_principles),
+            ("Business Architecture",    self._generate_business_architecture),
+            ("Data Architecture",        self._generate_data_architecture),
+            ("Application Architecture", self._generate_application_architecture),
+            ("Technology Architecture",  self._generate_technology_architecture),
+            ("Integration Patterns",     self._generate_integration_patterns),
+            ("Gap Analysis",             self._generate_gap_analysis),
+            ("Risk Assessment",          self._generate_risk_assessment),
+            ("Architecture Roadmap",     self._generate_roadmap),
+            ("Appendices",               self._generate_appendices),
+        ]
 
-        # 2. Stakeholder Analysis
-        doc.extend(self._generate_stakeholder_analysis())
+    def build_footer(self) -> List[str]:
+        return self._generate_footer()
 
-        # 3. Architecture Principles
-        doc.extend(self._generate_architecture_principles())
-
-        # 4. Business Architecture
-        doc.extend(self._generate_business_architecture())
-
-        # 5. Information Systems Architecture - Data
-        doc.extend(self._generate_data_architecture())
-
-        # 6. Information Systems Architecture - Application
-        doc.extend(self._generate_application_architecture())
-
-        # 7. Technology Architecture
-        doc.extend(self._generate_technology_architecture())
-
-        # 8. Integration Patterns & Standards
-        doc.extend(self._generate_integration_patterns())
-
-        # 9. Gap Analysis & Opportunities
-        doc.extend(self._generate_gap_analysis())
-
-        # 10. Risk Assessment (RAID)
-        doc.extend(self._generate_risk_assessment())
-
-        # 11. Architecture Roadmap
-        doc.extend(self._generate_roadmap())
-
-        # 12. Appendices
-        doc.extend(self._generate_appendices())
-
-        # Footer
-        doc.extend(self._generate_footer())
-
-        # Write file
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(doc))
-
+    def generate_confluence_markup(self, output_file: Path) -> bool:
+        """Compatibility alias — delegates to generate()."""
+        result = self.generate(output_file)
         logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
-        return True
+        return result
 
     def _generate_document_header(self) -> List[str]:
         """Generate document control header."""
@@ -1097,8 +1086,3 @@ class EADocumentationGenerator:
             "*Document Version:* 1.0 | *Framework:* TOGAF 9.2 | *Classification:* Internal",
             "{panel}"
         ]
-
-<<<<<<< HEAD
-
-=======
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912

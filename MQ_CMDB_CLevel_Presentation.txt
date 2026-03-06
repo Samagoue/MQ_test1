@@ -1,0 +1,305 @@
+================================================================================
+       MQ CMDB AUTOMATION — C-LEVEL PRESENTATION
+       "From Dark Data to Documented Architecture"
+       Automating IBM MQ CMDB Documentation at Enterprise Scale
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 1 — THE PROBLEM
+────────────────────────────────────────────────────────────────────────────────
+
+Our MQ estate is mission-critical — but invisible.
+
+  • IBM MQ is the backbone of cross-system communication for [X] applications
+    across [X] countries
+  • Every queue, queue manager, and channel is an undocumented dependency
+  • When something breaks, engineers spend hours — sometimes days — just
+    understanding what connects to what
+  • Architecture diagrams are out of date the moment they are published
+  • Compliance and audit teams ask for documentation that does not exist
+
+  "We have thousands of assets. Nobody knows the full picture."
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 2 — WHY THIS MATTERS TO THE BUSINESS
+────────────────────────────────────────────────────────────────────────────────
+
+  Risk                                  Business Impact
+  ─────────────────────────────────────────────────────────────────────────────
+  Undocumented cross-country            Incidents take 3–5× longer to resolve
+  dependencies
+
+  Manual documentation                  Hours of senior engineer time per change
+
+  Stale architecture diagrams           Wrong decisions made on wrong data
+
+  No audit trail                        Compliance exposure
+
+  Onboarding new engineers              Weeks of tribal knowledge transfer
+  ─────────────────────────────────────────────────────────────────────────────
+
+  This is not a technology problem.
+  It is a business continuity and cost problem.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 3 — THE SOLUTION
+────────────────────────────────────────────────────────────────────────────────
+
+An automated documentation pipeline that turns raw CMDB data into living
+architecture documentation — without human effort.
+
+                        IBM MQ CMDB data
+                               ↓
+                  14-step automation pipeline
+                               ↓
+          Confluence pages — always current, always accurate
+
+  • Runs on demand or on a schedule
+  • Zero manual input after initial configuration
+  • Publishes directly to Confluence — where your engineers already work
+  • Covers the full estate: applications, queue managers, gateways,
+    cross-country associations
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 4 — WHAT IT PRODUCES
+────────────────────────────────────────────────────────────────────────────────
+
+One pipeline run generates:
+
+  1. Application Architecture Pages
+     Per-application documentation: queue managers, channels, remote queues,
+     local queues, with topology diagrams
+
+  2. Cross-Country Asset Association Map
+     37 countries × 383+ associations mapped automatically
+     (source → target via pattern matching)
+
+  3. Consolidated CMDB Report
+     Full estate overview in a single Confluence page
+
+  4. SVG Architecture Diagrams
+     Auto-generated and auto-published alongside each page
+
+  All of this in minutes.
+  Previously: never done, or weeks of manual work.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 5 — HOW IT WORKS
+────────────────────────────────────────────────────────────────────────────────
+
+Three inputs. One output.
+
+  INPUT:
+    ├── CMDB asset export      (all MQ assets)
+    ├── Country code reference (37 countries)
+    └── Pattern rules          (how queues map across countries)
+
+  OUTPUT:
+    └── Confluence documentation — published automatically
+
+  The pipeline is intelligent:
+  • It recognises naming conventions
+  • It infers relationships between assets
+  • It groups assets by application, country, and function
+  • No manual mapping required — the architecture is derived from the data
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 6 — THE CROSS-COUNTRY ASSOCIATION (UNIQUE CAPABILITY)
+────────────────────────────────────────────────────────────────────────────────
+
+This is something no tool was doing before.
+
+The system automatically identifies how a queue in the UK maps to its
+counterpart in Argentina, France, or Kuwait — by pattern recognition:
+
+  • ORG_AP_COUNTRYUK  ↔  ORG_AP_COUNTRYFR     (two-character code variant)
+  • ORG.ARGENTINA     ↔  ORG.KUWAIT            (full country name variant)
+
+Why this matters:
+
+  • Cross-country messaging failures are the hardest to diagnose
+  • Without this map, no engineer knows what they should be looking at
+  • With it, root cause identification drops from hours to minutes
+  • 37 countries covered. Automatically. Every time.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 7 — VALUE ADDED FOR ENTERPRISE ARCHITECTURE
+────────────────────────────────────────────────────────────────────────────────
+
+EA teams typically spend significant time:
+  • Manually maintaining architecture diagrams
+  • Interviewing engineers to understand current state
+  • Producing reports for governance and audit
+  • Keeping Confluence pages up to date
+
+With this solution:
+
+  Activity                          Before              After
+  ─────────────────────────────────────────────────────────────────────────────
+  Document 1 application            2–4 hours           Automatic
+  Full estate documentation         Not done            < 10 minutes
+  Post-change update                Manual, often       On-demand re-run
+                                    skipped
+  Cross-country mapping             Not available       Always current
+  Audit-ready evidence              Weeks to compile    Already published
+  ─────────────────────────────────────────────────────────────────────────────
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 8 — STRATEGIC VALUE
+────────────────────────────────────────────────────────────────────────────────
+
+This solution shifts documentation from a cost centre to a strategic asset.
+
+  1. VISIBILITY      Leadership can see the full MQ estate for the first time
+
+  2. AGILITY         Changes are documented the same day, not months later
+
+  3. RISK REDUCTION  Dependencies are explicit, not tribal knowledge
+
+  4. COMPLIANCE      Documentation exists, is accurate, and is timestamped
+
+  5. TALENT          New engineers onboard faster; experienced engineers spend
+                     their time on value-adding work, not explaining plumbing
+
+  This is the foundation for any future modernisation or migration programme.
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  You cannot move what you cannot see.                                    │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 9 — RETURN ON INVESTMENT
+────────────────────────────────────────────────────────────────────────────────
+
+Conservative estimates:
+
+  Metric                                          Estimate
+  ─────────────────────────────────────────────────────────────────
+  Engineer hours saved per documentation cycle    40–80 hours
+  Cycles per year                                 12+ (monthly)
+  Average senior engineer cost per hour           £[X] / $[X]
+  Annual saving                                   Significant
+  ─────────────────────────────────────────────────────────────────
+
+Plus:
+  • Faster incident resolution (MTTR reduction)
+  • Reduced compliance preparation effort
+  • Reduced onboarding cost for new engineers
+  • Prevented decisions made on stale diagrams
+
+  The pipeline pays for itself on the first run.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 10 — WHAT'S NEXT
+────────────────────────────────────────────────────────────────────────────────
+
+  Phase 1 — COMPLETE
+  ───────────────────
+  Automated documentation for the full MQ CMDB estate:
+  applications, queue managers, cross-country associations, diagrams
+
+  Phase 2 — PROPOSED
+  ───────────────────
+  • Scheduled daily runs with change detection
+    (highlight what changed since the last run)
+  • Integration with ServiceNow / ITSM
+    (documentation linked directly to CIs)
+  • Alerting on undocumented assets
+    (new queues with no owner flagged automatically)
+
+  Phase 3 — VISION
+  ─────────────────
+  • Extend the same pattern to other middleware estates
+    (Kafka, RabbitMQ, MuleSoft)
+  • Feed output into a queryable architecture catalogue
+  • Serve as the authoritative source of truth for integration architecture
+
+
+────────────────────────────────────────────────────────────────────────────────
+SLIDE 11 — THE ASK
+────────────────────────────────────────────────────────────────────────────────
+
+What we need from leadership:
+
+  1. Endorsement to run the pipeline in production on a schedule
+  2. Confluence space access for automated publishing
+  3. Visibility — share the output with architecture governance and audit teams
+
+What you get:
+
+  • A living, accurate picture of your MQ estate
+  • Documented architecture that supports modernisation decisions
+  • Compliance-ready evidence at zero ongoing cost
+
+
+────────────────────────────────────────────────────────────────────────────────
+Q&A — ANTICIPATED QUESTIONS AND ANSWERS
+────────────────────────────────────────────────────────────────────────────────
+
+Q: "How accurate is it?"
+A: It reads directly from the CMDB — as accurate as your CMDB data. We also
+   have validation steps that flag anomalies and empty fields.
+
+Q: "What if the naming conventions change?"
+A: Pattern rules are configurable. One line change covers a new convention
+   across the entire estate instantly.
+
+Q: "Does this replace the architects?"
+A: No — it removes the toil. Architects spend their time making decisions,
+   not documenting what already exists.
+
+Q: "How long did this take to build?"
+A: [Your answer] — and the same approach extends to any structured data source.
+
+Q: "What is the maintenance cost?"
+A: Near zero. The pipeline is self-contained and runs unattended.
+   Configuration changes are rare and straightforward.
+
+Q: "Who owns it?"
+A: [Your team] — it lives alongside the CMDB tooling already in place.
+
+Q: "Is it secure?"
+A: Yes. It reads data — it does not write to the CMDB. Confluence publishing
+   uses a personal access token scoped to the relevant space only.
+
+Q: "Can it cover other systems beyond MQ?"
+A: The architecture is generic. Any system that exposes a structured asset
+   export can be processed with the same pipeline.
+
+
+────────────────────────────────────────────────────────────────────────────────
+EXECUTIVE SUMMARY — ONE PARAGRAPH
+────────────────────────────────────────────────────────────────────────────────
+
+We built a pipeline that turns raw CMDB data into current, accurate, published
+architecture documentation automatically — giving us visibility into our IBM MQ
+estate that we have never had before. It maps applications, queue managers,
+channels, and cross-country asset associations across 37 countries, generates
+topology diagrams, and publishes everything to Confluence without human effort.
+The result is living documentation that supports faster incident resolution,
+reduces compliance risk, accelerates engineer onboarding, and provides the
+foundation for any future modernisation programme — at negligible ongoing cost.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CLOSING STATEMENT
+────────────────────────────────────────────────────────────────────────────────
+
+   "For the first time, we can answer the question:
+    what does our MQ estate actually look like?
+
+    Not as it was six months ago.
+    Not as someone thinks it is.
+    As it is — right now."
+
+================================================================================
