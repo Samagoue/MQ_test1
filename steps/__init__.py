@@ -16,7 +16,6 @@ from steps.s00_cleanup              import OutputCleanupStep
 from steps.s01_load_data            import LoadDataStep
 from steps.s01_5_asset_association  import AssetAssociationStep
 from steps.s02_mq_processing        import MQProcessingStep
-from steps.s03_convert_json         import ConvertJsonStep
 from steps.s04_hierarchy_mashup     import HierarchyMashupStep
 from steps.s05_change_detection     import ChangeDetectionStep
 from steps.s06_topology_diagram     import TopologyDiagramStep
@@ -37,7 +36,6 @@ PIPELINE_STEPS = [
     LoadDataStep(),
     AssetAssociationStep(),
     MQProcessingStep(),
-    ConvertJsonStep(),
     HierarchyMashupStep(),
     ChangeDetectionStep(),
     TopologyDiagramStep(),

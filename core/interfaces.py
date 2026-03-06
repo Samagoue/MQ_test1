@@ -39,16 +39,17 @@ class PipelineContext:
     diagrams_only: bool = False
 
     # ── Populated by processing steps ────────────────────────────────────
-    raw_data:            List[Dict]     = field(default_factory=list)
-    directorate_data:    Dict           = field(default_factory=dict)
-    enriched_data:       Dict           = field(default_factory=dict)
-    changes:             Optional[Dict] = None
-    baseline_time_str:   Optional[str]  = None
-    gateway_analytics:   Optional[Dict] = None
-    augmentation_records: List[Dict]   = field(default_factory=list)
+    raw_data:                List[Dict]     = field(default_factory=list)
+    directorate_data:        Dict           = field(default_factory=dict)
+    enriched_data:           Dict           = field(default_factory=dict)
+    host_directorate_map:    Dict           = field(default_factory=dict)
+    alias_to_canonical:      Dict           = field(default_factory=dict)
+    changes:                 Optional[Dict] = None
+    baseline_time_str:       Optional[str]  = None
+    gateway_analytics:       Optional[Dict] = None
     consolidated_report_file: Optional[Path] = None
-    summary_stats:       Dict           = field(default_factory=dict)
-    pdf_generated:       bool           = False
+    summary_stats:           Dict           = field(default_factory=dict)
+    pdf_generated:           bool           = False
 
     # ── Error accumulator (non-fatal) ────────────────────────────────────
     errors: List[str] = field(default_factory=list)

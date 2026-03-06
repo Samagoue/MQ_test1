@@ -14,8 +14,13 @@ class MQProcessingStep(PipelineStep):
 
     def run(self, ctx: PipelineContext) -> None:
         from processors.mqmanager_processor import MQManagerProcessor
-        processor = MQManagerProcessor(ctx.raw_data, ctx.config.FIELD_MAPPINGS)
-        ctx.directorate_data = processor.process_assets()
+
+        processor = MQManagerProcessor(
+            ctx.raw_data,
+            ctx.config.FIELD_MAPPINGS,
+            ctx.host_directorate_map,
+            ctx.alias_to_canonical,
+        )
+        directorate_data = processor.process_assets()
         processor.print_stats()
-        # Preserve augmentation records for step 10.5
-        ctx.augmentation_records = getattr(processor, "augmentation_records", [])
+        ctx.directorate_data = processor.convert_to_json(directorate_data)

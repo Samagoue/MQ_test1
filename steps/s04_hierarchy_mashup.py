@@ -20,6 +20,8 @@ class HierarchyMashupStep(PipelineStep):
             ctx.config.ORG_HIERARCHY_JSON,
             ctx.config.APP_TO_QMGR_JSON,
             ctx.config.GATEWAYS_JSON,
+            ctx.config.HOSTS_JSON,
+            ctx.config.ROUTERS_JSON,
         )
         ctx.enriched_data = mashup.enrich_data(ctx.directorate_data)
         save_json(ctx.enriched_data, ctx.config.PROCESSED_JSON)
