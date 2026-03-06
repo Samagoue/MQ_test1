@@ -16,7 +16,7 @@ class ApplicationDiagramStep(PipelineStep):
         from generators.application_diagram_generator import ApplicationDiagramGenerator
 
         gen = ApplicationDiagramGenerator(ctx.enriched_data, ctx.config)
-        count = gen.generate_all(ctx.config.APPLICATION_DIAGRAMS_DIR, workers=ctx.workers)
+        count = gen.generate_all(ctx.config.APPLICATION_DIAGRAMS_DIR)
         if count > 0:
             logger.info(f"  Generated {count} application diagrams in {ctx.config.APPLICATION_DIAGRAMS_DIR}")
             if not ctx.pdf_generated:

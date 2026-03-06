@@ -37,7 +37,6 @@ class ConsolidatedReportStep(PipelineStep):
             output_file=consolidated_file,
             current_timestamp=ctx.timestamp,
             baseline_timestamp=ctx.baseline_time_str,
-            data_augmentation=augmentation_data,
         )
         ctx.consolidated_report_file = consolidated_file
         logger.info(f"  Consolidated report: {consolidated_file}")

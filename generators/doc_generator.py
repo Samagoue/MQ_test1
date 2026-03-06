@@ -431,11 +431,22 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
     def build_footer(self) -> List[str]:
         return self._generate_footer()
 
+    def generate(self, output_file: Path) -> bool:
+        """Override to assemble the document without _sanitize_table_rows()."""
+        doc = []
+        doc.extend(self.build_header())
+        doc.extend(self.build_toc())
+        for _, section_fn in self.get_sections():
+            doc.extend(section_fn())
+        doc.extend(self.build_footer())
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(doc))
+        logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
+        return True
+
     def generate_confluence_markup(self, output_file: Path) -> bool:
         """Compatibility alias — delegates to generate()."""
-        result = self.generate(output_file)
-        logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
-        return result
+        return self.generate(output_file)
 
     def _generate_document_header(self) -> List[str]:
         """Generate document control header."""

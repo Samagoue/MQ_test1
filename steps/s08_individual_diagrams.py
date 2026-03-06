@@ -16,7 +16,7 @@ class IndividualDiagramStep(PipelineStep):
         from generators.graphviz_individual import IndividualDiagramGenerator
 
         gen = IndividualDiagramGenerator(ctx.directorate_data, ctx.config)
-        count = gen.generate_all(ctx.config.INDIVIDUAL_DIAGRAMS_DIR, workers=ctx.workers)
+        count = gen.generate_all(ctx.config.INDIVIDUAL_DIAGRAMS_DIR)
         if count > 0:
             logger.info(f"  Generated {count} individual MQ manager diagrams in {ctx.config.INDIVIDUAL_DIAGRAMS_DIR}")
             if not ctx.pdf_generated:
