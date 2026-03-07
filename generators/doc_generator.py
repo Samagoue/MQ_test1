@@ -223,7 +223,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
                 if mqmgr_info.get('is_gateway'):
                     patterns['gateway_mediated'] += total_connections
-                    if total_connections > 10:
+                    if total_connections > self.THRESHOLDS['hub_connections']:
                         patterns['hub_and_spoke'].append({
                             'gateway': mqmgr_name,
                             'connections': total_connections,
@@ -232,9 +232,9 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                 else:
                     patterns['direct_integration'] += total_connections
 
-                if outbound_count > 8:
+                if outbound_count > self.THRESHOLDS['high_fanout']:
                     patterns['high_fanout'].append({'mqmgr': mqmgr_name, 'count': outbound_count})
-                if inbound_count > 8:
+                if inbound_count > self.THRESHOLDS['high_fanin']:
                     patterns['high_fanin'].append({'mqmgr': mqmgr_name, 'count': inbound_count})
 
         return patterns
@@ -321,7 +321,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         # Complexity risks
         for mqmgr, score in self.integration_patterns['complexity_score'].items():
-            if score > 25:
+            if score > self.THRESHOLDS['complexity_risk_high']:
                 risks['high'].append({
                     'id': f'CMPLX-{mqmgr[:8].upper()}',
                     'category': 'Integration Complexity',
@@ -329,7 +329,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
                     'impact': 'Difficult to maintain, test, and troubleshoot',
                     'mitigation': 'Consider decomposition or introducing mediation layer'
                 })
-            elif score > 15:
+            elif score > self.THRESHOLDS['complexity_risk_medium']:
                 risks['medium'].append({
                     'id': f'CMPLX-{mqmgr[:8].upper()}',
                     'category': 'Integration Complexity',
@@ -340,7 +340,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         # Concentration risk
         for dept_info in self.capabilities['by_department'].values():
-            if dept_info['mqmanagers'] > 20:
+            if dept_info['mqmanagers'] > self.THRESHOLDS['dept_concentration']:
                 risks['medium'].append({
                     'id': 'CONC-DEPT',
                     'category': 'Concentration Risk',
@@ -422,12 +422,51 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         return maturity
 
     # ------------------------------------------------------------------ #
+    #  Risk / pattern thresholds — change here to tune all analysis
+    # ------------------------------------------------------------------ #
+
+    THRESHOLDS = {
+        'hub_connections':        10,  # gateway is a hub if total connections exceed this
+        'high_fanout':             8,  # mqmgr flagged high fan-out if outbound exceeds this
+        'high_fanin':              8,  # mqmgr flagged high fan-in if inbound exceeds this
+        'complexity_risk_high':   25,  # complexity score → HIGH risk
+        'complexity_risk_medium': 15,  # complexity score → MEDIUM risk
+        'dept_concentration':     20,  # department mqmgr count → concentration risk
+        'hub_risk_display':       20,  # hub connection count → RED vs YELLOW lozenge
+    }
+
+    # ------------------------------------------------------------------ #
+    #  Section registry — single source of truth for title, anchor, method
+    #  Used by both get_sections() and _generate_toc()
+    # ------------------------------------------------------------------ #
+
+    SECTIONS = [
+        ("Architecture Vision",      "architecture-vision",      "_generate_architecture_vision"),
+        ("Stakeholder Analysis",     "stakeholder-analysis",     "_generate_stakeholder_analysis"),
+        ("Architecture Principles",  "architecture-principles",  "_generate_architecture_principles"),
+        ("Business Architecture",    "business-architecture",    "_generate_business_architecture"),
+        ("Data Architecture",        "data-architecture",        "_generate_data_architecture"),
+        ("Application Architecture", "application-architecture", "_generate_application_architecture"),
+        ("Technology Architecture",  "technology-architecture",  "_generate_technology_architecture"),
+        ("Integration Patterns",     "integration-patterns",     "_generate_integration_patterns"),
+        ("Gap Analysis",             "gap-analysis",             "_generate_gap_analysis"),
+        ("Risk Assessment",          "risk-assessment",          "_generate_risk_assessment"),
+        ("Architecture Roadmap",     "architecture-roadmap",     "_generate_roadmap"),
+        ("Appendices",               "appendices",               "_generate_appendices"),
+    ]
+
+    # ------------------------------------------------------------------ #
     #  Backward-compatible aliases for base class markup helpers
     # ------------------------------------------------------------------ #
 
     _styled_panel = staticmethod(ConfluenceDocGenerator.styled_panel)
     _status_lozenge = staticmethod(ConfluenceDocGenerator.status_lozenge)
     _expandable = staticmethod(ConfluenceDocGenerator.expandable)
+
+    @staticmethod
+    def _safe(value, fallback: str = " ") -> str:
+        """Return value if truthy, else fallback (prevents empty Confluence table cells)."""
+        return value or fallback
 
     # ------------------------------------------------------------------ #
     #  ConfluenceDocGenerator abstract method implementations
@@ -440,20 +479,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         return self._generate_toc()
 
     def get_sections(self) -> List[Tuple[str, Callable[[], List[str]]]]:
-        return [
-            ("Architecture Vision",      self._generate_architecture_vision),
-            ("Stakeholder Analysis",     self._generate_stakeholder_analysis),
-            ("Architecture Principles",  self._generate_architecture_principles),
-            ("Business Architecture",    self._generate_business_architecture),
-            ("Data Architecture",        self._generate_data_architecture),
-            ("Application Architecture", self._generate_application_architecture),
-            ("Technology Architecture",  self._generate_technology_architecture),
-            ("Integration Patterns",     self._generate_integration_patterns),
-            ("Gap Analysis",             self._generate_gap_analysis),
-            ("Risk Assessment",          self._generate_risk_assessment),
-            ("Architecture Roadmap",     self._generate_roadmap),
-            ("Appendices",               self._generate_appendices),
-        ]
+        return [(title, getattr(self, method)) for title, _, method in self.SECTIONS]
 
     def build_footer(self) -> List[str]:
         return self._generate_footer()
@@ -497,32 +523,37 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         return lines
 
     def _generate_toc(self) -> List[str]:
-        """Generate table of contents as a styled navigation panel."""
+        """Generate table of contents from SECTIONS registry — links stay in sync automatically."""
+        s = self.SECTIONS
+
+        def _row(i, title, anchor):
+            return f"| *{i}* | [{title}|#{anchor}] |"
+
         nav_content = [
             "{section}",
             "{column:width=50%}",
             "",
             "h5. Architecture Foundation",
-            f"| *1* | [Architecture Vision|#architecture-vision] |",
-            f"| *2* | [Stakeholder Analysis|#stakeholder-analysis] |",
-            f"| *3* | [Architecture Principles|#architecture-principles] |",
+            _row(1, s[0][0], s[0][1]),
+            _row(2, s[1][0], s[1][1]),
+            _row(3, s[2][0], s[2][1]),
             "",
             "h5. Architecture Domains",
-            f"| *4* | [Business Architecture|#business-architecture] |",
-            f"| *5* | [Data Architecture|#data-architecture] |",
-            f"| *6* | [Application Architecture|#application-architecture] |",
+            _row(4, s[3][0], s[3][1]),
+            _row(5, s[4][0], s[4][1]),
+            _row(6, s[5][0], s[5][1]),
             "{column}",
             "{column:width=50%}",
             "",
             "h5. Infrastructure & Patterns",
-            f"| *7* | [Technology Architecture|#technology-architecture] |",
-            f"| *8* | [Integration Patterns|#integration-patterns] |",
+            _row(7,  s[6][0],  s[6][1]),
+            _row(8,  s[7][0],  s[7][1]),
             "",
             "h5. Governance & Planning",
-            f"| *9*  | [Gap Analysis|#gap-analysis] |",
-            f"| *10* | [Risk Assessment|#risk-assessment] |",
-            f"| *11* | [Architecture Roadmap|#architecture-roadmap] |",
-            f"| *12* | [Appendices|#appendices] |",
+            _row(9,  s[8][0],  s[8][1]),
+            _row(10, s[9][0],  s[9][1]),
+            _row(11, s[10][0], s[10][1]),
+            _row(12, s[11][0], s[11][1]),
             "{column}",
             "{section}",
         ]
@@ -654,7 +685,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         shown_owners = {b: s for b, s in biz_owner_stats.items() if b != 'Unknown'}
         biz_table = ["||Business Owner||Department||Applications||MQ Managers||"]
         for biz_ownr, stats in sorted(shown_owners.items()):
-            dept = stats['dept'] or " "
+            dept = self._safe(stats['dept'])
             biz_table.append(f"|{biz_ownr}|{dept}|{len(stats['apps'])}|{stats['mqmgrs']}|")
 
         lines.extend(self._expandable(
@@ -787,7 +818,7 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         dept_table = ["||Department||Applications||MQ Managers||Total Queues||"]
         for dept, info in sorted(self.capabilities['by_department'].items()):
-            dept_display = dept or " "
+            dept_display = self._safe(dept)
             dept_table.append(f"|{dept_display}|{len(info['apps'])}|{info['mqmanagers']}|{info['queues']:,}|")
 
         lines.extend(self._expandable(
@@ -837,8 +868,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         ownership_table = ["||Data Domain||Owner||Primary Application(s)||"]
         for app_name, app_info in sorted_apps:
-            dept = app_info['dept'] or " "
-            biz_ownr = app_info['biz_ownr'] or " "
+            dept = self._safe(app_info['dept'])
+            biz_ownr = self._safe(app_info['biz_ownr'])
             ownership_table.append(f"|{dept}|{biz_ownr}|{app_name}|")
 
         lines.extend(self._expandable("Top 10 Data Owners by Queue Count", ownership_table))
@@ -870,8 +901,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         apps_table = ["||Application||Organization||Department||MQ Managers||Connections||Queues||"]
         for app_name, app_info in sorted_apps:
-            org = app_info['org'] or " "
-            dept = app_info['dept'] or " "
+            org = self._safe(app_info['org'])
+            dept = self._safe(app_info['dept'])
             apps_table.append(f"|{app_name}|{org}|{dept}|{len(app_info['mqmanagers'])}|{app_info['connections']}|{app_info['total_queues']}|")
 
         lines.extend(self._expandable("Top 15 Applications by Integration Complexity", apps_table))
@@ -940,8 +971,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         int_gw_table = ["||Gateway||Organization||Department||Scope||"]
         for gw in sorted(internal_gateways, key=lambda x: x['name']):
-            gw_org = gw['org'] or " "
-            gw_dept = gw['dept'] or " "
+            gw_org = self._safe(gw['org'])
+            gw_dept = self._safe(gw['dept'])
             int_gw_table.append(f"|{gw['name']}|{gw_org}|{gw_dept}|Inter-departmental|")
         if not internal_gateways:
             int_gw_table.append("|_No internal gateways configured_| | | |")
@@ -956,8 +987,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
         ext_gw_table = ["||Gateway||Organization||Department||Scope||"]
         for gw in sorted(external_gateways, key=lambda x: x['name']):
-            gw_org = gw['org'] or " "
-            gw_dept = gw['dept'] or " "
+            gw_org = self._safe(gw['org'])
+            gw_dept = self._safe(gw['dept'])
             ext_gw_table.append(f"|{gw['name']}|{gw_org}|{gw_dept}|External Partners|")
         if not external_gateways:
             ext_gw_table.append("|_No external gateways configured_| | | |")
@@ -978,8 +1009,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         router_table = ["||Router||Organization||Department||Description||"]
         for rtr in sorted(self.stats['routers'], key=lambda x: x['name']):
             desc = rtr.get('description', '') or '_No description_'
-            rtr_org = rtr['org'] or " "
-            rtr_dept = rtr['dept'] or " "
+            rtr_org = self._safe(rtr['org'])
+            rtr_dept = self._safe(rtr['dept'])
             router_table.append(f"|{rtr['name']}|{rtr_org}|{rtr_dept}|{desc}|")
         if not self.stats['routers']:
             router_table.append("|_No routers configured_| | | |")
@@ -1030,8 +1061,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
             ])
             hub_table = ["||Gateway||Scope||Connections||Risk Level||"]
             for hub in sorted(self.integration_patterns['hub_and_spoke'], key=lambda x: x['connections'], reverse=True):
-                risk = self._status_lozenge("High", "Red") if hub['connections'] > 20 else self._status_lozenge("Medium", "Yellow")
-                hub_scope = hub['scope'] or " "
+                risk = self._status_lozenge("High", "Red") if hub['connections'] > self.THRESHOLDS['hub_risk_display'] else self._status_lozenge("Medium", "Yellow")
+                hub_scope = self._safe(hub['scope'])
                 hub_table.append(f"|{hub['gateway']}|{hub_scope}|{hub['connections']}|{risk}|")
             lines.extend(self._expandable("Hub-and-Spoke Gateways", hub_table))
             lines.append("")
