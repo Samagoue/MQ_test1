@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Tuple
 from datetime import datetime
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from utils.logging_config import get_logger
 
 # Shared scripts directory (same convention as confluence_shim.py)
@@ -55,12 +56,25 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         if not isinstance(enriched_data, dict):
             raise ValueError(f"enriched_data must be a dict, got {type(enriched_data).__name__}")
         self.data = enriched_data
+
+        # Stage 1 — must run first; all later stages read self.stats
         self.stats = self._calculate_statistics()
-        self.dependencies = self._analyze_dependencies()
-        self.integration_patterns = self._identify_integration_patterns()
-        self.capabilities = self._map_business_capabilities()
-        self.risks = self._assess_risks()
-        self.maturity = self._assess_maturity()
+
+        # Stage 2 — three independent analyses; run concurrently
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            f_deps     = pool.submit(self._analyze_dependencies)
+            f_patterns = pool.submit(self._identify_integration_patterns)
+            f_caps     = pool.submit(self._map_business_capabilities)
+            self.dependencies        = f_deps.result()
+            self.integration_patterns = f_patterns.result()
+            self.capabilities        = f_caps.result()
+
+        # Stage 3 — both read stage-2 results; run concurrently
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_risks   = pool.submit(self._assess_risks)
+            f_maturity = pool.submit(self._assess_maturity)
+            self.risks   = f_risks.result()
+            self.maturity = f_maturity.result()
 
     def _calculate_statistics(self) -> Dict:
         """Calculate comprehensive statistics."""
@@ -417,7 +431,8 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         maturity['dimensions']['documentation'] = 4
 
         # Calculate overall
-        maturity['overall_level'] = round(sum(maturity['dimensions'].values()) / len(maturity['dimensions']), 1)
+        dims = maturity['dimensions']
+        maturity['overall_level'] = round(sum(dims.values()) / len(dims), 1) if dims else 0.0
 
         return maturity
 
@@ -440,19 +455,21 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
     #  Used by both get_sections() and _generate_toc()
     # ------------------------------------------------------------------ #
 
+    # Each entry: (title, anchor, method_name, toc_group)
+    # toc_group drives the column headers in _generate_toc() — add/rename sections freely.
     SECTIONS = [
-        ("Architecture Vision",      "architecture-vision",      "_generate_architecture_vision"),
-        ("Stakeholder Analysis",     "stakeholder-analysis",     "_generate_stakeholder_analysis"),
-        ("Architecture Principles",  "architecture-principles",  "_generate_architecture_principles"),
-        ("Business Architecture",    "business-architecture",    "_generate_business_architecture"),
-        ("Data Architecture",        "data-architecture",        "_generate_data_architecture"),
-        ("Application Architecture", "application-architecture", "_generate_application_architecture"),
-        ("Technology Architecture",  "technology-architecture",  "_generate_technology_architecture"),
-        ("Integration Patterns",     "integration-patterns",     "_generate_integration_patterns"),
-        ("Gap Analysis",             "gap-analysis",             "_generate_gap_analysis"),
-        ("Risk Assessment",          "risk-assessment",          "_generate_risk_assessment"),
-        ("Architecture Roadmap",     "architecture-roadmap",     "_generate_roadmap"),
-        ("Appendices",               "appendices",               "_generate_appendices"),
+        ("Architecture Vision",      "architecture-vision",      "_generate_architecture_vision",      "Architecture Foundation"),
+        ("Stakeholder Analysis",     "stakeholder-analysis",     "_generate_stakeholder_analysis",     "Architecture Foundation"),
+        ("Architecture Principles",  "architecture-principles",  "_generate_architecture_principles",  "Architecture Foundation"),
+        ("Business Architecture",    "business-architecture",    "_generate_business_architecture",    "Architecture Domains"),
+        ("Data Architecture",        "data-architecture",        "_generate_data_architecture",        "Architecture Domains"),
+        ("Application Architecture", "application-architecture", "_generate_application_architecture", "Architecture Domains"),
+        ("Technology Architecture",  "technology-architecture",  "_generate_technology_architecture",  "Infrastructure & Patterns"),
+        ("Integration Patterns",     "integration-patterns",     "_generate_integration_patterns",     "Infrastructure & Patterns"),
+        ("Gap Analysis",             "gap-analysis",             "_generate_gap_analysis",             "Governance & Planning"),
+        ("Risk Assessment",          "risk-assessment",          "_generate_risk_assessment",          "Governance & Planning"),
+        ("Architecture Roadmap",     "architecture-roadmap",     "_generate_roadmap",                  "Governance & Planning"),
+        ("Appendices",               "appendices",               "_generate_appendices",               "Governance & Planning"),
     ]
 
     # ------------------------------------------------------------------ #
@@ -479,7 +496,13 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         return self._generate_toc()
 
     def get_sections(self) -> List[Tuple[str, Callable[[], List[str]]]]:
-        return [(title, getattr(self, method)) for title, _, method in self.SECTIONS]
+        result = []
+        for title, _, method, *_ in self.SECTIONS:
+            if not hasattr(self, method):
+                logger.warning(f"SECTIONS references missing method '{method}' — skipping section '{title}'")
+                continue
+            result.append((title, getattr(self, method)))
+        return result
 
     def build_footer(self) -> List[str]:
         return self._generate_footer()
@@ -487,12 +510,6 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
     # ------------------------------------------------------------------ #
     #  Public API (backward-compatible entry point)
     # ------------------------------------------------------------------ #
-
-    def generate_confluence_markup(self, output_file: Path) -> bool:
-        """Generate comprehensive TOGAF-aligned Confluence documentation."""
-        result = self.generate(output_file)
-        logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
-        return result
 
     def _generate_document_header(self) -> List[str]:
         """Generate document control header."""
@@ -523,37 +540,38 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
         return lines
 
     def _generate_toc(self) -> List[str]:
-        """Generate table of contents from SECTIONS registry — links stay in sync automatically."""
-        s = self.SECTIONS
+        """Generate table of contents from SECTIONS registry.
 
-        def _row(i, title, anchor):
-            return f"| *{i}* | [{title}|#{anchor}] |"
+        Sections are split evenly across two columns. Group headers come from
+        the 4th element of each SECTIONS entry — adding or renaming sections
+        requires no changes here.
+        """
+        mid = len(self.SECTIONS) // 2
+        left  = self.SECTIONS[:mid]
+        right = self.SECTIONS[mid:]
+
+        def _col_lines(items, start_idx: int) -> List[str]:
+            """Emit group headers and numbered links for one column."""
+            lines: List[str] = []
+            current_group: str = ""
+            for i, (title, anchor, _, group) in enumerate(items):
+                if group != current_group:
+                    if current_group:          # blank line between groups
+                        lines.append("")
+                    lines.append(f"h5. {group}")
+                    current_group = group
+                lines.append(f"| *{start_idx + i + 1}* | [{title}|#{anchor}] |")
+            return lines
 
         nav_content = [
             "{section}",
             "{column:width=50%}",
             "",
-            "h5. Architecture Foundation",
-            _row(1, s[0][0], s[0][1]),
-            _row(2, s[1][0], s[1][1]),
-            _row(3, s[2][0], s[2][1]),
-            "",
-            "h5. Architecture Domains",
-            _row(4, s[3][0], s[3][1]),
-            _row(5, s[4][0], s[4][1]),
-            _row(6, s[5][0], s[5][1]),
+            *_col_lines(left, 0),
             "{column}",
             "{column:width=50%}",
             "",
-            "h5. Infrastructure & Patterns",
-            _row(7,  s[6][0],  s[6][1]),
-            _row(8,  s[7][0],  s[7][1]),
-            "",
-            "h5. Governance & Planning",
-            _row(9,  s[8][0],  s[8][1]),
-            _row(10, s[9][0],  s[9][1]),
-            _row(11, s[10][0], s[10][1]),
-            _row(12, s[11][0], s[11][1]),
+            *_col_lines(right, mid),
             "{column}",
             "{section}",
         ]
@@ -1299,12 +1317,24 @@ class EADocumentationGenerator(ConfluenceDocGenerator):
 
     def generate(self, output_file: Path) -> bool:
         """Override to assemble the document without _sanitize_table_rows()."""
+        sections = self.get_sections()
+
+        # Each section method only reads pre-computed self.* attributes — safe to run concurrently.
+        # Results are collected in declaration order to preserve document structure.
+        with ThreadPoolExecutor(max_workers=len(sections) or 1) as pool:
+            futures = [(name, pool.submit(fn)) for name, fn in sections]
+
         doc = []
         doc.extend(self.build_header())
         doc.extend(self.build_toc())
-        for _, section_fn in self.get_sections():
-            doc.extend(section_fn())
+        for name, future in futures:
+            try:
+                doc.extend(future.result())
+            except Exception as exc:
+                logger.error(f"Section '{name}' failed during generation: {exc}", exc_info=True)
+                doc.append(f"{{warning}}Section '{name}' could not be generated: {exc}{{warning}}")
         doc.extend(self.build_footer())
+
         with open(output_file, "w", encoding="utf-8") as f:
             f.write("\n".join(doc))
         logger.info(f"✓ EA Documentation (TOGAF-aligned) generated: {output_file}")
