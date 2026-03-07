@@ -4,14 +4,10 @@
 from typing import Dict
 from pathlib import Path
 from datetime import datetime
-<<<<<<< HEAD
-from utils.common import lighten_color
-=======
 from utils.common import lighten_color, darken_color
 from utils.logging_config import get_logger
 
 logger = get_logger("generators.graphviz_individual")
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
 
 class IndividualDiagramGenerator:
@@ -258,10 +254,6 @@ class IndividualDiagramGenerator:
                     return directorate
         return "Unknown"
  
-<<<<<<< HEAD
-    def generate_all(self, output_dir: Path) -> int:
-        """Generate all individual diagrams."""
-=======
     def generate_all(self, output_dir: Path, workers: int = None) -> int:
         """
         Generate all individual MQ manager diagrams.
@@ -291,28 +283,14 @@ class IndividualDiagramGenerator:
     def _generate_single(self, directorate: str, mqmanager: str,
                          info: Dict, output_dir: Path) -> bool:
         """Generate DOT and PDF for a single MQ manager. Thread-safe."""
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         from utils.common import sanitize_id
         from generators.graphviz_topology import GraphVizTopologyGenerator
 
-        output_dir.mkdir(parents=True, exist_ok=True)
-        count = 0
+        dot_content = self.generate_diagram(mqmanager, directorate, info)
+        safe_name = sanitize_id(mqmanager)
+        dot_file = output_dir / f"{safe_name}.dot"
+        pdf_file = output_dir / f"{safe_name}.pdf"
 
-        for directorate, mqmanagers in self.data.items():
-            for mqmanager, info in mqmanagers.items():
-                dot_content = self.generate_diagram(mqmanager, directorate, info)
-                safe_name = sanitize_id(mqmanager)
-                dot_file = output_dir / f"{safe_name}.dot"
-                pdf_file = output_dir / f"{safe_name}.pdf"
-
-                dot_file.write_text(dot_content, encoding='utf-8')
-                GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)
-                count += 1
-
-        return count
-
-<<<<<<< HEAD
-=======
         dot_file.write_text(dot_content, encoding='utf-8')
         GraphVizTopologyGenerator.generate_pdf(dot_file, pdf_file)
         return True
@@ -345,4 +323,4 @@ class IndividualDiagramGenerator:
 
         return count
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+

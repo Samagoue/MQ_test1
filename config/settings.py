@@ -318,11 +318,7 @@ class Config:
     ASSET_TYPE_REMOTE = "remote"
     ASSET_TYPE_ALIAS = "alias"
  
-<<<<<<< HEAD
-    # Role field values (SENDER / RECEIVER)
-=======
     # Role field values for MQ manager communication direction
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     ROLE_SENDER = "SENDER"
     ROLE_RECEIVER = "RECEIVER"
  

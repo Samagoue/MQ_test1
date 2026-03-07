@@ -15,8 +15,8 @@ from datetime import datetime
 from utils.file_io import load_json, save_json
 from utils.common import iter_mqmanagers
 from utils.logging_config import get_logger
+from config.settings import Config
 
-logger = get_logger("processors.change_detector")
 logger = get_logger("processors.change_detector")
 
 
@@ -207,7 +207,7 @@ class ChangeDetector:
 
     def _detect_queue_count_changes(self, current: Dict, baseline: Dict):
         """Detect significant changes in queue counts."""
-        threshold_percent = 20  # Report changes > 20%
+        threshold_percent = Config.CHANGE_THRESHOLD_PERCENT
 
         common = set(current.keys()) & set(baseline.keys())
         for name in common:

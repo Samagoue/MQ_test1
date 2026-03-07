@@ -84,11 +84,6 @@ class GatewayAnalyzer:
                 len(g.get('inbound_extra', [])) + len(g.get('outbound_extra', []))
                 for g in self.gateways.values()
             )
-            'total_gateway_connections': sum(
-                len(g.get('inbound', [])) + len(g.get('outbound', [])) +
-                len(g.get('inbound_extra', [])) + len(g.get('outbound_extra', []))
-                for g in self.gateways.values()
-            )
         }
 
     def _analyze_gateway_traffic(self):
@@ -96,15 +91,11 @@ class GatewayAnalyzer:
         for gw_name, gw_data in self.gateways.items():
             inbound = gw_data.get('inbound', []) + gw_data.get('inbound_extra', [])
             outbound = gw_data.get('outbound', []) + gw_data.get('outbound_extra', [])
-            inbound = gw_data.get('inbound', []) + gw_data.get('inbound_extra', [])
-            outbound = gw_data.get('outbound', []) + gw_data.get('outbound_extra', [])
 
-            # Count unique organizations/departments connected
             # Count unique organizations/departments connected
             connected_orgs = set()
             connected_depts = set()
 
-            for mqmgr in inbound + outbound:
             for mqmgr in inbound + outbound:
                 if mqmgr in self.all_mqmanagers:
                     connected_orgs.add(self.all_mqmanagers[mqmgr].get('Organization', ''))
@@ -117,14 +108,10 @@ class GatewayAnalyzer:
                 'inbound_connections': len(inbound),
                 'outbound_connections': len(outbound),
                 'total_connections': len(inbound) + len(outbound),
-                'inbound_connections': len(inbound),
-                'outbound_connections': len(outbound),
-                'total_connections': len(inbound) + len(outbound),
                 'connected_organizations': len(connected_orgs),
                 'connected_departments': len(connected_depts),
                 'queue_local': gw_data.get('qlocal_count', 0),
                 'queue_remote': gw_data.get('qremote_count', 0),
-                'queue_alias': gw_data.get('qalias_count', 0)
                 'queue_alias': gw_data.get('qalias_count', 0)
             }
 
@@ -338,6 +325,7 @@ def generate_gateway_report_html(analytics: Dict, output_file: Path):
 
     for gw_name, traffic in sorted(analytics['gateway_traffic'].items(), key=lambda x: x[1]['total_connections'], reverse=True):
         scope_class = traffic['scope'].lower() if traffic['scope'] else 'internal'
+        scope_badge = f'<span class="badge badge-{scope_class}">{traffic["scope"]}</span>'
         html += f"""
                 <tr>
                     <td><strong>{gw_name}</strong></td>

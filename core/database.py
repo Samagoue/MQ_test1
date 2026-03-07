@@ -59,6 +59,8 @@ class DatabaseConnection:
         try:
             cursor = self.conn.cursor()
             cursor.execute(query)
+            if cursor.description is None:
+                return [], []
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
             return columns, rows

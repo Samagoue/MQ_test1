@@ -36,13 +36,8 @@ class ApplicationDiagramGenerator:
         # Build lookup for quick access to any MQ manager's full context
         self.mqmgr_lookup = self._build_mqmgr_lookup()
 
-<<<<<<< HEAD
-        # Initialize external_notes list (populated during diagram generation)
-        self.external_notes = []
-=======
         # Note: external_notes is passed as a local list to ensure thread safety
         # during parallel diagram generation
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
     def _build_mqmgr_lookup(self) -> Dict:
         """Build a lookup dict: {UPPER_NAME: full_context}
@@ -52,19 +47,12 @@ class ApplicationDiagramGenerator:
         canonical MQ manager name.
         """
         lookup = {}
-<<<<<<< HEAD
-     
-        for org_name, org_data in self.enriched_data.items():
-            org_type = org_data.get('_org_type', 'Internal')
-            departments = org_data.get('_departments', {})
-         
-=======
 
         for org_name, org_data in self.enriched_data.items():
             org_type = org_data.get('_org_type', 'Internal')
             departments = org_data.get('_departments', {})
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+
             for dept_name, biz_owners in departments.items():
                 for biz_ownr, applications in biz_owners.items():
                     for app_name, mqmanagers in applications.items():
@@ -78,52 +66,9 @@ class ApplicationDiagramGenerator:
                                 'data': mq_data,
                                 'canonical_name': mqmgr_name
                             }
-<<<<<<< HEAD
-     
-        return lookup
- 
-    def generate_all(self, output_dir: Path) -> int:
-        """Generate diagrams for all applications."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-     
-        # Collect all applications
-        applications = self._collect_applications()
-     
-        logger.info(f"\nGenerating {len(applications)} application diagrams with full hierarchy...")
-     
-        count = 0
-        for app_info in applications:
-            app_name = app_info['application']
-            safe_name = self._sanitize_filename(app_name)
-         
-            dot_file = output_dir / f"{safe_name}.dot"
-            pdf_file = output_dir / f"{safe_name}.pdf"
-         
-            # Generate DOT content
-            dot_content = self._generate_application_diagram(app_info)
-         
-            # Save DOT file
-            dot_file.write_text(dot_content, encoding='utf-8')
-            logger.info(f"  ✓ Generated: {safe_name}.dot")
-         
-            # Generate PDF if GraphViz available
-            if shutil.which('dot'):
-                try:
-                    subprocess.run(
-                        ['dot', '-Tpdf', str(dot_file), '-o', str(pdf_file)],
-                        check=True,
-                        capture_output=True
-                    )
-                    logger.info(f"  ✓ Generated: {safe_name}.pdf")
-                except subprocess.CalledProcessError:
-                    logger.warning(f"PDF generation failed for {safe_name}")
-         
-            count += 1
-     
-=======
 
         return lookup
- 
+
     def generate_all(self, output_dir: Path, workers: int = None) -> int:
         """
         Generate diagrams for all applications.
@@ -194,7 +139,7 @@ class ApplicationDiagramGenerator:
                     app_name = futures[future]['application']
                     logger.warning(f"  ⚠ Diagram generation failed for {app_name}: {exc}")
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+
         return count
  
     def _collect_applications(self) -> List[Dict]:
@@ -254,11 +199,7 @@ class ApplicationDiagramGenerator:
         # Group contexts by organization -> department -> biz_ownr -> application
         hierarchy_map = self._organize_contexts_hierarchically(connected_contexts, focus_org, focus_dept, focus_biz_ownr, app_name)
      
-<<<<<<< HEAD
-        # Generate hierarchy
-=======
         # Generate hierarchy (external_notes is local for thread safety)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         all_connections = []
         self.external_notes = []  # Reset for this diagram
         lines.append(self._generate_hierarchy(hierarchy_map, focus_org, focus_dept, focus_biz_ownr, app_name, all_connections))
@@ -290,23 +231,6 @@ class ApplicationDiagramGenerator:
         differ in casing from canonical names in the lookup.
         """
         connected = {}
-<<<<<<< HEAD
-     
-        for mqmgr_name, mq_data in mqmanagers.items():
-            # Add this MQ manager itself
-            if mqmgr_name not in connected:
-                connected[mqmgr_name] = self.mqmgr_lookup.get(mqmgr_name, {})
-         
-            # Add all connected MQ managers
-            for target in mq_data.get('outbound', []):
-                if target not in connected and target in self.mqmgr_lookup:
-                    connected[target] = self.mqmgr_lookup[target]
-         
-            for source in mq_data.get('inbound', []):
-                if source not in connected and source in self.mqmgr_lookup:
-                    connected[source] = self.mqmgr_lookup[source]
-     
-=======
 
         for mqmgr_name, mq_data in mqmanagers.items():
             # Add this MQ manager itself
@@ -325,50 +249,28 @@ class ApplicationDiagramGenerator:
                 if skey not in connected and skey in self.mqmgr_lookup:
                     connected[skey] = self.mqmgr_lookup[skey]
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+
         return connected
  
     def _organize_contexts_hierarchically(self, contexts: Dict, focus_org: str, focus_dept: str,
                                          focus_biz_ownr: str, focus_app: str) -> Dict:
         """Organize contexts into hierarchical structure."""
         hierarchy = {}
-<<<<<<< HEAD
-     
-        for mqmgr_name, context in contexts.items():
-=======
 
         for upper_key, context in contexts.items():
             # Use canonical name (original casing) for display
             mqmgr_name = context.get('canonical_name', upper_key)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
             org = context.get('organization', 'Unknown')
             dept = context.get('department', 'Unknown')
             biz_ownr = context.get('biz_ownr', 'Unknown')
             app = context.get('application', 'No Application')
-<<<<<<< HEAD
-         
-=======
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+
             if org not in hierarchy:
                 hierarchy[org] = {
                     'org_type': context.get('org_type', 'Internal'),
                     'departments': {}
                 }
-<<<<<<< HEAD
-         
-            if dept not in hierarchy[org]['departments']:
-                hierarchy[org]['departments'][dept] = {}
-         
-            if biz_ownr not in hierarchy[org]['departments'][dept]:
-                hierarchy[org]['departments'][dept][biz_ownr] = {}
-         
-            if app not in hierarchy[org]['departments'][dept][biz_ownr]:
-                hierarchy[org]['departments'][dept][biz_ownr][app] = {}
-         
-            hierarchy[org]['departments'][dept][biz_ownr][app][mqmgr_name] = context.get('data', {})
-     
-=======
 
             if dept not in hierarchy[org]['departments']:
                 hierarchy[org]['departments'][dept] = {}
@@ -381,7 +283,7 @@ class ApplicationDiagramGenerator:
 
             hierarchy[org]['departments'][dept][biz_ownr][app][mqmgr_name] = context.get('data', {})
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+
         return hierarchy
  
     def _generate_hierarchy(self, hierarchy_map: Dict, focus_org: str, focus_dept: str,
@@ -399,11 +301,7 @@ class ApplicationDiagramGenerator:
             else:
                 colors = self.config.INTERNAL_ORG_COLORS[0]
          
-<<<<<<< HEAD
-            org_id = self._sanitize_id(org_name)
-=======
             org_id = sanitize_id(org_name)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
             # Create gradient fill for organization
             org_bg = colors["org_bg"]
@@ -543,11 +441,7 @@ class ApplicationDiagramGenerator:
     def _generate_mqmanager_node(self, mqmgr_name: str, mq_data: Dict, colors: Dict,
                                  is_focus: bool, indent: str, all_connections: List) -> str:
         """Generate MQ manager node."""
-<<<<<<< HEAD
-        qm_id = self._sanitize_id(mqmgr_name)
-=======
         qm_id = sanitize_id(mqmgr_name)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
         qlocal = mq_data.get('qlocal_count', 0)
         qremote = mq_data.get('qremote_count', 0)
@@ -654,12 +548,8 @@ class ApplicationDiagramGenerator:
             # Connection FROM note box TO the MQ manager (top position)
             connection = f"    {note_id} -> {qm_id} [style=dashed color=\"#ffc107\" penwidth=2 constraint=false headport=n tailport=s]"
 
-<<<<<<< HEAD
-            self.external_notes.append({'box_def': box_def, 'connection': connection})
-=======
             if external_notes is not None:
                 external_notes.append({'box_def': box_def, 'connection': connection})
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
         # Outbound note positioned on BOTTOM with tailport=s headport=n
         if is_focus and outbound_extra:
@@ -682,12 +572,8 @@ class ApplicationDiagramGenerator:
             # Connection FROM the MQ manager TO note box (bottom position)
             connection = f"    {qm_id} -> {note_id} [style=dashed color=\"#17a2b8\" penwidth=2 constraint=false tailport=s headport=n]"
 
-<<<<<<< HEAD
-            self.external_notes.append({'box_def': box_def, 'connection': connection})
-=======
             if external_notes is not None:
                 external_notes.append({'box_def': box_def, 'connection': connection})
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
         return ''.join(node_lines)
  
@@ -895,17 +781,6 @@ class ApplicationDiagramGenerator:
         </table>>
     ]"""
  
-<<<<<<< HEAD
-    def _sanitize_id(self, name: str) -> str:
-        """Sanitize name for GraphViz ID."""
-        import re
-        sanitized = re.sub(r'[^\w]', '_', name)
-        if sanitized and sanitized[0].isdigit():
-            sanitized = '_' + sanitized
-        return sanitized or 'node'
- 
-=======
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _sanitize_filename(self, name: str) -> str:
         """Sanitize application name for filename."""
         import re

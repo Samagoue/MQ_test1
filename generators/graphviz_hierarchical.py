@@ -54,9 +54,7 @@ class HierarchicalGraphVizGenerator:
 
         # Generate color mapping for departments
         self.department_colors = self._generate_department_color_mapping()
- 
-<<<<<<< HEAD
-=======
+
     def _build_canonical_index(self):
         """Build UPPER -> canonical name mapping for all MQ managers."""
         for org_name, org_data in self.data.items():
@@ -67,7 +65,7 @@ class HierarchicalGraphVizGenerator:
                         for mqmgr_name in mqmanagers:
                             self._canonical_names[mqmgr_name.upper()] = mqmgr_name
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
+
     def generate(self) -> str:
         """Generate complete DOT content."""
         sections = [
@@ -106,17 +104,6 @@ class HierarchicalGraphVizGenerator:
     ]
 """
  
-<<<<<<< HEAD
-    def _sanitize_id(self, name: str) -> str:
-        """Sanitize name for GraphViz ID."""
-        import re
-        sanitized = re.sub(r'[^\w]', '_', name)
-        if sanitized and sanitized[0].isdigit():
-            sanitized = '_' + sanitized
-        return sanitized or 'node'
-
-=======
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _generate_department_color_mapping(self) -> Dict[str, Dict[str, str]]:
         """Generate unique colors for each department across all organizations."""
         from config.settings import generate_department_colors
@@ -346,11 +333,7 @@ class HierarchicalGraphVizGenerator:
  
     def _generate_mqmanager_node(self, mqmanager: str, mq_data: Dict, colors: Dict, indent: str) -> str:
         """Generate MQ manager node - EXACT format from example."""
-<<<<<<< HEAD
-        qm_id = self._sanitize_id(mqmanager)
-=======
         qm_id = sanitize_id(mqmanager)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
      
         qlocal = mq_data.get('qlocal_count', 0)
         qremote = mq_data.get('qremote_count', 0)
@@ -363,11 +346,7 @@ class HierarchicalGraphVizGenerator:
         inbound_count = len(inbound) + len(inbound_extra)
         outbound_count = len(outbound) + len(outbound_extra)
      
-<<<<<<< HEAD
-        # Store lookup info
-=======
         # Store lookup info (canonical name as key + uppercase alias for resolution)
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         self.mqmgr_lookup[mqmanager] = {
             'Organization': mq_data.get('Organization', ''),
             'Department': mq_data.get('Department', ''),
@@ -375,15 +354,10 @@ class HierarchicalGraphVizGenerator:
             'Application': mq_data.get('Application', ''),
             'Org_Type': mq_data.get('Org_Type', 'Internal')
         }
-<<<<<<< HEAD
-     
-        # Store all connections (both regular and extra)
-=======
         self._canonical_names[mqmanager.upper()] = mqmanager
 
         # Store all connections — resolve targets to canonical names so
         # edge IDs match the node IDs created from hierarchy keys.
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
         for target in outbound:
             canonical_target = self._canonical_names.get(target.upper(), target)
             self.all_connections.append({'from': mqmanager, 'to': canonical_target})

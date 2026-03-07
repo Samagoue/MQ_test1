@@ -28,12 +28,6 @@ def safe_print(text: str):
         # Fallback: replace problematic characters
         safe_text = text.encode('ascii', 'replace').decode('ascii')
         print(safe_text)
-    try:
-        print(text)
-    except UnicodeEncodeError:
-        # Fallback: replace problematic characters
-        safe_text = text.encode('ascii', 'replace').decode('ascii')
-        print(safe_text)
 
 
 def sanitize_id(name: str) -> str:
@@ -212,7 +206,6 @@ def validate_file_exists(filepath, file_type: str = "file") -> bool:
     path = Path(filepath)
     if not path.exists():
         safe_print(f"✗ ERROR: {file_type} not found: {filepath}")
-        safe_print(f"✗ ERROR: {file_type} not found: {filepath}")
         return False
     return True
 
@@ -233,7 +226,6 @@ def ensure_directory(dirpath) -> bool:
         Path(dirpath).mkdir(parents=True, exist_ok=True)
         return True
     except Exception as e:
-        safe_print(f"✗ ERROR: Could not create directory {dirpath}: {e}")
         safe_print(f"✗ ERROR: Could not create directory {dirpath}: {e}")
         return False
 

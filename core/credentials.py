@@ -92,14 +92,19 @@ class CredentialsManager:
         logger.info(f"=== Setup credentials for '{profile}' ===")
        
         host = input("Database host: ")
-        port = input("Database port (default 3306): ") or "3306"
+        port_str = input("Database port (default 3306): ") or "3306"
+        try:
+            port = int(port_str)
+        except ValueError:
+            logger.error(f"Invalid port number: '{port_str}'. Must be an integer.")
+            return
         database = input("Database name: ")
         user = input("Database user: ")
         password = getpass.getpass("Database password: ")
-       
+
         credentials = {
             'host': host,
-            'port': int(port),
+            'port': port,
             'database': database,
             'user': user,
             'password': password

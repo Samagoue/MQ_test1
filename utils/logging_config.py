@@ -13,9 +13,15 @@ file is not available (e.g. development on a different machine).
 import os
 import sys
 
-_SHARED_SCRIPTS_DIR = r"C:/Users/BABED2P/Documents/WORKSPACE/Scripts"
-if _SHARED_SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, _SHARED_SCRIPTS_DIR)
+_CANDIDATE_DIRS = list(filter(None, [
+    os.environ.get("SHARED_SCRIPTS_DIR"),            # explicit override (any platform)
+    r"C:\Users\BABED2P\Documents\WORKSPACE\Scripts",  # Windows dev machine
+    "/data/app/Scripts",                              # production server
+]))
+# Add in reverse so the highest-priority entry ends up at sys.path[0]
+for _dir in reversed(_CANDIDATE_DIRS):
+    if _dir not in sys.path:
+        sys.path.insert(0, _dir)
 
 try:
     from logging_config import setup_logging, get_logger, cleanup_old_logs, EmojiFormatter, DEFAULT_BANNER_CONFIG, generate_ascii_art  # noqa: F401

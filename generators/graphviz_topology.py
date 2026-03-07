@@ -1,9 +1,5 @@
 
-<<<<<<< HEAD
-"""Full MQ topology diagram generator."""
-=======
 """Full MQ topology diagram generator with directorate-level clustering."""
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
 import subprocess
 import shutil
@@ -13,10 +9,7 @@ from utils.common import lighten_color, darken_color
 from utils.logging_config import get_logger
 
 logger = get_logger("generators.graphviz_topology")
-<<<<<<< HEAD
-=======
 
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
 
 class GraphVizTopologyGenerator:
     """Generate complete MQ topology diagrams."""
@@ -26,35 +19,6 @@ class GraphVizTopologyGenerator:
         self.config = config
         self.mqmanager_to_directorate = self._build_index()
 
-<<<<<<< HEAD
-    def _lighten_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Lighten a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = min(255, int(r + (255 - r) * factor))
-        g = min(255, int(g + (255 - g) * factor))
-        b = min(255, int(b + (255 - b) * factor))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
-
-    def _darken_color(self, hex_color: str, factor: float = 0.15) -> str:
-        """Darken a hex color by a factor for gradient effects."""
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        r = max(0, int(r * (1 - factor)))
-        g = max(0, int(g * (1 - factor)))
-        b = max(0, int(b * (1 - factor)))
-
-        return f'#{r:02x}{g:02x}{b:02x}'
- 
-=======
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _build_index(self) -> Dict[str, str]:
         """Build MQmanager to directorate lookup."""
         index = {}
@@ -92,54 +56,6 @@ class GraphVizTopologyGenerator:
     edge [fontname="Helvetica" fontsize=10 color="#5d6d7e" arrowsize=0.8]
 """
  
-<<<<<<< HEAD
-    def _generate_minimap(self) -> str:
-        """Generate overview minimap (Top-Left)."""
-        from utils.common import sanitize_id
-     
-        lines = [
-            "    /* ==========================",
-            "       MINI-MAP (Top-Left)",
-            "    ========================== */",
-            "    subgraph cluster_minimap {",
-            '        label="Overview"',
-            '        style="rounded,filled"',
-            '        fillcolor="#ffffff"',
-            '        color="#d0d8e0"',
-            "        fontsize=12",
-            "        margin=18",
-            ""
-        ]
-     
-        sorted_dirs = sorted(self.data.keys())
-     
-        # Create minimap nodes with proper formatting
-        for idx, directorate in enumerate(sorted_dirs):
-            colors = self.config.DIRECTORATE_COLORS[idx % len(self.config.DIRECTORATE_COLORS)]
-            safe_name = sanitize_id(directorate).lower()
-            lines.append(f'        mini_{safe_name}   [shape=box style="rounded,filled" fillcolor="{colors["org_bg"]}" label="{directorate}" fontsize=10]')
-     
-        # Create minimap connections
-        if len(sorted_dirs) > 1:
-            lines.append("")
-            # First connection is solid blue
-            if len(sorted_dirs) >= 2:
-                from_node = sanitize_id(sorted_dirs[0]).lower()
-                to_node = sanitize_id(sorted_dirs[1]).lower()
-                lines.append(f'        mini_{from_node} -> mini_{to_node}       [color="#5dade2" arrowsize=0.5]')
-         
-            # Remaining connections are dashed red
-            for i in range(len(sorted_dirs) - 1):
-                if i > 0:  # Skip first connection, already added
-                    from_node = sanitize_id(sorted_dirs[i]).lower()
-                    to_node = sanitize_id(sorted_dirs[i + 1]).lower()
-                    lines.append(f'        mini_{from_node} -> mini_{to_node} [color="#ec7063" arrowsize=0.5 style=dashed]')
-     
-        lines.extend(["    }", ""])
-        return "\n".join(lines)
- 
-=======
->>>>>>> 26908ee35c34607795d9ff5f6c386648adce8912
     def _generate_directorates(self) -> str:
         """Generate all directorate clusters with gradient fills."""
         from utils.common import sanitize_id
