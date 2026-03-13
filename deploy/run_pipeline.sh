@@ -478,6 +478,35 @@ MQ CMDB Automation System"
     fi
 }
 
+sync_repo() {
+    log_step "Syncing repository with GitLab master..."
+
+    local sync_script="$MQCMDB_HOME/tools/sync_repo.py"
+
+    if [ ! -f "$sync_script" ]; then
+        log_warn "sync_repo.py not found — skipping git sync"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would run: python3 $sync_script --dry-run"
+        return 0
+    fi
+
+    python3 "$sync_script" \
+        --repo-path "$MQCMDB_HOME" \
+        --branch master \
+        --log-file "$MQCMDB_HOME/logs/sync_repo.log"
+
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        log_error "Git sync failed — aborting pipeline to avoid running stale code"
+        exit 1
+    fi
+
+    log_info "Repository sync complete"
+}
+
 cleanup() {
     # Cleanup function called on exit
     local exit_code=$?
@@ -516,6 +545,7 @@ main() {
     # Run pipeline steps
     check_prerequisites
     setup_environment
+    sync_repo
     cleanup_old_logs
     run_database_export
     run_orchestrator
