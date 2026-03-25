@@ -481,7 +481,7 @@ MQ CMDB Automation System"
 sync_repo() {
     log_step "Syncing repository with GitLab master..."
 
-    local sync_script="$MQCMDB_HOME/tools/sync_repo.py"
+    local sync_script="$MQCMDB_HOME/utils/sync_repo.py"
 
     if [ ! -f "$sync_script" ]; then
         log_warn "sync_repo.py not found — skipping git sync"

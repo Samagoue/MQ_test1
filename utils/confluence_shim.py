@@ -45,37 +45,55 @@ _client_cache: Optional[Any] = None
 
 def _load_config() -> Dict[str, Any]:
     """
-    Load Confluence configuration.
+    Load Confluence configuration using a three-layer merge (highest priority wins):
 
-    Priority:
-        1. Environment variables (CONFLUENCE_BASE_URL, CONFLUENCE_PAT, etc.)
-        2. config/confluence_config.json
+        Layer 1 (lowest):  <SHARED_SCRIPTS_DIR>/confluence_config.json
+                           Connection settings: base_url, personal_access_token,
+                           verify_ssl, certificate_path, timeout.
+                           Lives in /data/app/Scripts (Linux) or
+                           C:\\Users\\BABED2P\\Documents\\WORKSPACE\\Scripts (Windows).
+
+        Layer 2:           config/confluence_config.json  (this project)
+                           Project settings: page_id, page_title, space_key,
+                           diagram_pages, input_pages, etc.
+                           Any key here overrides the shared config.
+
+        Layer 3 (highest): Environment variables
+                           CONFLUENCE_BASE_URL, CONFLUENCE_PAT, etc.
 
     Returns:
         Configuration dictionary (shallow copy of cache — safe to read, not mutate)
 
     Raises:
-        ValueError: If config file contains invalid JSON or required fields are missing
-        FileNotFoundError: If config file is missing and env vars are not set
+        ValueError: If a config file contains invalid JSON or required fields are missing
     """
     global _config_cache
 
     if _config_cache is not None:
         return dict(_config_cache)
 
-    config = {}
-
-    # Load from JSON file if it exists
-    if _CONFIG_FILE.exists():
+    def _read_json(path: Path) -> Dict[str, Any]:
+        if not path.exists():
+            return {}
         try:
-            with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
-                config = json.load(f)
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            # Strip comment keys (keys starting with _)
+            return {k: v for k, v in raw.items() if not k.startswith("_")}
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"confluence_config.json contains invalid JSON at position {e.pos}: {e.msg}"
+                f"{path.name} contains invalid JSON at position {e.pos}: {e.msg}"
             ) from e
 
-    # Environment variable overrides (take precedence)
+    # Layer 1: shared connection config
+    shared_cfg = _read_json(Path(_SHARED_SCRIPTS_DIR) / "confluence_config.json")
+
+    # Layer 2: project-specific config (pages, diagram mappings, input pages)
+    project_cfg = _read_json(_CONFIG_FILE)
+
+    # Merge: project overrides shared for any overlapping keys
+    config = {**shared_cfg, **project_cfg}
+
+    # Layer 3: environment variable overrides
     env_mappings = {
         "CONFLUENCE_BASE_URL": "base_url",
         "CONFLUENCE_PAT": "personal_access_token",
@@ -93,12 +111,14 @@ def _load_config() -> Dict[str, Any]:
     if not config.get("base_url"):
         raise ValueError(
             "Confluence base_url is required. "
-            "Set CONFLUENCE_BASE_URL env var or configure config/confluence_config.json"
+            f"Set CONFLUENCE_BASE_URL env var or add it to "
+            f"{_SHARED_SCRIPTS_DIR}/confluence_config.json"
         )
     if not config.get("personal_access_token"):
         raise ValueError(
             "Confluence personal_access_token is required. "
-            "Set CONFLUENCE_PAT env var or configure config/confluence_config.json"
+            f"Set CONFLUENCE_PAT env var or add it to "
+            f"{_SHARED_SCRIPTS_DIR}/confluence_config.json"
         )
 
     _config_cache = config

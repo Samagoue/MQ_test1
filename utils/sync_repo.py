@@ -7,7 +7,7 @@ Designed to be called at the start of run_pipeline.sh so the server
 always executes the latest code before the pipeline begins.
 
 Usage:
-    python3 tools/sync_repo.py [options]
+    python3 utils/sync_repo.py [options]
 
 Options:
     --repo-path PATH    Path to the git repository (default: project root)
@@ -62,7 +62,7 @@ def setup_logging(log_file: Path) -> logging.Logger:
 # ---------------------------------------------------------------------------
 
 def run_git(args: list, cwd: Path, logger: logging.Logger) -> subprocess.CompletedProcess:
-    """Run a git command and return the result. Raises on non-zero exit."""
+    """Run a git command and return the result."""
     cmd = ["git"] + args
     logger.debug("Running: %s", " ".join(cmd))
     result = subprocess.run(
@@ -118,10 +118,24 @@ def sync(repo_path: Path, branch: str, remote: str, dry_run: bool, logger: loggi
     remote_sha = get_sha(f"{remote}/{branch}", repo_path, logger)
 
     if not local_sha or not remote_sha:
-        logger.error(
-            "Could not resolve SHAs — local HEAD=%s, %s/%s=%s",
-            local_sha, remote, branch, remote_sha,
-        )
+        # Show available remote branches to help diagnose the issue
+        branches = run_git(["branch", "-r"], repo_path, logger)
+        if branches.returncode == 0 and branches.stdout.strip():
+            logger.error("Available remote branches:\n%s", branches.stdout.strip())
+        else:
+            logger.error("No remote branches found — has 'git fetch' been run before?")
+
+        if not local_sha:
+            head_ref = run_git(["symbolic-ref", "--short", "HEAD"], repo_path, logger)
+            logger.error(
+                "Could not resolve local HEAD — current branch: %s",
+                head_ref.stdout.strip() if head_ref.returncode == 0 else "unknown",
+            )
+        if not remote_sha:
+            logger.error(
+                "Could not resolve %s/%s — check --branch matches the remote branch name above",
+                remote, branch,
+            )
         return 1
 
     logger.info("Local  HEAD : %s", short(local_sha))
@@ -163,7 +177,7 @@ def sync(repo_path: Path, branch: str, remote: str, dry_run: bool, logger: loggi
 # ---------------------------------------------------------------------------
 
 def parse_args():
-    # Default repo path: two levels up from this script (tools/ -> project root)
+    # Default repo path: two levels up from this script (utils/ -> project root)
     default_repo = Path(__file__).resolve().parent.parent
 
     parser = argparse.ArgumentParser(
