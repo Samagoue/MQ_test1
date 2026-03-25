@@ -1,25 +1,32 @@
 {
-    "_comment": "Confluence API configuration. Copy this file and fill in your values. This file is gitignored.",
-    "base_url": "https://confluence.example.com",
-    "personal_access_token": "",
-    "certificate_path": "",
-    "verify_ssl": true,
-    "page_id": "",
-    "page_title": "IBM MQ Integration Architecture",
+    "_comment": "MQ CMDB project-specific Confluence settings.",
+    "_comment_shared": "Connection settings (base_url, personal_access_token, verify_ssl, certificate_path, timeout) are loaded from the shared scripts directory: /data/app/Scripts/confluence_config.json (Linux) or C:\\Users\\BABED2P\\Documents\\WORKSPACE\\Scripts\\confluence_config.json (Windows).",
+
     "space_key": "",
-    "timeout": 30,
+    "_comment_space_key": "Confluence space key for MQ pages (e.g. 'ARCH'). Overrides the default space in the shared config.",
+
+    "page_id": "",
+    "_comment_page_id": "Page ID of the main EA documentation page. Find it in the Confluence URL: ?pageId=XXXXXX",
+
+    "page_title": "IBM MQ Integration Architecture",
+
     "attach_diagrams": true,
+
     "consolidated_report_page_id": "",
     "_comment_consolidated": "Parent page under which the 'MQ CMDB Consolidated Report' child page is created. Defaults to page_id if blank.",
+
     "publish_app_docs": true,
     "app_docs_parent_page_id": "",
+
     "publish_asset_associations": true,
     "asset_association_parent_page_name": "",
     "_comment_asset_association": "Parent page for the Asset Associations child page. Set the application name here — the script resolves it to a page ID at runtime via get_page_by_title(). Use asset_association_parent_page_id instead if you already know the ID (faster, skips the lookup).",
     "asset_association_parent_page_id": "",
+
     "diagram_pages": {
         "_comment_1": "Map application names to their Confluence page IDs for SVG diagram attachment."
     },
+
     "input_pages": {
         "_comment": "Map input file names to Confluence pages. Each page should contain a single table. Headers become JSON keys.",
         "app_to_qmgr": {
