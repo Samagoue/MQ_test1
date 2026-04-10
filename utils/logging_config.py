@@ -1,27 +1,10 @@
+# -*- coding: utf-8 -*-
+"""Logging re-exports via ea_shared (single source of truth in shared scripts)."""
 
-"""Logging configuration - re-exports from shared scripts directory.
+from ea_shared import setup_logging, get_logger, cleanup_old_logs  # noqa: F401
 
-The actual implementation lives in a shared scripts directory (configured
-via the SHARED_SCRIPTS_DIR environment variable) so it can be reused
-across multiple projects. This module adds that path and re-exports all
-public symbols so existing imports continue to work.
-
-Falls back to the local copy (logging_config_original.py) if the shared
-file is not available (e.g. development on a different machine).
-"""
-
-import os
-import sys
-
-_SHARED_SCRIPTS_DIR = r"C:/Users/BABED2P/Documents/WORKSPACE/Scripts"
-if _SHARED_SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, _SHARED_SCRIPTS_DIR)
-
+# Additional symbols that some callers import
 try:
-    from logging_config import setup_logging, get_logger, cleanup_old_logs, EmojiFormatter, DEFAULT_BANNER_CONFIG, generate_ascii_art  # noqa: F401
+    from logging_config import EmojiFormatter, DEFAULT_BANNER_CONFIG, generate_ascii_art  # noqa: F401
 except ImportError:
-    # Fallback to local copy when shared path is not available
-    from utils.logging_config_original import setup_logging, get_logger, cleanup_old_logs, EmojiFormatter, DEFAULT_BANNER_CONFIG, generate_ascii_art  # noqa: F401
-
-
-
+    pass

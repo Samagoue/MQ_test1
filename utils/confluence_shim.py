@@ -19,19 +19,13 @@ Usage:
 """
 
 import os
-import sys
 import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from utils.logging_config import get_logger
+from ea_shared import ConfluenceClient, get_logger, SCRIPTS_ROOT as _SCRIPTS_ROOT
 
 logger = get_logger("utils.confluence_shim")
-
-# Shared scripts directory (same convention as logging_config.py)
-_SHARED_SCRIPTS_DIR = os.environ.get("SHARED_SCRIPTS_DIR", "/data/app/Scripts")
-if _SHARED_SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, _SHARED_SCRIPTS_DIR)
 
 # Resolve paths relative to project root
 _PROJECT_ROOT = Path(__file__).parent.parent
@@ -85,7 +79,7 @@ def _load_config() -> Dict[str, Any]:
             ) from e
 
     # Layer 1: shared connection config
-    shared_cfg = _read_json(Path(_SHARED_SCRIPTS_DIR) / "confluence_config.json")
+    shared_cfg = _read_json(_SCRIPTS_ROOT / "confluence_config.json")
 
     # Layer 2: project-specific config (pages, diagram mappings, input pages)
     project_cfg = _read_json(_CONFIG_FILE)
@@ -112,13 +106,13 @@ def _load_config() -> Dict[str, Any]:
         raise ValueError(
             "Confluence base_url is required. "
             f"Set CONFLUENCE_BASE_URL env var or add it to "
-            f"{_SHARED_SCRIPTS_DIR}/confluence_config.json"
+            f"{_SCRIPTS_ROOT}/confluence_config.json"
         )
     if not config.get("personal_access_token"):
         raise ValueError(
             "Confluence personal_access_token is required. "
             f"Set CONFLUENCE_PAT env var or add it to "
-            f"{_SHARED_SCRIPTS_DIR}/confluence_config.json"
+            f"{_SCRIPTS_ROOT}/confluence_config.json"
         )
 
     _config_cache = config
@@ -128,7 +122,6 @@ def _load_config() -> Dict[str, Any]:
 def _get_client():
     """Return a cached ConfluenceClient and the current config."""
     global _client_cache
-    from confluence_client import ConfluenceClient
 
     config = _load_config()
 

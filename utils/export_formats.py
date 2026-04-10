@@ -8,7 +8,6 @@ Supports exporting diagrams and data to multiple formats:
 - Excel (XLSX) reports
 """
 
-import subprocess
 import shutil
 import re
 from pathlib import Path
@@ -16,6 +15,7 @@ from typing import Dict, List
 from datetime import datetime
 from utils.common import iter_mqmanagers
 from utils.logging_config import get_logger
+from ea_shared import render_dot as _render_dot
 
 
 logger = get_logger("export_formats")
@@ -43,7 +43,7 @@ def _select_layout_engine(dot_file: Path, layout_engine: str = None) -> str:
 
 def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str = None) -> bool:
     """
-    Export GraphViz DOT file to SVG format.
+    Export GraphViz DOT file to SVG format with interactive post-processing.
 
     Args:
         dot_file: Path to DOT file
@@ -56,32 +56,29 @@ def export_dot_to_svg(dot_file: Path, svg_file: Path = None, layout_engine: str 
     if svg_file is None:
         svg_file = dot_file.with_suffix('.svg')
 
-    # Check if dot command exists
     if not shutil.which('dot') and not shutil.which('sfdp'):
-        logger.warning("⚠ GraphViz not found - cannot generate SVG")
+        logger.warning("GraphViz not found - cannot generate SVG")
+        return False
+
+    if _render_dot is None:
+        logger.warning("render_dot not available - falling back to no-op")
         return False
 
     try:
-        # Select appropriate layout engine
         engine = _select_layout_engine(dot_file, layout_engine)
-
-        subprocess.run(
-            [engine, '-Tsvg', str(dot_file), '-o', str(svg_file)],
-            check=True,
-            capture_output=True,
-            text=True
+        dot_source = dot_file.read_text(encoding='utf-8')
+        paths = _render_dot(
+            dot_source,
+            out_dir=svg_file.parent,
+            stem=svg_file.stem,
+            formats=("svg",),
+            engine=engine,
+            interactive=True,
+            project="MQ CMDB",
         )
-
-        # Post-process SVG to remove underlines from hyperlinks
-        _remove_svg_link_underlines(svg_file)
-
-        logger.info(f"✓ SVG generated: {svg_file}")
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"✗ SVG generation failed: {e.stderr}")
-        return False
+        return "svg" in paths
     except Exception as e:
-        logger.error(f"✗ SVG generation failed: {e}")
+        logger.error("SVG generation failed: %s", e)
         return False
 
 
@@ -137,28 +134,29 @@ def export_dot_to_png(dot_file: Path, png_file: Path = None, dpi: int = 150, lay
     if png_file is None:
         png_file = dot_file.with_suffix('.png')
 
-    # Check if dot command exists
     if not shutil.which('dot') and not shutil.which('sfdp'):
-        logger.warning("⚠ GraphViz not found - cannot generate PNG")
+        logger.warning("GraphViz not found - cannot generate PNG")
+        return False
+
+    if _render_dot is None:
+        logger.warning("render_dot not available - falling back to no-op")
         return False
 
     try:
-        # Select appropriate layout engine
         engine = _select_layout_engine(dot_file, layout_engine)
-
-        subprocess.run(
-            [engine, '-Tpng', f'-Gdpi={dpi}', str(dot_file), '-o', str(png_file)],
-            check=True,
-            capture_output=True,
-            text=True
+        dot_source = dot_file.read_text(encoding='utf-8')
+        paths = _render_dot(
+            dot_source,
+            out_dir=png_file.parent,
+            stem=png_file.stem,
+            formats=("png",),
+            engine=engine,
+            interactive=False,
+            project="MQ CMDB",
         )
-        logger.info(f"✓ PNG generated: {png_file}")
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"✗ PNG generation failed: {e.stderr}")
-        return False
+        return "png" in paths
     except Exception as e:
-        logger.error(f"✗ PNG generation failed: {e}")
+        logger.error("PNG generation failed: %s", e)
         return False
 
 
